@@ -1,0 +1,111 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Heliotherm Heat Pump Setup",
+                "description": "Configure your Heliotherm heat pump connection.",
+                "data": {
+                    "host": "Host",
+                    "port": "Port",
+                    "timeout": "Timeout (seconds)",
+                    "scan_interval": "Scan Interval (seconds)"
+                },
+                "data_description": {
+                    "host": "IP address or hostname of the TCP/serial server",
+                    "port": "TCP port number (default: 9999)",
+                    "timeout": "Connection timeout in seconds",
+                    "scan_interval": "How often to poll for data (in seconds)"
+                }
+            },
+            "write_protection": {
+                "title": "Write Protection",
+                "description": "{warning}",
+                "data": {
+                    "write_enabled": "Enable writes to heat pump"
+                },
+                "data_description": {
+                    "write_enabled": "Check to allow changing heat pump settings"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Failed to connect to the heat pump. Please check the host, port, and network connection.",
+            "unknown": "An unexpected error occurred. Please check the logs for details."
+        },
+        "abort": {
+            "already_configured": "This heat pump is already configured."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Ht HA Options",
+                "description": "Configure which parameters to expose.",
+                "data": {
+                    "selected_params": "Selected Parameters"
+                },
+                "data_description": {
+                    "selected_params": "Select the parameters you want to expose as entities"
+                }
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "temp_aussen": {
+                "name": "Outdoor Temperature"
+            },
+            "temp_brauchwasser": {
+                "name": "Hot Water Temperature"
+            },
+            "temp_vorlauf": {
+                "name": "Flow Temperature"
+            },
+            "temp_ruecklauf": {
+                "name": "Return Temperature"
+            }
+        },
+        "binary_sensor": {
+            "stoerung": {
+                "name": "Fault Status"
+            },
+            "heizkreispumpe": {
+                "name": "Heating Circuit Pump"
+            },
+            "verdichter": {
+                "name": "Compressor"
+            },
+            "warmwasservorrang": {
+                "name": "Hot Water Priority"
+            }
+        },
+        "number": {
+            "hkr_soll_raum": {
+                "name": "Room Setpoint"
+            },
+            "ww_normaltemp": {
+                "name": "Hot Water Normal Temperature"
+            }
+        },
+        "select": {
+            "betriebsart": {
+                "name": "Operating Mode",
+                "state": {
+                    "Off": "Off",
+                    "Heating": "Heating",
+                    "Cooling": "Cooling",
+                    "Hot Water": "Hot Water",
+                    "Heating + Cooling": "Heating + Cooling",
+                    "Auto": "Auto",
+                    "Emergency": "Emergency",
+                    "Standby": "Standby"
+                }
+            }
+        },
+        "switch": {
+            "write_protection": {
+                "name": "Write Protection"
+            }
+        }
+    }
+}

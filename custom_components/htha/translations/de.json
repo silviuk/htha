@@ -1,0 +1,111 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Heliotherm Wärmepumpe Einrichtung",
+                "description": "Konfigurieren Sie die Verbindung zu Ihrer Heliotherm Wärmepumpe.",
+                "data": {
+                    "host": "Host",
+                    "port": "Port",
+                    "timeout": "Zeitüberschreitung (Sekunden)",
+                    "scan_interval": "Abfrageintervall (Sekunden)"
+                },
+                "data_description": {
+                    "host": "IP-Adresse oder Hostname des TCP/Seriell-Servers",
+                    "port": "TCP-Portnummer (Standard: 9999)",
+                    "timeout": "Verbindungs-Timeout in Sekunden",
+                    "scan_interval": "Wie oft Daten abgefragt werden sollen (in Sekunden)"
+                }
+            },
+            "write_protection": {
+                "title": "Schreibschutz",
+                "description": "{warning}",
+                "data": {
+                    "write_enabled": "Schreiben in Wärmepumpe aktivieren"
+                },
+                "data_description": {
+                    "write_enabled": "Aktivieren, um Änderungen an Wärmepumpeneinstellungen zu erlauben"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Verbindung zur Wärmepumpe fehlgeschlagen. Bitte überprüfen Sie Host, Port und Netzwerkverbindung.",
+            "unknown": "Ein unerwarteter Fehler ist aufgetreten. Bitte überprüfen Sie die Protokolle für Details."
+        },
+        "abort": {
+            "already_configured": "Diese Wärmepumpe ist bereits konfiguriert."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Ht HA Optionen",
+                "description": "Konfigurieren Sie, welche Parameter angezeigt werden sollen.",
+                "data": {
+                    "selected_params": "Ausgewählte Parameter"
+                },
+                "data_description": {
+                    "selected_params": "Wählen Sie die Parameter aus, die als Entitäten angezeigt werden sollen"
+                }
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "temp_aussen": {
+                "name": "Außentemperatur"
+            },
+            "temp_brauchwasser": {
+                "name": "Warmwassertemperatur"
+            },
+            "temp_vorlauf": {
+                "name": "Vorlauftemperatur"
+            },
+            "temp_ruecklauf": {
+                "name": "Rücklauftemperatur"
+            }
+        },
+        "binary_sensor": {
+            "stoerung": {
+                "name": "Störungsstatus"
+            },
+            "heizkreispumpe": {
+                "name": "Heizkreispumpe"
+            },
+            "verdichter": {
+                "name": "Verdichter"
+            },
+            "warmwasservorrang": {
+                "name": "Warmwasservorrang"
+            }
+        },
+        "number": {
+            "hkr_soll_raum": {
+                "name": "Raumsolltemperatur"
+            },
+            "ww_normaltemp": {
+                "name": "Warmwasser Normaltemperatur"
+            }
+        },
+        "select": {
+            "betriebsart": {
+                "name": "Betriebsart",
+                "state": {
+                    "Off": "Aus",
+                    "Heating": "Heizen",
+                    "Cooling": "Kühlen",
+                    "Hot Water": "Warmwasser",
+                    "Heating + Cooling": "Heizen + Kühlen",
+                    "Auto": "Automatik",
+                    "Emergency": "Notbetrieb",
+                    "Standby": "Standby"
+                }
+            }
+        },
+        "switch": {
+            "write_protection": {
+                "name": "Schreibschutz"
+            }
+        }
+    }
+}

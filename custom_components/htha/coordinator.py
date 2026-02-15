@@ -1,0 +1,215 @@
+"""Data update coordinator for the Ht HA integration."""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from typing import TYPE_CHECKING
+
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+
+from htheatpump import AioHtHeatpump, HtParams
+from htheatpump.htparams import HtParamValueType
+
+from .const import DOMAIN
+
+if TYPE_CHECKING:
+    from . import HtHAConfigEntry
+
+_LOGGER = logging.getLogger(__name__)
+
+
+class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
+    """Coordinator for Ht HA integration.
+
+    Manages the connection to the heat pump and polls for parameter values.
+    """
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        config_entry: HtHAConfigEntry,
+        host: str,
+        port: int,
+        timeout: int,
+        scan_interval: int,
+        selected_params: list[str],
+    ) -> None:
+        """Initialize the coordinator.
+
+        Args:
+            hass: Home Assistant instance
+            config_entry: Config entry instance
+            host: TCP host address
+            port: TCP port number
+            timeout: Connection timeout in seconds
+            scan_interval: Polling interval in seconds
+            selected_params: List of parameter names to poll
+        """
+        super().__init__(
+            hass,
+            _LOGGER,
+            name=DOMAIN,
+            config_entry=config_entry,
+            update_interval=asyncio.timedelta(seconds=scan_interval),
+        )
+
+        self.host = host
+        self.port = port
+        self.timeout = timeout
+        self.selected_params = selected_params
+        self._heatpump: AioHtHeatpump | None = None
+        self._connected = False
+
+        # Separate parameters by type for efficient querying
+        self._mp_params: list[str] = []
+        self._sp_params: list[str] = []
+        self._categorize_params()
+
+    def _categorize_params(self) -> None:
+        """Categorize parameters into MP (fast query) and SP types."""
+        for param_name in self.selected_params:
+            if param_name in HtParams:
+                param = HtParams[param_name]
+                if param.dp_type == "MP":
+                    self._mp_params.append(param_name)
+                else:
+                    self._sp_params.append(param_name)
+            else:
+                _LOGGER.warning("Unknown parameter: %s", param_name)
+
+    @property
+    def heatpump(self) -> AioHtHeatpump | None:
+        """Return the heat pump instance."""
+        return self._heatpump
+
+    @property
+    def is_connected(self) -> bool:
+        """Return whether we have an active connection."""
+        return self._connected
+
+    async def _connect(self) -> None:
+        """Establish connection to the heat pump."""
+        if self._heatpump is None:
+            self._heatpump = AioHtHeatpump(
+                url=f"tcp://{self.host}:{self.port}",
+                timeout=self.timeout,
+            )
+
+        if not self._connected:
+            try:
+                self._heatpump.open_connection()
+                await self._heatpump.connect_async()
+                await self._heatpump.login_async()
+                self._connected = True
+                _LOGGER.info(
+                    "Connected to heat pump at %s:%s", self.host, self.port
+                )
+            except Exception as ex:
+                self._connected = False
+                _LOGGER.error("Failed to connect to heat pump: %s", ex)
+                raise
+
+    async def _disconnect(self) -> None:
+        """Disconnect from the heat pump."""
+        if self._heatpump is not None and self._connected:
+            try:
+                await self._heatpump.logout_async()
+                _LOGGER.info("Disconnected from heat pump")
+            except Exception as ex:
+                _LOGGER.warning("Error during disconnect: %s", ex)
+            finally:
+                self._connected = False
+
+    async def _async_update_data(self) -> dict[str, HtParamValueType]:
+        """Fetch data from the heat pump.
+
+        Returns:
+            Dictionary mapping parameter names to their values.
+        """
+        data: dict[str, HtParamValueType] = {}
+
+        try:
+            # Ensure we're connected
+            if not self._connected:
+                await self._connect()
+
+            if self._heatpump is None:
+                raise UpdateFailed("Heat pump instance not initialized")
+
+            # Query MP parameters using fast_query_async for efficiency
+            if self._mp_params:
+                try:
+                    mp_values = await self._heatpump.fast_query_async(*self._mp_params)
+                    data.update(mp_values)
+                except Exception as ex:
+                    _LOGGER.error("Failed to query MP parameters: %s", ex)
+                    # Don't raise here, try to get SP params too
+
+            # Query SP parameters using regular query_async
+            if self._sp_params:
+                try:
+                    sp_values = await self._heatpump.query_async(*self._sp_params)
+                    data.update(sp_values)
+                except Exception as ex:
+                    _LOGGER.error("Failed to query SP parameters: %s", ex)
+
+            # Disconnect after each poll to allow other clients to connect
+            # The heat pump has limited connection slots
+            await self._disconnect()
+
+            if not data:
+                raise UpdateFailed("No data received from heat pump")
+
+            _LOGGER.debug("Retrieved %d parameter values", len(data))
+            return data
+
+        except UpdateFailed:
+            raise
+        except Exception as ex:
+            self._connected = False
+            raise UpdateFailed(f"Error communicating with heat pump: {ex}") from ex
+
+    async def async_set_param(self, name: str, value: HtParamValueType) -> HtParamValueType:
+        """Set a parameter value on the heat pump.
+
+        Args:
+            name: Parameter name
+            value: Value to set
+
+        Returns:
+            The actual value set (may differ from requested value)
+
+        Raises:
+            UpdateFailed: If communication fails
+        """
+        try:
+            # Ensure we're connected
+            if not self._connected:
+                await self._connect()
+
+            if self._heatpump is None:
+                raise UpdateFailed("Heat pump instance not initialized")
+
+            result = await self._heatpump.set_param_async(name, value)
+            _LOGGER.info("Set parameter %s to %s (result: %s)", name, value, result)
+
+            # Disconnect after write
+            await self._disconnect()
+
+            # Update local data
+            self.data[name] = result
+            self.async_update_listeners()
+
+            return result
+
+        except Exception as ex:
+            self._connected = False
+            raise UpdateFailed(f"Failed to set parameter {name}: {ex}") from ex
+
+    async def async_shutdown(self) -> None:
+        """Shutdown the coordinator."""
+        await self._disconnect()
+        self._heatpump = None
+        await super().async_shutdown()
