@@ -88,12 +88,30 @@ connection: &htheatpump
 
 ### HACS (Recommended)
 
+#### Option 1: Default HACS Repository (If Published)
+
 1. Open HACS in Home Assistant
 2. Go to "Integrations"
 3. Click the "+" button
 4. Search for "Ht HA"
 5. Click "Download"
 6. Restart Home Assistant
+
+#### Option 2: Add as Custom Repository
+
+If the integration is not yet in the default HACS store, you can add it as a custom repository:
+
+1. Open HACS in Home Assistant
+2. Go to **Integrations**
+3. Click the **three dots** menu (top right) and select **Custom repositories**
+4. In the **Repository** field, enter: `https://github.com/silviuk/htha`
+5. In the **Category** dropdown, select **Integration**
+6. Click **Add**
+7. Close the custom repositories dialog
+8. Click the **"+"** button to add a new integration
+9. Search for "Ht HA" (it should now appear in the list)
+10. Click **Download**
+11. Restart Home Assistant
 
 ### Manual Installation
 
@@ -257,6 +275,60 @@ Contributions are welcome! Please feel free to submit a pull request.
 - Use type hints where appropriate
 - Add docstrings to functions and classes
 - Write tests for new functionality
+
+## Publishing to HACS
+
+To make this integration available through HACS, follow these steps:
+
+### Requirements
+
+1. **Repository Structure**: Ensure your repository follows the HACS format:
+   - Integration code must be in `custom_components/<domain>/` directory
+   - A valid [`manifest.json`](custom_components/htha/manifest.json) file is required
+   - A `README.md` file is required
+
+2. **Manifest Requirements**: The [`manifest.json`](custom_components/htha/manifest.json) must include:
+   - `domain`: The integration domain (e.g., "htha")
+   - `name`: Display name
+   - `documentation`: Link to documentation
+   - `issue_tracker`: Link to issue tracker
+   - `codeowners`: List of GitHub usernames
+   - `requirements`: Python dependencies
+
+### Submitting to HACS
+
+#### Option 1: Default HACS Repository (Recommended)
+
+1. Ensure your repository meets all [HACS requirements](https://hacs.xyz/docs/publish/start)
+2. Add your repository to the [HACS default repository list](https://hacs.xyz/docs/publish/include):
+   - Fork the [hacs/default repository](https://github.com/hacs/default)
+   - Add your repository URL to the `repositories` list
+   - Submit a pull request
+
+#### Option 2: Custom Repository (For Testing/Private Use)
+
+Users can add your repository as a custom repository:
+1. Repository URL: `https://github.com/silviuk/htha`
+2. Category: Integration
+
+### HACS Validation Checklist
+
+Before submitting, verify:
+
+- [ ] Repository has a valid `README.md`
+- [ ] [`manifest.json`](custom_components/htha/manifest.json) is valid JSON and contains required fields
+- [ ] Integration has a config flow (`"config_flow": true` in manifest)
+- [ ] All required files are present (`__init__.py`, `manifest.json`, etc.)
+- [ ] Version is properly set in manifest
+- [ ] Documentation link in manifest points to valid URL
+- [ ] Issue tracker link in manifest points to valid URL
+
+### Useful Links
+
+- [HACS Documentation](https://hacs.xyz/)
+- [Publishing to HACS](https://hacs.xyz/docs/publish/start)
+- [HACS Default Repository Requirements](https://hacs.xyz/docs/publish/include)
+- [Integration Quality Scale](https://developers.home-assistant.io/docs/integration_quality_scale_index/)
 
 ## License
 
