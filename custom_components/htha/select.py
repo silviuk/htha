@@ -11,7 +11,12 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from htheatpump import HtParams
 
-from .const import CONF_WRITE_ENABLED, OPERATING_MODES, PARAM_SELECT_METADATA
+from .const import (
+    CONF_WRITE_ENABLED,
+    OPERATING_MODES,
+    PARAM_SELECT_METADATA,
+    PARAM_TRANSLATION_KEYS,
+)
 from .coordinator import HtHACoordinator
 from .entity import HtHASelectEntity
 from . import HtHAConfigEntry
@@ -65,10 +70,13 @@ async def async_setup_entry(
         # Get metadata for this parameter
         metadata = PARAM_SELECT_METADATA.get(param_name, {})
 
+        # Get translation key for this parameter
+        translation_key = PARAM_TRANSLATION_KEYS.get(param_name)
+
         # Create entity description
         description = SelectEntityDescription(
             key=param_name,
-            name=param_name,
+            translation_key=translation_key,
             icon=metadata.get("icon", "mdi:home-automation"),
             options=metadata.get("options", list(OPERATING_MODES.values())),
         )

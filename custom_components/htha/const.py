@@ -71,19 +71,43 @@ PARAM_CATEGORIES: Final[dict[str, list[str]]] = {
 DEFAULT_PARAMS: Final[list[str]] = [
     # Temperatures
     "Temp. Aussen",
+    "Temp. Aussen verzoegert",
     "Temp. Brauchwasser",
     "Temp. Vorlauf",
     "Temp. Ruecklauf",
+    "Temp. EQ_Eintritt",
+    "Temp. EQ_Austritt",
+    "Temp. Sauggas",
+    "Temp. Frischwasser_Istwert",
+    "Temp. Verdampfung",
+    "Temp. Kondensation",
+    "Temp. Heissgas",
+    # Pressures
+    "Niederdruck (bar)",
+    "Hochdruck (bar)",
     # Status
     "Heizkreispumpe",
+    "EQ Pumpe (Ventilator)",
+    "Zirkulationspumpe WW",
     "Verdichter",
     "Stoerung",
     "Warmwasservorrang",
+    "Hauptschalter",
+    "FWS Stroemungsschalter",
     # Setpoints
     "HKR Soll_Raum",
     "WW Normaltemp.",
+    "WW Minimaltemp.",
+    "HKR RLT Soll_oHG (Heizkurve)",
+    "HKR RLT Soll_0 (Heizkurve)",
+    "HKR RLT Soll_uHG (Heizkurve)",
     # Operating mode
     "Betriebsart",
+    # Statistics
+    "BSZ Verdichter Schaltungen",
+    "BSZ HKP Betriebsstunden",
+    "BSZ EQ Betriebsstunden",
+    "BSZ WWV Betriebsstunden",
 ]
 
 # Operating mode mapping for select entity
@@ -492,4 +516,70 @@ PARAM_SELECT_METADATA: Final[dict[str, dict]] = {
         "icon": "mdi:home-automation",
         "options": list(OPERATING_MODES.values()),
     },
+}
+
+# Translation key mapping for entity names
+# Maps German parameter names to valid translation keys [a-z0-9_]+
+PARAM_TRANSLATION_KEYS: Final[dict[str, str]] = {
+    # Temperatures
+    "Temp. Aussen": "temp_aussen",
+    "Temp. Aussen verzoegert": "temp_aussen_verzoegert",
+    "Temp. Brauchwasser": "temp_brauchwasser",
+    "Temp. Vorlauf": "temp_vorlauf",
+    "Temp. Ruecklauf": "temp_ruecklauf",
+    "Temp. EQ_Eintritt": "temp_eq_eintritt",
+    "Temp. EQ_Austritt": "temp_eq_austritt",
+    "Temp. Sauggas": "temp_sauggas",
+    "Temp. Frischwasser_Istwert": "temp_frischwasser_istwert",
+    "Temp. Verdampfung": "temp_verdampfung",
+    "Temp. Kondensation": "temp_kondensation",
+    "Temp. Heissgas": "temp_heissgas",
+    # Pressures
+    "Niederdruck (bar)": "niederdruck",
+    "Hochdruck (bar)": "hochdruck",
+    # Status (binary sensors)
+    "Stoerung": "stoerung",
+    "Heizkreispumpe": "heizkreispumpe",
+    "EQ Pumpe (Ventilator)": "eq_pumpe_ventilator",
+    "Warmwasservorrang": "warmwasservorrang",
+    "Zirkulationspumpe WW": "zirkulationspumpe_ww",
+    "Verdichter": "verdichter",
+    "Hauptschalter": "hauptschalter",
+    "FWS Stroemungsschalter": "fws_stroemungsschalter",
+    # Setpoints (number entities)
+    "HKR Soll_Raum": "hkr_soll_raum",
+    "WW Normaltemp.": "ww_normaltemp",
+    "WW Minimaltemp.": "ww_minimaltemp",
+    "HKR RLT Soll_oHG (Heizkurve)": "hkr_rlt_soll_ohg",
+    "HKR RLT Soll_0 (Heizkurve)": "hkr_rlt_soll_0",
+    "HKR RLT Soll_uHG (Heizkurve)": "hkr_rlt_soll_uhg",
+    "HKR Aufheiztemp. (K)": "hkr_aufheiztemp",
+    "HKR Absenktemp. (K)": "hkr_absenktemp",
+    "HKR Heizgrenze": "hkr_heizgrenze",
+    "WW Hysterese Normaltemp.": "ww_hysterese_normaltemp",
+    "WW Hysterese Minimaltemp.": "ww_hysterese_minimaltemp",
+    # Operating mode
+    "Betriebsart": "betriebsart",
+    # Statistics
+    "BSZ Verdichter Schaltungen": "bsz_verdichter_schaltungen",
+    "BSZ HKP Betriebsstunden": "bsz_hkp_betriebsstunden",
+    "BSZ EQ Betriebsstunden": "bsz_eq_betriebsstunden",
+    "BSZ WWV Betriebsstunden": "bsz_wwv_betriebsstunden",
+    # Other
+    "HKR_Sollwert": "hkr_sollwert",
+    "BSZ ZIPWW Betriebsstunden": "bsz_zipww_betriebsstunden",
+    "BSZ Verdichter Betriebsst. WW": "bsz_verdichter_betriebsst_ww",
+    "BSZ Verdichter Betriebsst. HKR": "bsz_verdichter_betriebsst_hkr",
+    "BSZ Verdichter Betriebsst. ges": "bsz_verdichter_betriebsst_ges",
+    "BSZ Verdichter akt. Laufzeit": "bsz_verdichter_akt_laufzeit",
+    "BSZ Verdichter Schaltung WW": "bsz_verdichter_schaltung_ww",
+    "BSZ HKP Schaltung": "bsz_hkp_schaltung",
+    "BSZ EQ Schaltungen": "bsz_eq_schaltungen",
+    "BSZ WWV Schaltungen": "bsz_wwv_schaltungen",
+    "BSZ ZIPWW Schaltungen": "bsz_zipww_schaltungen",
+    "Verdichter_Status": "verdichter_status",
+    "Verdichter laeuft seit": "verdichter_laeft_seit",
+    "Verdichter Einschaltverz.(sec)": "verdichter_einschaltverz",
+    "Verdichteranforderung": "verdichteranforderung",
+    "Frischwasserpumpe": "frischwasserpumpe",
 }

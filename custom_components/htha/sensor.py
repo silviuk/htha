@@ -18,7 +18,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from htheatpump import HtParams
 from htheatpump.htparams import HtDataTypes
 
-from .const import PARAM_SENSOR_METADATA
+from .const import PARAM_SENSOR_METADATA, PARAM_TRANSLATION_KEYS
 from .coordinator import HtHACoordinator
 from .entity import HtHASensorEntity
 from . import HtHAConfigEntry
@@ -85,10 +85,13 @@ async def async_setup_entry(
         # Get metadata for this parameter
         metadata = PARAM_SENSOR_METADATA.get(param_name, {})
 
+        # Get translation key for this parameter
+        translation_key = PARAM_TRANSLATION_KEYS.get(param_name)
+
         # Create entity description
         description = SensorEntityDescription(
             key=param_name,
-            name=param_name,
+            translation_key=translation_key,
             device_class=_get_device_class(metadata.get("unit")),
             native_unit_of_measurement=metadata.get("unit"),
             state_class=_get_state_class(metadata.get("state_class")),

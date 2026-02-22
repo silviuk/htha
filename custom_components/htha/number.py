@@ -18,7 +18,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from htheatpump import HtParams
 from htheatpump.htparams import HtDataTypes
 
-from .const import CONF_WRITE_ENABLED, PARAM_NUMBER_METADATA
+from .const import CONF_WRITE_ENABLED, PARAM_NUMBER_METADATA, PARAM_TRANSLATION_KEYS
 from .coordinator import HtHACoordinator
 from .entity import HtHANumberEntity
 from . import HtHAConfigEntry
@@ -86,10 +86,13 @@ async def async_setup_entry(
         # Determine step based on data type
         step = metadata.get("step", 1 if param.data_type == HtDataTypes.INT else 0.5)
 
+        # Get translation key for this parameter
+        translation_key = PARAM_TRANSLATION_KEYS.get(param_name)
+
         # Create entity description
         description = NumberEntityDescription(
             key=param_name,
-            name=param_name,
+            translation_key=translation_key,
             device_class=_get_device_class(metadata.get("unit")),
             native_unit_of_measurement=metadata.get("unit"),
             icon=metadata.get("icon", "mdi:thermometer"),

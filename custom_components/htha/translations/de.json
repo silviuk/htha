@@ -55,6 +55,9 @@
             "temp_aussen": {
                 "name": "Außentemperatur"
             },
+            "temp_aussen_verzoegert": {
+                "name": "Außentemperatur verzögert"
+            },
             "temp_brauchwasser": {
                 "name": "Warmwassertemperatur"
             },
@@ -63,6 +66,93 @@
             },
             "temp_ruecklauf": {
                 "name": "Rücklauftemperatur"
+            },
+            "temp_eq_eintritt": {
+                "name": "EQ Eintrittstemperatur"
+            },
+            "temp_eq_austritt": {
+                "name": "EQ Austrittstemperatur"
+            },
+            "temp_sauggas": {
+                "name": "Sauggastemperatur"
+            },
+            "temp_frischwasser_istwert": {
+                "name": "Frischwasser Istwert"
+            },
+            "temp_verdampfung": {
+                "name": "Verdampfungstemperatur"
+            },
+            "temp_kondensation": {
+                "name": "Kondensationstemperatur"
+            },
+            "temp_heissgas": {
+                "name": "Heißgastemperatur"
+            },
+            "niederdruck": {
+                "name": "Niederdruck"
+            },
+            "hochdruck": {
+                "name": "Hochdruck"
+            },
+            "bsz_verdichter_schaltungen": {
+                "name": "Verdichter Schaltungen"
+            },
+            "bsz_hkp_betriebsstunden": {
+                "name": "HKP Betriebsstunden"
+            },
+            "bsz_eq_betriebsstunden": {
+                "name": "EQ Betriebsstunden"
+            },
+            "bsz_wwv_betriebsstunden": {
+                "name": "WWV Betriebsstunden"
+            },
+            "bsz_zipww_betriebsstunden": {
+                "name": "ZIPWW Betriebsstunden"
+            },
+            "bsz_verdichter_betriebsst_ww": {
+                "name": "Verdichter Betriebsstunden WW"
+            },
+            "bsz_verdichter_betriebsst_hkr": {
+                "name": "Verdichter Betriebsstunden HKR"
+            },
+            "bsz_verdichter_betriebsst_ges": {
+                "name": "Verdichter Betriebsstunden gesamt"
+            },
+            "bsz_verdichter_akt_laufzeit": {
+                "name": "Verdichter akt. Laufzeit"
+            },
+            "bsz_verdichter_schaltung_ww": {
+                "name": "Verdichter Schaltungen WW"
+            },
+            "bsz_hkp_schaltung": {
+                "name": "HKP Schaltungen"
+            },
+            "bsz_eq_schaltungen": {
+                "name": "EQ Schaltungen"
+            },
+            "bsz_wwv_schaltungen": {
+                "name": "WWV Schaltungen"
+            },
+            "bsz_zipww_schaltungen": {
+                "name": "ZIPWW Schaltungen"
+            },
+            "verdichter_status": {
+                "name": "Verdichter Status"
+            },
+            "verdichter_laeft_seit": {
+                "name": "Verdichter läuft seit"
+            },
+            "verdichter_einschaltverz": {
+                "name": "Verdichter Einschaltverzögerung"
+            },
+            "verdichteranforderung": {
+                "name": "Verdichteranforderung"
+            },
+            "frischwasserpumpe": {
+                "name": "Frischwasserpumpe"
+            },
+            "hkr_sollwert": {
+                "name": "HKR Sollwert"
             }
         },
         "binary_sensor": {
@@ -72,11 +162,23 @@
             "heizkreispumpe": {
                 "name": "Heizkreispumpe"
             },
-            "verdichter": {
-                "name": "Verdichter"
+            "eq_pumpe_ventilator": {
+                "name": "EQ Pumpe/Ventilator"
             },
             "warmwasservorrang": {
                 "name": "Warmwasservorrang"
+            },
+            "zirkulationspumpe_ww": {
+                "name": "Zirkulationspumpe WW"
+            },
+            "verdichter": {
+                "name": "Verdichter"
+            },
+            "hauptschalter": {
+                "name": "Hauptschalter"
+            },
+            "fws_stroemungsschalter": {
+                "name": "FWS Strömungsschalter"
             }
         },
         "number": {
@@ -85,6 +187,33 @@
             },
             "ww_normaltemp": {
                 "name": "Warmwasser Normaltemperatur"
+            },
+            "ww_minimaltemp": {
+                "name": "Warmwasser Minimaltemperatur"
+            },
+            "hkr_rlt_soll_ohg": {
+                "name": "HKR RLT Soll oHG (Heizkurve)"
+            },
+            "hkr_rlt_soll_0": {
+                "name": "HKR RLT Soll 0 (Heizkurve)"
+            },
+            "hkr_rlt_soll_uhg": {
+                "name": "HKR RLT Soll uHG (Heizkurve)"
+            },
+            "hkr_aufheiztemp": {
+                "name": "HKR Aufheiztemperatur"
+            },
+            "hkr_absenktemp": {
+                "name": "HKR Absenktemperatur"
+            },
+            "hkr_heizgrenze": {
+                "name": "HKR Heizgrenze"
+            },
+            "ww_hysterese_normaltemp": {
+                "name": "WW Hysterese Normaltemp."
+            },
+            "ww_hysterese_minimaltemp": {
+                "name": "WW Hysterese Minimaltemp."
             }
         },
         "select": {

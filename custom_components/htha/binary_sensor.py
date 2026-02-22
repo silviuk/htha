@@ -16,7 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from htheatpump import HtParams
 from htheatpump.htparams import HtDataTypes
 
-from .const import PARAM_BINARY_SENSOR_METADATA
+from .const import PARAM_BINARY_SENSOR_METADATA, PARAM_TRANSLATION_KEYS
 from .coordinator import HtHACoordinator
 from .entity import HtHABinarySensorEntity
 from . import HtHAConfigEntry
@@ -122,10 +122,13 @@ async def async_setup_entry(
         # Get metadata for this parameter
         metadata = PARAM_BINARY_SENSOR_METADATA.get(param_name, {})
 
+        # Get translation key for this parameter
+        translation_key = PARAM_TRANSLATION_KEYS.get(param_name)
+
         # Create entity description
         description = BinarySensorEntityDescription(
             key=param_name,
-            name=param_name,
+            translation_key=translation_key,
             device_class=_get_device_class(metadata.get("device_class")),
             icon=metadata.get("icon_off", "mdi:toggle-switch-off"),
         )

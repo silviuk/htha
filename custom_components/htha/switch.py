@@ -38,7 +38,7 @@ async def async_setup_entry(
     # Create write protection switch
     description = SwitchEntityDescription(
         key="write_protection",
-        name="Write Protection",
+        translation_key="write_protection",
         icon="mdi:lock",
     )
 

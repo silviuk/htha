@@ -55,6 +55,9 @@
             "temp_aussen": {
                 "name": "Outdoor Temperature"
             },
+            "temp_aussen_verzoegert": {
+                "name": "Outdoor Temperature Delayed"
+            },
             "temp_brauchwasser": {
                 "name": "Hot Water Temperature"
             },
@@ -63,6 +66,93 @@
             },
             "temp_ruecklauf": {
                 "name": "Return Temperature"
+            },
+            "temp_eq_eintritt": {
+                "name": "EQ Inlet Temperature"
+            },
+            "temp_eq_austritt": {
+                "name": "EQ Outlet Temperature"
+            },
+            "temp_sauggas": {
+                "name": "Suction Gas Temperature"
+            },
+            "temp_frischwasser_istwert": {
+                "name": "Fresh Water Actual Temperature"
+            },
+            "temp_verdampfung": {
+                "name": "Evaporation Temperature"
+            },
+            "temp_kondensation": {
+                "name": "Condensation Temperature"
+            },
+            "temp_heissgas": {
+                "name": "Hot Gas Temperature"
+            },
+            "niederdruck": {
+                "name": "Low Pressure"
+            },
+            "hochdruck": {
+                "name": "High Pressure"
+            },
+            "bsz_verdichter_schaltungen": {
+                "name": "Compressor Switches"
+            },
+            "bsz_hkp_betriebsstunden": {
+                "name": "Heating Circuit Pump Hours"
+            },
+            "bsz_eq_betriebsstunden": {
+                "name": "EQ Operating Hours"
+            },
+            "bsz_wwv_betriebsstunden": {
+                "name": "Hot Water Operating Hours"
+            },
+            "bsz_zipww_betriebsstunden": {
+                "name": "Circulation Pump Hours"
+            },
+            "bsz_verdichter_betriebsst_ww": {
+                "name": "Compressor Hours Hot Water"
+            },
+            "bsz_verdichter_betriebsst_hkr": {
+                "name": "Compressor Hours Heating"
+            },
+            "bsz_verdichter_betriebsst_ges": {
+                "name": "Compressor Hours Total"
+            },
+            "bsz_verdichter_akt_laufzeit": {
+                "name": "Compressor Current Runtime"
+            },
+            "bsz_verdichter_schaltung_ww": {
+                "name": "Compressor Switches Hot Water"
+            },
+            "bsz_hkp_schaltung": {
+                "name": "Heating Circuit Pump Switches"
+            },
+            "bsz_eq_schaltungen": {
+                "name": "EQ Switches"
+            },
+            "bsz_wwv_schaltungen": {
+                "name": "Hot Water Switches"
+            },
+            "bsz_zipww_schaltungen": {
+                "name": "Circulation Pump Switches"
+            },
+            "verdichter_status": {
+                "name": "Compressor Status"
+            },
+            "verdichter_laeft_seit": {
+                "name": "Compressor Running Since"
+            },
+            "verdichter_einschaltverz": {
+                "name": "Compressor Switch-on Delay"
+            },
+            "verdichteranforderung": {
+                "name": "Compressor Request"
+            },
+            "frischwasserpumpe": {
+                "name": "Fresh Water Pump"
+            },
+            "hkr_sollwert": {
+                "name": "Heating Circuit Setpoint"
             }
         },
         "binary_sensor": {
@@ -72,11 +162,23 @@
             "heizkreispumpe": {
                 "name": "Heating Circuit Pump"
             },
-            "verdichter": {
-                "name": "Compressor"
+            "eq_pumpe_ventilator": {
+                "name": "EQ Pump/Fan"
             },
             "warmwasservorrang": {
                 "name": "Hot Water Priority"
+            },
+            "zirkulationspumpe_ww": {
+                "name": "Circulation Pump"
+            },
+            "verdichter": {
+                "name": "Compressor"
+            },
+            "hauptschalter": {
+                "name": "Main Switch"
+            },
+            "fws_stroemungsschalter": {
+                "name": "Flow Switch"
             }
         },
         "number": {
@@ -85,6 +187,33 @@
             },
             "ww_normaltemp": {
                 "name": "Hot Water Normal Temperature"
+            },
+            "ww_minimaltemp": {
+                "name": "Hot Water Minimum Temperature"
+            },
+            "hkr_rlt_soll_ohg": {
+                "name": "Heating Curve Upper Setpoint"
+            },
+            "hkr_rlt_soll_0": {
+                "name": "Heating Curve Zero Setpoint"
+            },
+            "hkr_rlt_soll_uhg": {
+                "name": "Heating Curve Lower Setpoint"
+            },
+            "hkr_aufheiztemp": {
+                "name": "Heat-up Temperature"
+            },
+            "hkr_absenktemp": {
+                "name": "Setback Temperature"
+            },
+            "hkr_heizgrenze": {
+                "name": "Heating Limit"
+            },
+            "ww_hysterese_normaltemp": {
+                "name": "Hot Water Normal Hysteresis"
+            },
+            "ww_hysterese_minimaltemp": {
+                "name": "Hot Water Minimum Hysteresis"
             }
         },
         "select": {
