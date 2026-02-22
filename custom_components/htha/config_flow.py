@@ -175,7 +175,7 @@ class HtHAOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
+        self._config_entry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -190,7 +190,7 @@ class HtHAOptionsFlow(config_entries.OptionsFlow):
             )
 
         # Get current selected params
-        current_params = self.config_entry.options.get(CONF_SELECTED_PARAMS, DEFAULT_PARAMS)
+        current_params = self._config_entry.options.get(CONF_SELECTED_PARAMS, DEFAULT_PARAMS)
 
         # Build list of all available parameters
         all_params: list[str] = []
