@@ -153,6 +153,9 @@
             },
             "hkr_sollwert": {
                 "name": "Heating Circuit Setpoint"
+            },
+            "ht_datetime": {
+                "name": "Heat Pump Date/Time"
             }
         },
         "binary_sensor": {

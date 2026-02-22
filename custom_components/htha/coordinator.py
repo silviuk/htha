@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.update_coordinator import (
+    DataUpdateCoordinator,
+    UpdateFailed,
+)
+from homeassistant.util import dt as dt_util
 
 from htheatpump import AioHtHeatpump, HtParams
 from htheatpump.htparams import HtParamValueType
@@ -61,6 +66,7 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
         self.selected_params = selected_params
         self._heatpump: AioHtHeatpump | None = None
         self._connected = False
+        self._connection_lock = asyncio.Lock()
 
         # Track parameters that consistently fail
         self._failed_params: set[str] = set()
@@ -100,25 +106,26 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
 
     async def _connect(self) -> None:
         """Establish connection to the heat pump."""
-        if self._heatpump is None:
-            self._heatpump = AioHtHeatpump(
-                url=f"tcp://{self.host}:{self.port}",
-                timeout=self.timeout,
-            )
-
-        if not self._connected:
-            try:
-                self._heatpump.open_connection()
-                await self._heatpump.connect_async()
-                await self._heatpump.login_async()
-                self._connected = True
-                _LOGGER.info(
-                    "Connected to heat pump at %s:%s", self.host, self.port
+        async with self._connection_lock:
+            if self._heatpump is None:
+                self._heatpump = AioHtHeatpump(
+                    url=f"tcp://{self.host}:{self.port}",
+                    timeout=self.timeout,
                 )
-            except Exception as ex:
-                self._connected = False
-                _LOGGER.error("Failed to connect to heat pump: %s", ex)
-                raise
+
+            if not self._connected:
+                try:
+                    self._heatpump.open_connection()
+                    await self._heatpump.connect_async()
+                    await self._heatpump.login_async()
+                    self._connected = True
+                    _LOGGER.info(
+                        "Connected to heat pump at %s:%s", self.host, self.port
+                    )
+                except Exception as ex:
+                    self._connected = False
+                    _LOGGER.error("Failed to connect to heat pump: %s", ex)
+                    raise
 
     async def _disconnect(self) -> None:
         """Disconnect from the heat pump."""
@@ -254,6 +261,70 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
         except Exception as ex:
             self._connected = False
             raise UpdateFailed(f"Failed to set parameter {name}: {ex}") from ex
+
+    async def async_get_datetime(self) -> datetime | None:
+        """Fetch the heat pump's date/time.
+
+        Returns:
+            The heat pump's date/time, or None if unavailable.
+        """
+        try:
+            if not self._connected:
+                await self._connect()
+
+            if self._heatpump is None:
+                _LOGGER.error("Heat pump instance not initialized")
+                return None
+
+            # get_date_time_async returns tuple (datetime, weekday)
+            ht_datetime, _ = await self._heatpump.get_date_time_async()
+            _LOGGER.debug("Heat pump date/time: %s", ht_datetime)
+
+            # Disconnect after query
+            await self._disconnect()
+
+            return ht_datetime
+
+        except Exception as ex:
+            self._connected = False
+            _LOGGER.error("Failed to get heat pump date/time: %s", ex)
+            return None
+
+    async def async_set_datetime(
+        self, dt: datetime | None = None
+    ) -> datetime | None:
+        """Set the heat pump's date/time.
+
+        Args:
+            dt: The datetime to set. If None, uses current system time.
+
+        Returns:
+            The heat pump's date/time after setting, or None on failure.
+        """
+        try:
+            if not self._connected:
+                await self._connect()
+
+            if self._heatpump is None:
+                _LOGGER.error("Heat pump instance not initialized")
+                return None
+
+            if dt is None:
+                dt = dt_util.now()
+
+            # set_date_time_async returns tuple (datetime, weekday)
+            ht_datetime, _ = await self._heatpump.set_date_time_async(dt)
+            _LOGGER.info("Set heat pump date/time to: %s", ht_datetime)
+
+            # Disconnect after write
+            await self._disconnect()
+
+            return ht_datetime
+
+        except Exception as ex:
+            self._connected = False
+            _LOGGER.error("Failed to set heat pump date/time: %s", ex)
+            return None
 
     async def async_shutdown(self) -> None:
         """Shutdown the coordinator."""

@@ -153,6 +153,9 @@
             },
             "hkr_sollwert": {
                 "name": "HKR Sollwert"
+            },
+            "ht_datetime": {
+                "name": "Wärmepumpe Datum/Zeit"
             }
         },
         "binary_sensor": {

@@ -24,7 +24,7 @@ class HtHAEntity(CoordinatorEntity[HtHACoordinator]):
         coordinator: HtHACoordinator,
         config_entry: HtHAConfigEntry,
         description: EntityDescription,
-        param_name: str,
+        param_name: str | None = None,
     ) -> None:
         """Initialize the entity.
 
@@ -32,14 +32,15 @@ class HtHAEntity(CoordinatorEntity[HtHACoordinator]):
             coordinator: Data coordinator
             config_entry: Config entry
             description: Entity description
-            param_name: Parameter name from heat pump
+            param_name: Parameter name from heat pump (optional for special entities)
         """
         super().__init__(coordinator)
         self.entity_description = description
         self._param_name = param_name
 
-        # Set unique ID based on parameter name
-        self._attr_unique_id = f"{config_entry.entry_id}_{param_name}"
+        # Set unique ID based on parameter name or description key
+        unique_key = param_name if param_name else description.key
+        self._attr_unique_id = f"{config_entry.entry_id}_{unique_key}"
 
         # Set device info
         self._attr_device_info = DeviceInfo(
@@ -53,6 +54,9 @@ class HtHAEntity(CoordinatorEntity[HtHACoordinator]):
     @property
     def available(self) -> bool:
         """Return if entity is available."""
+        # Special entities without param_name are always available
+        if self._param_name is None:
+            return super().available
         return (
             super().available
             and self.coordinator.data is not None
@@ -62,6 +66,8 @@ class HtHAEntity(CoordinatorEntity[HtHACoordinator]):
     @property
     def native_value(self):
         """Return the state of the entity."""
+        if self._param_name is None:
+            return None
         if self.coordinator.data is None:
             return None
         return self.coordinator.data.get(self._param_name)
