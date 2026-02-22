@@ -62,6 +62,9 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
         self._heatpump: AioHtHeatpump | None = None
         self._connected = False
 
+        # Track parameters that consistently fail
+        self._failed_params: set[str] = set()
+
         # Separate parameters by type for efficient querying
         self._mp_params: list[str] = []
         self._sp_params: list[str] = []
@@ -78,6 +81,12 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
                     self._sp_params.append(param_name)
             else:
                 _LOGGER.warning("Unknown parameter: %s", param_name)
+
+        _LOGGER.debug(
+            "Categorized params - MP: %s, SP: %s",
+            self._mp_params,
+            self._sp_params,
+        )
 
     @property
     def heatpump(self) -> AioHtHeatpump | None:
@@ -141,19 +150,57 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
             # Query MP parameters using fast_query_async for efficiency
             if self._mp_params:
                 try:
-                    mp_values = await self._heatpump.fast_query_async(*self._mp_params)
+                    _LOGGER.debug(
+                        "Querying MP parameters: %s", self._mp_params
+                    )
+                    mp_values = await self._heatpump.fast_query_async(
+                        *self._mp_params
+                    )
                     data.update(mp_values)
                 except Exception as ex:
-                    _LOGGER.error("Failed to query MP parameters: %s", ex)
+                    _LOGGER.error(
+                        "Failed to query MP parameters: %s. Params: %s",
+                        ex,
+                        self._mp_params,
+                    )
+                    # Try querying individually to identify problematic parameter
+                    for param in self._mp_params:
+                        try:
+                            value = await self._heatpump.fast_query_async(param)
+                            data.update(value)
+                        except Exception as inner_ex:
+                            _LOGGER.warning(
+                                "Failed to query MP parameter '%s': %s",
+                                param,
+                                inner_ex,
+                            )
                     # Don't raise here, try to get SP params too
 
             # Query SP parameters using regular query_async
             if self._sp_params:
                 try:
+                    _LOGGER.debug(
+                        "Querying SP parameters: %s", self._sp_params
+                    )
                     sp_values = await self._heatpump.query_async(*self._sp_params)
                     data.update(sp_values)
                 except Exception as ex:
-                    _LOGGER.error("Failed to query SP parameters: %s", ex)
+                    _LOGGER.error(
+                        "Failed to query SP parameters: %s. Params: %s",
+                        ex,
+                        self._sp_params,
+                    )
+                    # Try querying individually
+                    for param in self._sp_params:
+                        try:
+                            value = await self._heatpump.query_async(param)
+                            data.update(value)
+                        except Exception as inner_ex:
+                            _LOGGER.warning(
+                                "Failed to query SP parameter '%s': %s",
+                                param,
+                                inner_ex,
+                            )
 
             # Disconnect after each poll to allow other clients to connect
             # The heat pump has limited connection slots

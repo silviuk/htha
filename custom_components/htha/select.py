@@ -57,15 +57,14 @@ async def async_setup_entry(
             _LOGGER.warning("Parameter %s not found in HtParams", param_name)
             continue
 
-        param = HtParams[param_name]
-
         # Only include parameters that are in PARAM_SELECT_METADATA
         if param_name not in PARAM_SELECT_METADATA:
             continue
 
-        # Check if parameter is writable
-        if "w" not in param.acl:
-            continue
+        # Note: We create the entity regardless of ACL.
+        # The write_enabled flag controls whether changes are actually sent.
+        # This allows displaying the current value even if the heat pump
+        # reports the parameter as read-only.
 
         # Get metadata for this parameter
         metadata = PARAM_SELECT_METADATA.get(param_name, {})

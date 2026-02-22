@@ -69,7 +69,7 @@ PARAM_CATEGORIES: Final[dict[str, list[str]]] = {
 
 # Default curated parameters to expose
 DEFAULT_PARAMS: Final[list[str]] = [
-    # Temperatures
+    # Temperatures (working)
     "Temp. Aussen",
     "Temp. Aussen verzoegert",
     "Temp. Brauchwasser",
@@ -78,13 +78,8 @@ DEFAULT_PARAMS: Final[list[str]] = [
     "Temp. EQ_Eintritt",
     "Temp. EQ_Austritt",
     "Temp. Sauggas",
-    "Temp. Frischwasser_Istwert",
-    "Temp. Verdampfung",
-    "Temp. Kondensation",
-    "Temp. Heissgas",
-    # Pressures
-    "Niederdruck (bar)",
-    "Hochdruck (bar)",
+    # Note: Temp. Frischwasser_Istwert, Temp. Verdampfung, Temp. Kondensation,
+    # Temp. Heissgas may not be available on all heat pump models
     # Status
     "Heizkreispumpe",
     "EQ Pumpe (Ventilator)",

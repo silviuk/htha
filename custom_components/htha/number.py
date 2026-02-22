@@ -68,13 +68,18 @@ async def async_setup_entry(
 
         param = HtParams[param_name]
 
-        # Only include numeric parameters that are writable
+        # Only include numeric parameters
         if param.data_type == HtDataTypes.BOOL:
             continue
 
-        # Check if parameter is writable
-        if "w" not in param.acl:
+        # Skip if not in PARAM_NUMBER_METADATA
+        if param_name not in PARAM_NUMBER_METADATA:
             continue
+
+        # Note: We create the entity regardless of ACL.
+        # The write_enabled flag controls whether changes are actually sent.
+        # This allows displaying the current value even if the heat pump
+        # reports the parameter as read-only.
 
         # Get metadata for this parameter
         metadata = PARAM_NUMBER_METADATA.get(param_name, {})
