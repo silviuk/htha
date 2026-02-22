@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from homeassistant.core import HomeAssistant
@@ -52,7 +52,7 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
             _LOGGER,
             name=DOMAIN,
             config_entry=config_entry,
-            update_interval=asyncio.timedelta(seconds=scan_interval),
+            update_interval=timedelta(seconds=scan_interval),
         )
 
         self.host = host
