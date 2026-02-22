@@ -91,14 +91,14 @@
             "betriebsart": {
                 "name": "Betriebsart",
                 "state": {
-                    "Off": "Aus",
-                    "Heating": "Heizen",
-                    "Cooling": "Kühlen",
-                    "Hot Water": "Warmwasser",
-                    "Heating + Cooling": "Heizen + Kühlen",
-                    "Auto": "Automatik",
-                    "Emergency": "Notbetrieb",
-                    "Standby": "Standby"
+                    "off": "Aus",
+                    "heating": "Heizen",
+                    "cooling": "Kühlen",
+                    "hot_water": "Warmwasser",
+                    "heating_cooling": "Heizen + Kühlen",
+                    "auto": "Automatik",
+                    "emergency": "Notbetrieb",
+                    "standby": "Standby"
                 }
             }
         },

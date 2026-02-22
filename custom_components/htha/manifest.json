@@ -12,7 +12,7 @@
     "issue_tracker": "https://github.com/silviuk/htha/issues",
     "quality_scale": "custom",
     "requirements": [
-        "htheatpump @ git+https://github.com/silviuk/htheatpump.git@v1.3.4"
+        "htheatpump@git+https://github.com/silviuk/htheatpump.git@v1.3.4"
     ],
     "version": "1.0.1"
 }

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
@@ -26,6 +27,9 @@ if TYPE_CHECKING:
     pass
 
 _LOGGER = logging.getLogger(__name__)
+
+# Config schema for config entry only integration
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 # Platforms supported by this integration
 PLATFORMS: list[Platform] = [

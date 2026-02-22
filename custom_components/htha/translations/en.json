@@ -91,14 +91,14 @@
             "betriebsart": {
                 "name": "Operating Mode",
                 "state": {
-                    "Off": "Off",
-                    "Heating": "Heating",
-                    "Cooling": "Cooling",
-                    "Hot Water": "Hot Water",
-                    "Heating + Cooling": "Heating + Cooling",
-                    "Auto": "Auto",
-                    "Emergency": "Emergency",
-                    "Standby": "Standby"
+                    "off": "Off",
+                    "heating": "Heating",
+                    "cooling": "Cooling",
+                    "hot_water": "Hot Water",
+                    "heating_cooling": "Heating + Cooling",
+                    "auto": "Auto",
+                    "emergency": "Emergency",
+                    "standby": "Standby"
                 }
             }
         },

@@ -87,15 +87,16 @@ DEFAULT_PARAMS: Final[list[str]] = [
 ]
 
 # Operating mode mapping for select entity
+# Keys must match [a-z0-9-_]+ pattern for translation validation
 OPERATING_MODES: Final[dict[int, str]] = {
-    0: "Off",
-    1: "Heating",
-    2: "Cooling",
-    3: "Hot Water",
-    4: "Heating + Cooling",
-    5: "Auto",
-    6: "Emergency",
-    7: "Standby",
+    0: "off",
+    1: "heating",
+    2: "cooling",
+    3: "hot_water",
+    4: "heating_cooling",
+    5: "auto",
+    6: "emergency",
+    7: "standby",
 }
 
 # Parameter metadata for entity creation
