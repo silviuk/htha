@@ -145,6 +145,7 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
             Dictionary mapping parameter names to their values.
         """
         data: dict[str, HtParamValueType] = {}
+        mp_fallback_used = False  # Track if we used the fallback method
 
         try:
             # Ensure we're connected
@@ -164,6 +165,34 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
                         *self._mp_params
                     )
                     data.update(mp_values)
+                except ValueError as ex:
+                    # Check for the specific protocol error "bytes must be in range(0, 256)"
+                    # This can occur due to a bug in htheatpump when handling certain heat pump
+                    # responses with zero-length payload and specific headers
+                    if "bytes must be in range" in str(ex):
+                        _LOGGER.warning(
+                            "fast_query_async failed with protocol error '%s', "
+                            "falling back to query_async for MP parameters",
+                            ex,
+                        )
+                        # Close the broken connection and reconnect
+                        await self._disconnect()
+                        await self._connect()
+                        
+                        # Fall back to querying MP parameters using query_async
+                        for param in self._mp_params:
+                            try:
+                                value = await self._heatpump.query_async(param)
+                                data.update(value)
+                            except Exception as inner_ex:
+                                _LOGGER.warning(
+                                    "Failed to query MP parameter '%s': %s",
+                                    param,
+                                    inner_ex,
+                                )
+                        mp_fallback_used = True
+                    else:
+                        raise
                 except Exception as ex:
                     _LOGGER.error(
                         "Failed to query MP parameters: %s. Params: %s",
@@ -184,10 +213,37 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
                     # Don't raise here, try to get SP params too
 
             # Query SP parameters using regular query_async
-            if self._sp_params:
+            # Only if we haven't already queried MP params via fallback
+            if self._sp_params and not mp_fallback_used:
                 try:
                     _LOGGER.debug(
                         "Querying SP parameters: %s", self._sp_params
+                    )
+                    sp_values = await self._heatpump.query_async(*self._sp_params)
+                    data.update(sp_values)
+                except Exception as ex:
+                    _LOGGER.error(
+                        "Failed to query SP parameters: %s. Params: %s",
+                        ex,
+                        self._sp_params,
+                    )
+                    # Try querying individually
+                    for param in self._sp_params:
+                        try:
+                            value = await self._heatpump.query_async(param)
+                            data.update(value)
+                        except Exception as inner_ex:
+                            _LOGGER.warning(
+                                "Failed to query SP parameter '%s': %s",
+                                param,
+                                inner_ex,
+                            )
+            elif self._sp_params and mp_fallback_used:
+                # Already have a connection, query SP params too
+                try:
+                    _LOGGER.debug(
+                        "Querying SP parameters (after MP fallback): %s",
+                        self._sp_params,
                     )
                     sp_values = await self._heatpump.query_async(*self._sp_params)
                     data.update(sp_values)
@@ -268,6 +324,7 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
         Returns:
             The heat pump's date/time, or None if unavailable.
         """
+        _LOGGER.debug("Starting async_get_datetime, connected=%s", self._connected)
         try:
             if not self._connected:
                 await self._connect()
@@ -276,6 +333,7 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
                 _LOGGER.error("Heat pump instance not initialized")
                 return None
 
+            _LOGGER.debug("Calling get_date_time_async on heat pump")
             # get_date_time_async returns tuple (datetime, weekday)
             ht_datetime, _ = await self._heatpump.get_date_time_async()
             _LOGGER.debug("Heat pump date/time: %s", ht_datetime)
@@ -287,7 +345,7 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
 
         except Exception as ex:
             self._connected = False
-            _LOGGER.error("Failed to get heat pump date/time: %s", ex)
+            _LOGGER.error("Failed to get heat pump date/time: %s", ex, exc_info=True)
             return None
 
     async def async_set_datetime(

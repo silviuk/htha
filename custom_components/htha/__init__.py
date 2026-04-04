@@ -38,6 +38,7 @@ PLATFORMS: list[Platform] = [
     Platform.NUMBER,
     Platform.SELECT,
     Platform.SWITCH,
+    Platform.DATETIME,
 ]
 
 # Type alias for config entry
