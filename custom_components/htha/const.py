@@ -16,7 +16,7 @@ CONF_SELECTED_PARAMS: Final = "selected_params"
 # Default values
 DEFAULT_PORT: Final = 9999
 DEFAULT_TIMEOUT: Final = 10
-DEFAULT_SCAN_INTERVAL: Final = 30
+DEFAULT_SCAN_INTERVAL: Final = 600
 
 # Parameter categories for UI organization
 PARAM_CATEGORIES: Final[dict[str, list[str]]] = {

@@ -71,11 +71,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: HtHAConfigEntry) -> bool
     """
     _LOGGER.info("Setting up %s config entry: %s", DOMAIN, entry.entry_id)
 
-    # Get configuration from entry
+    # Get configuration from entry (data for initial config, options for user changes)
     host = entry.data[CONF_HOST]
     port = entry.data[CONF_PORT]
     timeout = entry.data[CONF_TIMEOUT]
-    scan_interval = entry.data[CONF_SCAN_INTERVAL]
+    scan_interval = entry.options.get(CONF_SCAN_INTERVAL, entry.data[CONF_SCAN_INTERVAL])
     write_enabled = entry.data.get(CONF_WRITE_ENABLED, False)
     selected_params = entry.options.get(CONF_SELECTED_PARAMS, DEFAULT_PARAMS)
 

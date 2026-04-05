@@ -95,6 +95,7 @@ async def async_setup_entry(
             device_class=_get_device_class(metadata.get("unit")),
             native_unit_of_measurement=metadata.get("unit"),
             state_class=_get_state_class(metadata.get("state_class")),
+            suggested_display_precision=1 if metadata.get("unit") == "°C" else None,
             icon=metadata.get("icon", "mdi:gauge"),
         )
 

@@ -185,11 +185,13 @@ class HtHAOptionsFlow(config_entries.OptionsFlow):
             return self.async_create_entry(
                 title="",
                 data={
+                    CONF_SCAN_INTERVAL: user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
                     CONF_SELECTED_PARAMS: user_input.get(CONF_SELECTED_PARAMS, DEFAULT_PARAMS),
                 },
             )
 
-        # Get current selected params
+        # Get current scan interval and selected params
+        current_scan_interval = self._config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         current_params = self._config_entry.options.get(CONF_SELECTED_PARAMS, DEFAULT_PARAMS)
 
         # Build list of all available parameters
@@ -201,10 +203,14 @@ class HtHAOptionsFlow(config_entries.OptionsFlow):
             step_id="init",
             data_schema=vol.Schema(
                 {
+                    vol.Required(CONF_SCAN_INTERVAL, default=current_scan_interval): cv.positive_int,
                     vol.Optional(
                         CONF_SELECTED_PARAMS,
                         default=current_params,
                     ): cv.multi_select(all_params),
                 }
             ),
+            description_placeholders={
+                "scan_interval_hint": "Scan interval in seconds (minimum 10 seconds)",
+            },
         )
