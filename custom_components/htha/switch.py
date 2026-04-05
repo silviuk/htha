@@ -6,7 +6,6 @@ import logging
 from typing import TYPE_CHECKING
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
-from homeassistant.components.homeassistant import async_call as hass_call
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -108,8 +107,7 @@ class HtHAWriteProtectionSwitch(SwitchEntity):
         """
         if not self._confirm_pending:
             self._confirm_pending = True
-            await hass_call(
-                self.hass,
+            await self.hass.services.async_call(
                 "persistent_notification",
                 "create",
                 {
@@ -127,8 +125,7 @@ class HtHAWriteProtectionSwitch(SwitchEntity):
 
         _LOGGER.warning("User confirmed enabling writes to heat pump")
         self._confirm_pending = False
-        await hass_call(
-            self.hass,
+        await self.hass.services.async_call(
             "persistent_notification",
             "dismiss",
             {"notification_id": "htha_write_confirm"},
