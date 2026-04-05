@@ -166,11 +166,8 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
                     )
                     data.update(mp_values)
                 except ValueError as ex:
-                    # Check for the specific protocol error "bytes must be in range(0, 256)"
-                    # This can occur due to a bug in htheatpump when handling certain heat pump
-                    # responses with zero-length payload and specific headers
                     if "bytes must be in range" in str(ex):
-                        _LOGGER.warning(
+                        _LOGGER.debug(
                             "fast_query_async failed with protocol error '%s', "
                             "falling back to query_async for MP parameters",
                             ex,

@@ -11,7 +11,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfTemperature, UnitOfPressure
+from homeassistant.const import UnitOfTemperature, UnitOfPressure, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -35,6 +35,8 @@ def _get_device_class(unit: str | None) -> SensorDeviceClass | None:
         return SensorDeviceClass.TEMPERATURE
     if unit in (UnitOfPressure.BAR, "bar"):
         return SensorDeviceClass.PRESSURE
+    if unit in (UnitOfTime.HOURS, "h"):
+        return SensorDeviceClass.DURATION
     return None
 
 
