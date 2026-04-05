@@ -6,7 +6,8 @@ import logging
 from typing import TYPE_CHECKING
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
-from homeassistant.core import HomeAssistant
+from homeassistant.components.homeassistant import async_call as hass_call
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import CONF_WRITE_ENABLED, DOMAIN
@@ -72,6 +73,7 @@ class HtHAWriteProtectionSwitch(SwitchEntity):
         self.coordinator = coordinator
         self.entity_description = description
         self._config_entry = config_entry
+        self._confirm_pending = False
 
         # Set unique ID
         self._attr_unique_id = f"{config_entry.entry_id}_write_protection"
@@ -94,13 +96,43 @@ class HtHAWriteProtectionSwitch(SwitchEntity):
         """Return if entity is available."""
         return True
 
+    @callback
+    def _clear_confirm_pending(self) -> None:
+        """Clear the pending confirmation state."""
+        self._confirm_pending = False
+
     async def async_turn_on(self, **kwargs) -> None:
         """Turn the entity on (enable writes).
 
-        This requires user confirmation in a real implementation.
-        For now, we just enable it directly.
+        Shows a confirmation dialog, then enables writes on confirm.
         """
-        _LOGGER.warning("Enabling writes to heat pump - use with caution!")
+        if not self._confirm_pending:
+            self._confirm_pending = True
+            await hass_call(
+                self.hass,
+                "persistent_notification",
+                "create",
+                {
+                    "title": "Writeable Settings",
+                    "message": "WARNING: Enabling write access to your heat pump allows changing settings. "
+                    "Incorrect settings may cause equipment damage or system malfunction. "
+                    "Click the switch again within 10 seconds to confirm.",
+                    "notification_id": "htha_write_confirm",
+                },
+            )
+            self._attr_is_on = False
+            self.async_write_ha_state()
+            self.hass.async_call_later(10, self._clear_confirm_pending)
+            return
+
+        _LOGGER.warning("User confirmed enabling writes to heat pump")
+        self._confirm_pending = False
+        await hass_call(
+            self.hass,
+            "persistent_notification",
+            "dismiss",
+            {"notification_id": "htha_write_confirm"},
+        )
         self._attr_is_on = True
         self.async_write_ha_state()
 

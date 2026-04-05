@@ -18,7 +18,7 @@
                 }
             },
             "write_protection": {
-                "title": "Schreibschutz",
+                "title": "Beschreibbare Einstellungen",
                 "description": "{warning}",
                 "data": {
                     "write_enabled": "Schreiben in Wärmepumpe aktivieren"

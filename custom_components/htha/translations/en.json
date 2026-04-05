@@ -18,10 +18,10 @@
                 }
             },
             "write_protection": {
-                "title": "Write Protection",
+                "title": "Writeable settings",
                 "description": "{warning}",
                 "data": {
-                    "write_enabled": "Enable writes to heat pump"
+                    "write_enabled": "Enable writing to heat pump"
                 },
                 "data_description": {
                     "write_enabled": "Check to allow changing heat pump settings"
