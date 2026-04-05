@@ -240,6 +240,11 @@
             "ht_datetime": {
                 "name": "Heat Pump Date/Time"
             }
+        },
+        "button": {
+            "ht_datetime_sync": {
+                "name": "Sync Heat Pump Date/Time"
+            }
         }
     }
 }

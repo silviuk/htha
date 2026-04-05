@@ -1,14 +1,11 @@
-"""Datetime platform for the Ht HA integration."""
+"""Button platform for the Ht HA integration."""
 
 from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
 
-from homeassistant.components.datetime import (
-    DateTimeEntity,
-    DateTimeEntityDescription,
-)
+from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -16,18 +13,16 @@ from .coordinator import HtHACoordinator
 from . import HtHAConfigEntry
 
 if TYPE_CHECKING:
-    from datetime import datetime
+    pass
 
 _LOGGER = logging.getLogger(__name__)
 
-HT_DATETIME_DESCRIPTION = DateTimeEntityDescription(
-    key="ht_datetime",
-    translation_key="ht_datetime",
-    icon="mdi:clock-outline",
-    name="Heat Pump Date/Time",
+HT_DATETIME_SYNC_DESCRIPTION = ButtonEntityDescription(
+    key="ht_datetime_sync",
+    translation_key="ht_datetime_sync",
+    icon="mdi:clock-sync",
+    name="Sync Heat Pump Date/Time",
 )
-
-_cached_datetime: datetime | None = None
 
 
 async def async_setup_entry(
@@ -35,43 +30,33 @@ async def async_setup_entry(
     config_entry: HtHAConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Ht HA datetime entities from a config entry.
+    """Set up Ht HA button entities from a config entry.
 
     Args:
         hass: Home Assistant instance
         config_entry: Config entry
         async_add_entities: Callback to add entities
     """
-    _LOGGER.debug("Setting up Ht HA datetime entities")
+    _LOGGER.debug("Setting up Ht HA button entities")
 
     coordinator = config_entry.runtime_data
 
     async_add_entities(
         [
-            HtHADateTimeEntity(
+            HtHADateTimeSyncButton(
                 coordinator=coordinator,
                 config_entry=config_entry,
-                description=HT_DATETIME_DESCRIPTION,
+                description=HT_DATETIME_SYNC_DESCRIPTION,
             )
         ]
     )
 
 
-def set_cached_datetime(value: datetime) -> None:
-    """Update cached datetime (called by button)."""
-    global _cached_datetime
-    if value is not None and value.tzinfo is None:
-        from homeassistant.util import dt as dt_util
-        value = dt_util.as_local(value)
-    _cached_datetime = value
-    _LOGGER.debug("Cached datetime updated: %s", value)
+class HtHADateTimeSyncButton(ButtonEntity):
+    """Button entity to sync heat pump date/time.
 
-
-class HtHADateTimeEntity(DateTimeEntity):
-    """Datetime entity for heat pump date/time.
-
-    This entity displays the heat pump's date and time.
-    Updated manually via the sync button.
+    This button triggers a manual sync of the heat pump's date/time
+    when pressed.
     """
 
     _attr_has_entity_name = True
@@ -80,9 +65,9 @@ class HtHADateTimeEntity(DateTimeEntity):
         self,
         coordinator: HtHACoordinator,
         config_entry: HtHAConfigEntry,
-        description: DateTimeEntityDescription,
+        description: ButtonEntityDescription,
     ) -> None:
-        """Initialize the date/time entity.
+        """Initialize the button.
 
         Args:
             coordinator: Data coordinator
@@ -91,7 +76,7 @@ class HtHADateTimeEntity(DateTimeEntity):
         """
         self.coordinator = coordinator
         self.entity_description = description
-        self._attr_unique_id = f"{config_entry.entry_id}_datetime"
+        self._attr_unique_id = f"{config_entry.entry_id}_datetime_sync"
 
         from homeassistant.helpers.entity import DeviceInfo
         from .const import DOMAIN
@@ -103,12 +88,15 @@ class HtHADateTimeEntity(DateTimeEntity):
             configuration_url=f"http://{coordinator.host}:{coordinator.port}",
         )
 
-    @property
-    def icon(self) -> str | None:
-        """Return icon."""
-        return "mdi:clock-outline"
+    async def async_press(self) -> None:
+        """Handle button press."""
+        _LOGGER.info("Sync heat pump date/time button pressed")
 
-    @property
-    def native_value(self) -> datetime | None:
-        """Return the cached datetime value."""
-        return _cached_datetime
+        result = await self.coordinator.async_set_datetime()
+
+        if result:
+            _LOGGER.info("Heat pump date/time synced to: %s", result)
+            from .datetime import set_cached_datetime
+            set_cached_datetime(result)
+        else:
+            _LOGGER.warning("Failed to sync heat pump date/time")
