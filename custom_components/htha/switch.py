@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING
 
@@ -95,11 +96,6 @@ class HtHAWriteProtectionSwitch(SwitchEntity):
         """Return if entity is available."""
         return True
 
-    @callback
-    def _clear_confirm_pending(self) -> None:
-        """Clear the pending confirmation state."""
-        self._confirm_pending = False
-
     async def async_turn_on(self, **kwargs) -> None:
         """Turn the entity on (enable writes).
 
@@ -120,7 +116,7 @@ class HtHAWriteProtectionSwitch(SwitchEntity):
             )
             self._attr_is_on = False
             self.async_write_ha_state()
-            self.hass.async_call_later(10, self._clear_confirm_pending)
+            asyncio.create_task(self._reset_confirm_after_delay())
             return
 
         _LOGGER.warning("User confirmed enabling writes to heat pump")
@@ -132,6 +128,11 @@ class HtHAWriteProtectionSwitch(SwitchEntity):
         )
         self._attr_is_on = True
         self.async_write_ha_state()
+
+    async def _reset_confirm_after_delay(self) -> None:
+        """Reset confirm pending after delay."""
+        await asyncio.sleep(10)
+        self._confirm_pending = False
 
     async def async_turn_off(self, **kwargs) -> None:
         """Turn the entity off (disable writes)."""
