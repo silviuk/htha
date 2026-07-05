@@ -53,13 +53,6 @@ htha/
 This integration has been tested with:
 
 - Heliotherm HP07S08W-S-WEB
-- Heliotherm HP08S10W-WEB
-- Heliotherm HP10S12W-WEB
-- Heliotherm HP08E-K-BC
-- Heliotherm HP05S07W-WEB
-- Heliotherm HP12L-M-BC
-- Heliotherm HP-30-L-M-WEB
-- Brötje BSW NEO 8
 
 Other Heliotherm and Brötje heat pumps with a serial or TCP interface should also work.
 
