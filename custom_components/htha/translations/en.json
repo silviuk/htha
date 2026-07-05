@@ -5,14 +5,14 @@
                 "title": "Heliotherm Heat Pump Setup",
                 "description": "Configure your Heliotherm heat pump connection.",
                 "data": {
-                    "host": "Host",
-                    "port": "Port",
+                    "host": "Host or Serial Port Device",
+                    "port": "Port or Baudrate",
                     "timeout": "Timeout (seconds)",
                     "scan_interval": "Scan Interval (seconds)"
                 },
                 "data_description": {
-                    "host": "IP address or hostname of the TCP/serial server",
-                    "port": "TCP port number (default: 9999)",
+                    "host": "IP address/hostname (TCP) or device path (Serial, e.g. /dev/ttyUSB0 or COM3)",
+                    "port": "TCP port number (default: 9999) or serial baudrate (default: 115200)",
                     "timeout": "Connection timeout in seconds",
                     "scan_interval": "How often to poll for data (in seconds)"
                 }

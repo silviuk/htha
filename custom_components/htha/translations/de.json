@@ -5,14 +5,14 @@
                 "title": "Heliotherm Wärmepumpe Einrichtung",
                 "description": "Konfigurieren Sie die Verbindung zu Ihrer Heliotherm Wärmepumpe.",
                 "data": {
-                    "host": "Host",
-                    "port": "Port",
+                    "host": "Host- oder serielle Schnittstelle",
+                    "port": "Port oder Baudrate",
                     "timeout": "Zeitüberschreitung (Sekunden)",
                     "scan_interval": "Abfrageintervall (Sekunden)"
                 },
                 "data_description": {
-                    "host": "IP-Adresse oder Hostname des TCP/Seriell-Servers",
-                    "port": "TCP-Portnummer (Standard: 9999)",
+                    "host": "IP-Adresse/Hostname (TCP) oder Gerätepfad (Seriell, z.B. /dev/ttyUSB0 oder COM3)",
+                    "port": "TCP-Portnummer (Standard: 9999) oder serielle Baudrate (Standard: 115200)",
                     "timeout": "Verbindungs-Timeout in Sekunden",
                     "scan_interval": "Wie oft Daten abgefragt werden sollen (in Sekunden)"
                 }
