@@ -15,16 +15,20 @@ from custom_components.htha.const import DOMAIN, CONF_HOST, CONF_PORT, CONF_TIME
 @pytest.fixture
 def mock_heatpump_connection():
     """Mock heat pump connection for testing."""
-    with patch("custom_components.htha.config_flow.AioHtHeatpump") as mock_hp:
+    with patch("custom_components.htha.config_flow.AioHtHeatpump") as mock_hp, \
+         patch("custom_components.htha.coordinator.AioHtHeatpump") as mock_coord_hp:
         instance = MagicMock()
         instance.open_connection = MagicMock()
         instance.connect_async = AsyncMock()
         instance.login_async = AsyncMock()
         instance.logout_async = AsyncMock()
         instance.get_serial_number_async = AsyncMock(return_value=123456)
+        instance.get_version_async = MagicMock(return_value=("3.0.20", 2321))
+        # Let's make sure it handles async if used
         instance.get_version_async = AsyncMock(return_value=("3.0.20", 2321))
         instance.is_open = False
         mock_hp.return_value = instance
+        mock_coord_hp.return_value = instance
         yield instance
 
 

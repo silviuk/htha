@@ -38,8 +38,8 @@ async def validate_connection(
 
     Args:
         hass: Home Assistant instance
-        host: TCP host address
-        port: TCP port number
+        host: TCP host address or serial port path
+        port: TCP port number or serial baudrate
         timeout: Connection timeout in seconds
 
     Returns:
@@ -48,7 +48,13 @@ async def validate_connection(
     Raises:
         Exception: If connection fails
     """
-    heatpump = AioHtHeatpump(url=f"tcp://{host}:{port}", timeout=timeout)
+    if host.startswith("/") or host.upper().startswith("COM") or "/" in host or "\\" in host:
+        # Serial connection: host is device path, port is baudrate
+        heatpump = AioHtHeatpump(device=host, baudrate=port, timeout=timeout)
+    else:
+        # TCP connection
+        heatpump = AioHtHeatpump(url=f"tcp://{host}:{port}", timeout=timeout)
+
     try:
         heatpump.open_connection()
         await heatpump.connect_async()
