@@ -233,7 +233,7 @@
         },
         "switch": {
             "write_protection": {
-                "name": "Write Protection"
+                "name": "Enable Writes"
             }
         },
         "datetime": {

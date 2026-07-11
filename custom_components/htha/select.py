@@ -43,8 +43,7 @@ async def async_setup_entry(
 
     coordinator = config_entry.runtime_data
 
-    # Check if writes are enabled
-    write_enabled = config_entry.data.get(CONF_WRITE_ENABLED, False)
+    # Config entry data determines if writes are enabled dynamically at runtime.
 
     # Get selected parameters from options
     selected_params = config_entry.options.get("selected_params", [])
@@ -86,7 +85,6 @@ async def async_setup_entry(
                 config_entry=config_entry,
                 description=description,
                 param_name=param_name,
-                write_enabled=write_enabled,
             )
         )
 
@@ -103,7 +101,6 @@ class HtHASelect(HtHASelectEntity, SelectEntity):
         config_entry: HtHAConfigEntry,
         description: SelectEntityDescription,
         param_name: str,
-        write_enabled: bool,
     ) -> None:
         """Initialize the select entity.
 
@@ -112,10 +109,8 @@ class HtHASelect(HtHASelectEntity, SelectEntity):
             config_entry: Config entry
             description: Entity description
             param_name: Parameter name
-            write_enabled: Whether writes are enabled
         """
         super().__init__(coordinator, config_entry, description, param_name)
-        self._write_enabled = write_enabled
 
     @property
     def current_option(self) -> str | None:
@@ -137,7 +132,7 @@ class HtHASelect(HtHASelectEntity, SelectEntity):
         Raises:
             ValueError: If writes are not enabled
         """
-        if not self._write_enabled:
+        if not self._config_entry.data.get(CONF_WRITE_ENABLED, False):
             raise ValueError(
                 "Writes are not enabled. Enable writes in the integration configuration."
             )

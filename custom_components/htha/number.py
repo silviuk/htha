@@ -52,8 +52,7 @@ async def async_setup_entry(
 
     coordinator = config_entry.runtime_data
 
-    # Check if writes are enabled
-    write_enabled = config_entry.data.get(CONF_WRITE_ENABLED, False)
+    # Config entry data determines if writes are enabled dynamically at runtime.
 
     # Get selected parameters from options
     selected_params = config_entry.options.get("selected_params", [])
@@ -113,7 +112,6 @@ async def async_setup_entry(
                 native_min_value=float(min_val),
                 native_max_value=float(max_val),
                 native_step=float(step),
-                write_enabled=write_enabled,
             )
         )
 
@@ -133,7 +131,6 @@ class HtHANumber(HtHANumberEntity, NumberEntity):
         native_min_value: float,
         native_max_value: float,
         native_step: float,
-        write_enabled: bool,
     ) -> None:
         """Initialize the number entity.
 
@@ -145,14 +142,12 @@ class HtHANumber(HtHANumberEntity, NumberEntity):
             native_min_value: Minimum value
             native_max_value: Maximum value
             native_step: Step value
-            write_enabled: Whether writes are enabled
         """
         super().__init__(coordinator, config_entry, description, param_name)
 
         self._attr_native_min_value = native_min_value
         self._attr_native_max_value = native_max_value
         self._attr_native_step = native_step
-        self._write_enabled = write_enabled
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new value.
@@ -163,7 +158,7 @@ class HtHANumber(HtHANumberEntity, NumberEntity):
         Raises:
             ValueError: If writes are not enabled
         """
-        if not self._write_enabled:
+        if not self._config_entry.data.get(CONF_WRITE_ENABLED, False):
             raise ValueError(
                 "Writes are not enabled. Enable writes in the integration configuration."
             )
