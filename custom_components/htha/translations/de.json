@@ -153,6 +153,9 @@
             },
             "hkr_sollwert": {
                 "name": "HKR Sollwert"
+            },
+            "time_programs": {
+                "name": "Zeitprogramme"
             }
         },
         "binary_sensor": {

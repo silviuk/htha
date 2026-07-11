@@ -72,6 +72,10 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
         # Track parameters that consistently fail
         self._failed_params: set[str] = set()
 
+        # Cache for time programs
+        self.time_programs: list[dict] | None = None
+        self._last_time_programs_update: float = 0
+
         # Separate parameters by type for efficient querying
         self._mp_params: list[str] = []
         self._sp_params: list[str] = []
@@ -278,6 +282,21 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
                                     param,
                                     inner_ex,
                                 )
+
+                # Periodically update time program schedule cache (once per hour)
+                now_ts = asyncio.get_running_loop().time()
+                if self.time_programs is None or (now_ts - self._last_time_programs_update) > 3600:
+                    try:
+                        _LOGGER.debug("Fetching detailed time programs from heat pump")
+                        progs = await self._heatpump.get_time_progs_async()
+                        detailed_progs = []
+                        for prog in progs:
+                            detailed = await self._heatpump.get_time_prog_async(prog.index, with_entries=True)
+                            detailed_progs.append(detailed.as_json())
+                        self.time_programs = detailed_progs
+                        self._last_time_programs_update = now_ts
+                    except Exception as prog_ex:
+                        _LOGGER.warning("Failed to fetch time programs: %s", prog_ex)
 
                 if not data:
                     raise UpdateFailed("No data received from heat pump")

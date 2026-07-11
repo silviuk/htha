@@ -159,3 +159,44 @@ async def test_select_write_validation(mock_config_entry, mock_coordinator):
     await select.async_select_option("heating")
     # Heating maps to 1 in OPERATING_MODES
     mock_coordinator.async_set_param.assert_called_once_with("Betriebsart", 1)
+
+
+@pytest.mark.asyncio
+async def test_time_programs_sensor(mock_config_entry, mock_coordinator):
+    """Test HtHATimeProgramsSensor state and attributes."""
+    from custom_components.htha.sensor import HtHATimeProgramsSensor
+    from homeassistant.components.sensor import SensorEntityDescription
+
+    description = SensorEntityDescription(
+        key="time_programs",
+    )
+
+    sensor = HtHATimeProgramsSensor(
+        coordinator=mock_coordinator,
+        config_entry=mock_config_entry,
+        description=description,
+    )
+
+    # Initial state when coordinator has no data
+    mock_coordinator.time_programs = None
+    assert sensor.native_value is None
+    assert sensor.extra_state_attributes is None
+
+    # State with time programs loaded
+    mock_coordinator.time_programs = [
+        {
+            "index": 0,
+            "name": "Heizkreis",
+            "entries": [[{"state": 1, "start": "06:00", "end": "22:00"}]]
+        },
+        {
+            "index": 1,
+            "name": "Warmwasser",
+            "entries": [[{"state": 1, "start": "14:00", "end": "18:00"}]]
+        }
+    ]
+
+    assert sensor.native_value == "2"
+    assert sensor.extra_state_attributes == {
+        "time_programs": mock_coordinator.time_programs
+    }

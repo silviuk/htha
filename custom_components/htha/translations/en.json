@@ -153,6 +153,9 @@
             },
             "hkr_sollwert": {
                 "name": "Heating Circuit Setpoint"
+            },
+            "time_programs": {
+                "name": "Time Programs"
             }
         },
         "binary_sensor": {

@@ -20,7 +20,7 @@ from htheatpump.htparams import HtDataTypes
 
 from .const import PARAM_SENSOR_METADATA, PARAM_TRANSLATION_KEYS
 from .coordinator import HtHACoordinator
-from .entity import HtHASensorEntity
+from .entity import HtHAEntity, HtHASensorEntity
 from . import HtHAConfigEntry
 
 if TYPE_CHECKING:
@@ -110,6 +110,20 @@ async def async_setup_entry(
             )
         )
 
+    # Create the special Time Programs sensor
+    time_prog_description = SensorEntityDescription(
+        key="time_programs",
+        translation_key="time_programs",
+        icon="mdi:calendar-clock",
+    )
+    entities.append(
+        HtHATimeProgramsSensor(
+            coordinator=coordinator,
+            config_entry=config_entry,
+            description=time_prog_description,
+        )
+    )
+
     _LOGGER.debug("Adding %d sensor entities", len(entities))
 
     async_add_entities(entities)
@@ -134,3 +148,33 @@ class HtHASensor(HtHASensorEntity, SensorEntity):
             param_name: Parameter name
         """
         super().__init__(coordinator, config_entry, description, param_name)
+
+
+class HtHATimeProgramsSensor(HtHAEntity, SensorEntity):
+    """Sensor entity to display time programs."""
+
+    def __init__(
+        self,
+        coordinator: HtHACoordinator,
+        config_entry: HtHAConfigEntry,
+        description: SensorEntityDescription,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry, description)
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the number of time programs as state."""
+        if self.coordinator.time_programs is None:
+            return None
+        return str(len(self.coordinator.time_programs))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, any] | None:
+        """Return time programs in extra attributes."""
+        if self.coordinator.time_programs is None:
+            return None
+        # Format time programs in attributes
+        return {
+            "time_programs": self.coordinator.time_programs
+        }
