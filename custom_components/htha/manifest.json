@@ -14,5 +14,5 @@
     "requirements": [
         "htheatpump@git+https://github.com/silviuk/htheatpump.git@tcp-socket-and-tests"
     ],
-    "version": "1.0.1"
+    "version": "1.0.8"
 }
