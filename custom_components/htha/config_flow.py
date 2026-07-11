@@ -197,7 +197,7 @@ class HtHAOptionsFlow(config_entries.OptionsFlow):
             )
 
         # Get current scan interval and selected params
-        current_scan_interval = self._config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        current_scan_interval = self._config_entry.options.get(CONF_SCAN_INTERVAL, self._config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL))
         current_params = self._config_entry.options.get(CONF_SELECTED_PARAMS, DEFAULT_PARAMS)
 
         # Build list of all available parameters

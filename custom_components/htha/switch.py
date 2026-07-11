@@ -74,6 +74,7 @@ class HtHAWriteProtectionSwitch(SwitchEntity):
         self.entity_description = description
         self._config_entry = config_entry
         self._confirm_pending = False
+        self._confirm_delay_task = None
 
         # Set unique ID
         self._attr_unique_id = f"{config_entry.entry_id}_write_protection"
@@ -89,7 +90,10 @@ class HtHAWriteProtectionSwitch(SwitchEntity):
         )
 
         # Initialize state from config
-        self._attr_is_on = config_entry.data.get(CONF_WRITE_ENABLED, False)
+    @property
+    def is_on(self) -> bool:
+        """Return True if writes are enabled."""
+        return self._config_entry.data.get(CONF_WRITE_ENABLED, False)
 
     @property
     def available(self) -> bool:
@@ -107,35 +111,52 @@ class HtHAWriteProtectionSwitch(SwitchEntity):
                 "persistent_notification",
                 "create",
                 {
-                    "title": "Writeable Settings",
+                    "title": "Enable Settings Modification",
                     "message": "WARNING: Enabling write access to your heat pump allows changing settings. "
                     "Incorrect settings may cause equipment damage or system malfunction. "
                     "Click the switch again within 10 seconds to confirm.",
                     "notification_id": "htha_write_confirm",
                 },
             )
-            self._attr_is_on = False
             self.async_write_ha_state()
-            asyncio.create_task(self._reset_confirm_after_delay())
+            if self._confirm_delay_task:
+                self._confirm_delay_task.cancel()
+            self._confirm_delay_task = asyncio.create_task(self._reset_confirm_after_delay())
             return
 
         _LOGGER.warning("User confirmed enabling writes to heat pump")
         self._confirm_pending = False
+        if self._confirm_delay_task:
+            self._confirm_delay_task.cancel()
+            self._confirm_delay_task = None
         await self.hass.services.async_call(
             "persistent_notification",
             "dismiss",
             {"notification_id": "htha_write_confirm"},
         )
-        self._attr_is_on = True
+        
+        # Persist write enabled flag in config entry
+        new_data = {**self._config_entry.data, CONF_WRITE_ENABLED: True}
+        self.hass.config_entries.async_update_entry(self._config_entry, data=new_data)
         self.async_write_ha_state()
 
     async def _reset_confirm_after_delay(self) -> None:
         """Reset confirm pending after delay."""
-        await asyncio.sleep(10)
-        self._confirm_pending = False
+        try:
+            await asyncio.sleep(10)
+            self._confirm_pending = False
+        except asyncio.CancelledError:
+            pass
 
     async def async_turn_off(self, **kwargs) -> None:
         """Turn the entity off (disable writes)."""
         _LOGGER.info("Disabling writes to heat pump")
-        self._attr_is_on = False
+        self._confirm_pending = False
+        if self._confirm_delay_task:
+            self._confirm_delay_task.cancel()
+            self._confirm_delay_task = None
+        
+        # Persist write enabled flag in config entry
+        new_data = {**self._config_entry.data, CONF_WRITE_ENABLED: False}
+        self.hass.config_entries.async_update_entry(self._config_entry, data=new_data)
         self.async_write_ha_state()

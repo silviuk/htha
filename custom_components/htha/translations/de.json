@@ -233,7 +233,7 @@
         },
         "switch": {
             "write_protection": {
-                "name": "Schreibschutz"
+                "name": "Schreiben aktivieren"
             }
         },
         "datetime": {

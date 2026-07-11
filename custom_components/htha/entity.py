@@ -37,6 +37,7 @@ class HtHAEntity(CoordinatorEntity[HtHACoordinator]):
         super().__init__(coordinator)
         self.entity_description = description
         self._param_name = param_name
+        self._config_entry = config_entry
 
         # Set unique ID based on parameter name or description key
         unique_key = param_name if param_name else description.key
