@@ -10,7 +10,7 @@
  * matched by domain + translation_key), so it works with any entity_ids and
  * with several heat pumps. Only built-in Home Assistant cards are used.
  */
-const HTHA_VERSION = "1.0.13";
+const HTHA_VERSION = "1.0.14";
 
 const ROLES = {
   operating_state: "sensor.operating_state",
@@ -76,6 +76,7 @@ const TEXT = {
     overview: "Heat pump", heating: "Heating circuit", heating_curve: "Heating curve (return setpoints)",
     hot_water: "Hot water", source: "Heat source & refrigerant", statistics: "Statistics",
     controls: "Controls", schedule: "Time programs", diagnostics: "Diagnostics",
+    show_full_week: "Show full week",
     state: "State", mode: "Operating mode", compressor: "Compressor", hot_water_mode: "Hot water mode",
     heating_pump: "Heating pump", source_pump: "Source pump/fan", fault: "Fault", outdoor: "Outdoor",
     flow: "Flow", return: "Return", spread: "Spread", room_setpoint: "Room setpoint",
@@ -100,6 +101,7 @@ const TEXT = {
     overview: "Wärmepumpe", heating: "Heizkreis", heating_curve: "Heizkurve (Rücklaufsollwerte)",
     hot_water: "Warmwasser", source: "Wärmequelle & Kältekreis", statistics: "Statistik",
     controls: "Einstellungen", schedule: "Zeitprogramme", diagnostics: "Diagnose",
+    show_full_week: "Ganze Woche anzeigen",
     state: "Zustand", mode: "Betriebsart", compressor: "Verdichter", hot_water_mode: "Warmwasserbetrieb",
     heating_pump: "Heizkreispumpe", source_pump: "Quellenpumpe/Ventilator", fault: "Störung", outdoor: "Außen",
     flow: "Vorlauf", return: "Rücklauf", spread: "Spreizung", room_setpoint: "Raum-Sollwert",
@@ -361,13 +363,37 @@ const BUILDERS = {
     ]);
   },
 
-  schedule(hass, p, t) {
+  // Time programs. Options (section/view config):
+  //   time_programs: full | summary | collapsible
+  //   time_programs_toggle: input_boolean that expands the full week
+  //     (default: input_boolean.htha_show_time_programs when it exists).
+  // With a toggle the section shows today's programs and expands to the full week
+  // when the toggle is on. Without one it shows the full week, as before.
+  schedule(hass, p, t, config = {}) {
     const sensor = p.e.time_programs;
     if (!sensor) return null;
-    return section([
-      heading(t.schedule, "mdi:calendar-clock"),
-      { type: "markdown", content: scheduleTemplate(sensor) },
-    ]);
+    const toggle = config.time_programs_toggle
+      || (hass.states[DEFAULT_SCHEDULE_TOGGLE] ? DEFAULT_SCHEDULE_TOGGLE : null);
+    const mode = config.time_programs || (toggle ? "collapsible" : "full");
+    const full = { type: "markdown", content: scheduleTemplate(sensor) };
+    const today = { type: "markdown", content: todayTemplate(sensor) };
+    if (mode === "summary") return section([heading(t.schedule, "mdi:calendar-clock"), today]);
+    if (mode === "collapsible" && toggle && hass.states[toggle]) {
+      const domain = toggle.split(".")[0];
+      return section([
+        {
+          ...heading(t.schedule, "mdi:calendar-clock"),
+          tap_action: { action: "perform-action", perform_action: `${domain}.toggle`, target: { entity_id: toggle } },
+        },
+        tile(toggle, t.show_full_week, {
+          icon: "mdi:calendar-week", grid_options: { columns: 12 },
+          tap_action: { action: "toggle" }, icon_tap_action: { action: "toggle" },
+        }),
+        { ...today, visibility: [{ condition: "state", entity: toggle, state_not: "on" }] },
+        { ...full, visibility: [{ condition: "state", entity: toggle, state: "on" }] },
+      ]);
+    }
+    return section([heading(t.schedule, "mdi:calendar-clock"), full]);
   },
 
   diagnostics(hass, p, t) {
@@ -396,6 +422,36 @@ function collectEntities(obj, set) {
   }
 }
 
+const DEFAULT_SCHEDULE_TOGGLE = "input_boolean.htha_show_time_programs";
+
+// One row per program for today; the current hour is red.
+function todayTemplate(sensor) {
+  return `{% set sensor = '${sensor}' %}
+{% set d = now().weekday() %}
+{% set hnow = now().hour %}
+{% set progs = state_attr(sensor, 'time_programs') %}
+{% if progs %}
+| Today | 0 – 24 h |
+| :--- | :--- |
+{% for program in progs -%}
+{% set day_entries = (program.entries[d] if program.entries | length > d else []) | reject('none') | list -%}
+| {{ program.name }} | {% for h in range(24) -%}
+{%- set ns = namespace(state=0) -%}
+{%- for entry in day_entries -%}
+  {%- if (entry.start.split(':')[0] | int) <= h and h < (entry.end.split(':')[0] | int) -%}{%- set ns.state = entry.state -%}{%- endif -%}
+{%- endfor -%}
+{%- set color = '#f44336' if h == hnow else '#4caf50' if ns.state == 1 else '#2196f3' if ns.state == 2 else '#757575' -%}
+<font color="{{ color }}">█</font>
+{%- endfor %} |
+{% endfor %}
+
+<font color="#4caf50">█</font> Comfort | <font color="#2196f3">█</font> Setback | <font color="#757575">█</font> Off | <font color="#f44336">█</font> Now
+{% else %}
+No time programs loaded from the heat pump yet.
+{% endif %}
+`;
+}
+
 function scheduleTemplate(sensor) {
   return `{% set sensor = '${sensor}' %}
 {% set current_day = now().weekday() %}
@@ -404,7 +460,7 @@ function scheduleTemplate(sensor) {
 {% for program in state_attr(sensor, 'time_programs') %}
 ### <ha-icon icon="mdi:calendar-clock"></ha-icon> {{ program.name }}
 
-| Day | 00:00 - 06:00 - 12:00 - 18:00 - 24:00 |
+| Day | 0 – 24 h |
 | :--- | :--- |
 {% set days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] -%}
 {% for day_num in range(program.entries|length) -%}
@@ -446,7 +502,7 @@ function buildSection(hass, config) {
   if (!BUILDERS[name]) return errorSection(`${t.unknown_section}: ${name}`);
   const pump = pickPump(hass, config);
   if (!pump) return errorSection(t.no_heat_pump);
-  return BUILDERS[name](hass, pump, t) || { type: "grid", cards: [] };
+  return BUILDERS[name](hass, pump, t, config || {}) || { type: "grid", cards: [] };
 }
 
 function buildView(hass, config) {
@@ -459,7 +515,7 @@ function buildView(hass, config) {
   const sections = [];
   for (const pump of pumps) {
     for (const name of wanted) {
-      const s = BUILDERS[name] && BUILDERS[name](hass, pump, t);
+      const s = BUILDERS[name] && BUILDERS[name](hass, pump, t, config || {});
       if (s) sections.push(s);
     }
   }
@@ -485,7 +541,7 @@ class HthaDashboardStrategy extends HTMLElement {
       title: pumps.length === 1 ? pumps[0].name : "Heat pumps",
       views: pumps.map((p, i) => ({
         title: p.name, path: i ? `heat-pump-${i + 1}` : "heat-pump", icon: "mdi:heat-pump",
-        strategy: { type: "custom:htha-heatpump", device_id: p.deviceId },
+        strategy: { ...(config || {}), type: "custom:htha-heatpump", device_id: p.deviceId },
       })),
     };
   }

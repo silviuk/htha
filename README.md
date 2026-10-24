@@ -285,6 +285,30 @@ sections:
                           # statistics | controls | schedule | diagnostics
 ```
 
+**Time programs (schedule section).** By default the full week of every time
+program is shown. To make it collapsible, create a toggle helper (Settings ->
+Devices & services -> Helpers -> Toggle) with the entity_id
+`input_boolean.htha_show_time_programs`. The section then shows only today's
+programs, and the full week when you switch the toggle on (tap the heading or the
+"Show full week" tile). Options for the section, view or dashboard strategy:
+
+```yaml
+strategy:
+  type: custom:htha-heatpump
+  time_programs: collapsible   # full | summary | collapsible (default: collapsible
+                               # when a toggle exists, otherwise full)
+  time_programs_toggle: input_boolean.my_toggle   # optional, another toggle helper
+```
+
+**Runtime and starts per day.** The heat pump's hour counters (compressor,
+heating pump, source pump and hot water operating hours) are only updated by the
+controller about once a day, shortly after midnight. A daily bar therefore shows
+the previous day's runtime, and the current day stays at 0 until then. If you
+rename these entities and later rename them back to old entity_ids, Home
+Assistant resumes the old statistics series and books the whole gap in one hour,
+so one day can show more than 24 h. Fix that bar with Developer tools ->
+Statistics -> "Adjust sum" for that hour. Don't delete the statistics.
+
 **If a strategy section shows "Timeout waiting for strategy element
 ll-strategy-section-htha-heatpump to be registered":** update to 1.0.13 or
 newer, restart Home Assistant and reload the page. In the Companion app,
