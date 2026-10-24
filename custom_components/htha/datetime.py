@@ -9,6 +9,7 @@ from homeassistant.components.datetime import (
     DateTimeEntity,
     DateTimeEntityDescription,
 )
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -23,7 +24,7 @@ _LOGGER = logging.getLogger(__name__)
 HT_DATETIME_DESCRIPTION = DateTimeEntityDescription(
     key="ht_datetime",
     translation_key="ht_datetime",
-    icon="mdi:clock-outline",
+    entity_category=EntityCategory.CONFIG,
     name="Heat Pump Date/Time",
 )
 
@@ -102,11 +103,6 @@ class HtHADateTimeEntity(DateTimeEntity):
             model="Heat Pump",
             configuration_url=f"http://{coordinator.host}:{coordinator.port}",
         )
-
-    @property
-    def icon(self) -> str | None:
-        """Return icon."""
-        return "mdi:clock-outline"
 
     @property
     def native_value(self) -> datetime | None:

@@ -7,6 +7,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -40,7 +41,7 @@ async def async_setup_entry(
     description = SwitchEntityDescription(
         key="write_protection",
         translation_key="write_protection",
-        icon="mdi:lock",
+        entity_category=EntityCategory.CONFIG,
     )
 
     async_add_entities([

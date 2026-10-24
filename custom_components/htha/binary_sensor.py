@@ -10,13 +10,18 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from htheatpump import HtParams
 from htheatpump.htparams import HtDataTypes
 
-from .const import PARAM_BINARY_SENSOR_METADATA, PARAM_TRANSLATION_KEYS
+from .const import (
+    DIAGNOSTIC_BINARY_SENSOR_PARAMS,
+    PARAM_BINARY_SENSOR_METADATA,
+    PARAM_TRANSLATION_KEYS,
+)
 from .coordinator import HtHACoordinator
 from .entity import HtHABinarySensorEntity
 from . import HtHAConfigEntry
@@ -130,7 +135,11 @@ async def async_setup_entry(
             key=param_name,
             translation_key=translation_key,
             device_class=_get_device_class(metadata.get("device_class")),
-            icon=metadata.get("icon_off", "mdi:toggle-switch-off"),
+            entity_category=(
+                EntityCategory.DIAGNOSTIC
+                if param_name in DIAGNOSTIC_BINARY_SENSOR_PARAMS
+                else None
+            ),
         )
 
         entities.append(
@@ -173,7 +182,13 @@ class HtHABinarySensor(HtHABinarySensorEntity, BinarySensorEntity):
 
     @property
     def icon(self) -> str | None:
-        """Return the icon to use in the frontend."""
+        """Return the icon to use in the frontend.
+
+        Parameters with a translation key get their (state dependent) icon
+        from icons.json; only unknown parameters fall back to metadata.
+        """
+        if self.entity_description.translation_key:
+            return None
         if self.is_on:
             return self._icon_on
         return self._icon_off

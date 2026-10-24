@@ -75,7 +75,7 @@ async def async_setup_entry(
         description = SelectEntityDescription(
             key=param_name,
             translation_key=translation_key,
-            icon=metadata.get("icon", "mdi:home-automation"),
+            icon=None if translation_key else metadata.get("icon", "mdi:home-automation"),
             options=metadata.get("options", list(OPERATING_MODES.values())),
         )
 

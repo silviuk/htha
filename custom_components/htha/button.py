@@ -6,6 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -20,7 +21,7 @@ _LOGGER = logging.getLogger(__name__)
 HT_DATETIME_SYNC_DESCRIPTION = ButtonEntityDescription(
     key="ht_datetime_sync",
     translation_key="ht_datetime_sync",
-    icon="mdi:clock-sync",
+    entity_category=EntityCategory.CONFIG,
     name="Sync Heat Pump Date/Time",
 )
 

@@ -11,14 +11,19 @@ from homeassistant.components.number import (
     NumberEntityDescription,
     NumberMode,
 )
-from homeassistant.const import UnitOfTemperature
+from homeassistant.const import EntityCategory, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from htheatpump import HtParams
 from htheatpump.htparams import HtDataTypes
 
-from .const import CONF_WRITE_ENABLED, PARAM_NUMBER_METADATA, PARAM_TRANSLATION_KEYS
+from .const import (
+    CONF_WRITE_ENABLED,
+    CONFIG_NUMBER_PARAMS,
+    PARAM_NUMBER_METADATA,
+    PARAM_TRANSLATION_KEYS,
+)
 from .coordinator import HtHACoordinator
 from .entity import HtHANumberEntity
 from . import HtHAConfigEntry
@@ -31,8 +36,11 @@ _LOGGER = logging.getLogger(__name__)
 
 def _get_device_class(unit: str | None) -> NumberDeviceClass | None:
     """Get device class from unit string."""
-    if unit in (UnitOfTemperature.CELSIUS, "°C", "K"):
+    if unit in (UnitOfTemperature.CELSIUS, "°C"):
         return NumberDeviceClass.TEMPERATURE
+    if unit in (UnitOfTemperature.KELVIN, "K"):
+        # Values in K are temperature differences (offsets, hystereses).
+        return NumberDeviceClass.TEMPERATURE_DELTA
     return None
 
 
@@ -99,8 +107,11 @@ async def async_setup_entry(
             translation_key=translation_key,
             device_class=_get_device_class(metadata.get("unit")),
             native_unit_of_measurement=metadata.get("unit"),
-            icon=metadata.get("icon", "mdi:thermometer"),
+            icon=None if translation_key else metadata.get("icon", "mdi:thermometer"),
             mode=NumberMode.BOX if metadata.get("mode") == "box" else NumberMode.AUTO,
+            entity_category=(
+                EntityCategory.CONFIG if param_name in CONFIG_NUMBER_PARAMS else None
+            ),
         )
 
         entities.append(
