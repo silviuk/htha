@@ -148,10 +148,25 @@ The operating mode select entity supports the following options:
 
 ## Dashboard
 
-The integration ships a ready-made, modern dashboard for the heat pump. It is
-loaded automatically (no extra HACS frontend resource needed) and builds
-itself from your entities, so it works with any entity_ids, languages and
-several heat pumps. Only built-in Home Assistant cards are used.
+The integration ships a ready-made, modern heat pump dashboard that uses only
+built-in Home Assistant cards. There are two ways to use it:
+
+- **Explicit cards (most robust, recommended for your main dashboard).** Copy
+  [`dashboards/heliotherm_heatpump.yaml`](https://github.com/silviuk/htha/blob/master/dashboards/heliotherm_heatpump.yaml)
+  into a dashboard (Raw configuration editor). It does not depend on any
+  JavaScript, works in every browser and app version and is easy to tweak.
+  It uses the entity_ids of a default install; adjust them if yours differ.
+  You can also generate it from the strategy: add the strategy (below), then
+  use "Take control" in the dashboard editor to turn it into explicit cards.
+- **Strategy (most convenient).** The `custom:htha-heatpump` dashboard / view
+  / section strategy builds itself from your entities, so it works with any
+  entity_ids, languages and several heat pumps, and picks up improvements with
+  every integration update. Its module is loaded automatically: Ht HA serves
+  it, adds it to the frontend and (in storage mode) also adds it as a
+  dashboard resource (`/htha_frontend/htha-heatpump-strategy.js?v=<version>`,
+  type JavaScript module). The resource is removed again when the last Ht HA
+  entry is deleted, if Ht HA added it. With YAML mode resources, add it
+  yourself.
 
 <!-- Screenshot placeholder: add docs/dashboard.png here -->
 
@@ -192,6 +207,15 @@ sections:
       section: overview   # overview | heating | hot_water | source |
                           # statistics | controls | schedule | diagnostics
 ```
+
+**If a strategy section shows "Timeout waiting for strategy element
+ll-strategy-section-htha-heatpump to be registered":** update to 1.0.13 or
+newer, restart Home Assistant and reload the page. In the Companion app,
+pull down to refresh, or clear the app's frontend cache (Settings ->
+Companion app -> Troubleshooting). Older versions defined the strategy before the
+frontend's custom element registry was set up, which always fails with the
+legacy browser build (older Android WebViews) and sometimes on a cold cache.
+If you keep seeing it, use the explicit cards.
 
 To customise the cards, use "Take control" in the dashboard editor, or start
 from [`dashboards/heliotherm_heatpump.yaml`](https://github.com/silviuk/htha/blob/master/dashboards/heliotherm_heatpump.yaml)

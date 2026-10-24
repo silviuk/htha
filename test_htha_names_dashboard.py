@@ -15,6 +15,7 @@ from custom_components.htha import (
     DATA_FRONTEND_REGISTERED,
     async_register_frontend,
 )
+from custom_components.htha import lovelace_resource
 from custom_components.htha.const import (
     FRONTEND_SCRIPT,
     FRONTEND_URL_BASE,
@@ -206,3 +207,103 @@ def test_strategy_roles_exist_in_translations():
     for role in roles:
         platform, key = role.split(".")
         assert key in entity[platform], role
+
+
+class _FakeResources:
+    """Minimal stand-in for lovelace's ResourceStorageCollection."""
+
+    def __init__(self, items=None):
+        self.loaded = False
+        self.items = list(items or [])
+        self.async_load = AsyncMock(side_effect=self._load)
+        self._n = 0
+
+    async def _load(self):
+        self.loaded = True
+
+    def async_items(self):
+        return [dict(i) for i in self.items]
+
+    async def async_create_item(self, data):
+        self._n += 1
+        item = {"id": f"new{self._n}", "type": data["res_type"], "url": data["url"]}
+        self.items.append(item)
+        return item
+
+    async def async_update_item(self, item_id, updates):
+        for item in self.items:
+            if item["id"] == item_id:
+                item.update(type=updates["res_type"], url=updates["url"])
+                return item
+        raise KeyError(item_id)
+
+    async def async_delete_item(self, item_id):
+        self.items = [i for i in self.items if i["id"] != item_id]
+
+
+def _resource_hass(resources):
+    hass = MagicMock()
+    hass.config.components = {"frontend", "http", "lovelace"}
+    hass.data = {"lovelace": MagicMock(resources=resources)}
+    return hass
+
+
+def _fake_store(data=None):
+    store = MagicMock()
+    store.async_load = AsyncMock(return_value=data)
+    store.async_save = AsyncMock()
+    store.async_remove = AsyncMock()
+    return store
+
+
+async def test_lovelace_resource_created_once_and_versioned():
+    other = {"id": "x", "type": "module", "url": "/hacsfiles/iconset.js"}
+    resources = _FakeResources([other])
+    hass = _resource_hass(resources)
+    store = _fake_store()
+    with patch.object(lovelace_resource, "_store", return_value=store):
+        await lovelace_resource.async_ensure_resource(hass, "1.0.13")
+        await lovelace_resource.async_ensure_resource(hass, "1.0.13")
+    ours = [i for i in resources.items if i["id"] != "x"]
+    assert ours == [{"id": "new1", "type": "module", "url": f"{FRONTEND_URL_BASE}/{FRONTEND_SCRIPT}?v=1.0.13"}]
+    assert other in resources.items
+    store.async_save.assert_awaited_once_with({"resource_id": "new1"})
+    resources.async_load.assert_awaited_once()
+
+
+async def test_lovelace_resource_version_is_updated_not_duplicated():
+    old = {"id": "r1", "type": "module", "url": f"{FRONTEND_URL_BASE}/{FRONTEND_SCRIPT}?v=1.0.12"}
+    resources = _FakeResources([old])
+    store = _fake_store()
+    with patch.object(lovelace_resource, "_store", return_value=store):
+        await lovelace_resource.async_ensure_resource(_resource_hass(resources), "1.0.13")
+    assert resources.items == [{"id": "r1", "type": "module", "url": f"{FRONTEND_URL_BASE}/{FRONTEND_SCRIPT}?v=1.0.13"}]
+    store.async_save.assert_not_awaited()
+
+
+async def test_lovelace_resource_skipped_in_yaml_mode():
+    hass = _resource_hass(None)
+    hass.data["lovelace"].resources = object()  # read-only YAML collection
+    with patch.object(lovelace_resource, "_store") as store:
+        await lovelace_resource.async_ensure_resource(hass, "1.0.13")
+    store.assert_not_called()
+
+
+async def test_lovelace_resource_removed_only_if_ours():
+    ours = {"id": "new1", "type": "module", "url": f"{FRONTEND_URL_BASE}/{FRONTEND_SCRIPT}?v=1.0.13"}
+    resources = _FakeResources([ours])
+    with patch.object(lovelace_resource, "_store", return_value=_fake_store(None)):
+        await lovelace_resource.async_remove_resource(_resource_hass(resources))
+    assert resources.items == [ours]  # not created by us -> kept
+    store = _fake_store({"resource_id": "new1"})
+    with patch.object(lovelace_resource, "_store", return_value=store):
+        await lovelace_resource.async_remove_resource(_resource_hass(resources))
+    assert resources.items == []
+    store.async_remove.assert_awaited_once()
+
+
+def test_strategy_registers_into_current_registry():
+    js = (COMPONENT / "frontend" / FRONTEND_SCRIPT).read_text(encoding="utf-8")
+    assert "window.customElements" in js and "setInterval" in js
+    manifest = _load("manifest.json")
+    assert f'HTHA_VERSION = "{manifest["version"]}"' in js
