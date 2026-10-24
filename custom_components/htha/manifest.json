@@ -19,5 +19,5 @@
     "requirements": [
         "htheatpump@git+https://github.com/silviuk/htheatpump.git@v1.3.5"
     ],
-    "version": "1.0.13"
+    "version": "1.0.14"
 }
