@@ -1,6 +1,10 @@
 {
     "domain": "htha",
     "name": "Ht HA",
+    "after_dependencies": [
+        "frontend",
+        "http"
+    ],
     "codeowners": [
         "@silviuk"
     ],
@@ -14,5 +18,5 @@
     "requirements": [
         "htheatpump@git+https://github.com/silviuk/htheatpump.git@v1.3.5"
     ],
-    "version": "1.0.11"
+    "version": "1.0.12"
 }

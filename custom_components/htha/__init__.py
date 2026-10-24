@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from homeassistant.config_entries import ConfigEntry
@@ -20,6 +21,8 @@ from .const import (
     CONF_WRITE_ENABLED,
     DEFAULT_PARAMS,
     DOMAIN,
+    FRONTEND_SCRIPT,
+    FRONTEND_URL_BASE,
 )
 from .coordinator import HtHACoordinator
 
@@ -27,6 +30,8 @@ if TYPE_CHECKING:
     pass
 
 _LOGGER = logging.getLogger(__name__)
+
+DATA_FRONTEND_REGISTERED = f"{DOMAIN}_frontend_registered"
 
 # Config schema for config entry only integration
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -57,7 +62,40 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         True if setup was successful
     """
     _LOGGER.info("Setting up %s integration", DOMAIN)
+    await async_register_frontend(hass)
     return True
+
+
+async def async_register_frontend(hass: HomeAssistant) -> None:
+    """Serve the bundled dashboard strategy and load it in the frontend.
+
+    The module registers the ``custom:htha-heatpump`` dashboard, view and
+    section strategies. Failures here must never break the integration.
+    """
+    if hass.data.get(DATA_FRONTEND_REGISTERED):
+        return
+    if getattr(hass, "http", None) is None or "frontend" not in hass.config.components:
+        _LOGGER.debug("Frontend not loaded, not registering the dashboard strategy")
+        return
+    try:
+        # Imported lazily so the integration still works without the frontend.
+        from homeassistant.components.frontend import add_extra_js_url
+        from homeassistant.components.http import StaticPathConfig
+        from homeassistant.loader import async_get_integration
+
+        integration = await async_get_integration(hass, DOMAIN)
+        frontend_dir = Path(__file__).parent / "frontend"
+        await hass.http.async_register_static_paths(
+            [StaticPathConfig(FRONTEND_URL_BASE, str(frontend_dir), False)]
+        )
+        add_extra_js_url(
+            hass,
+            f"{FRONTEND_URL_BASE}/{FRONTEND_SCRIPT}?v={integration.version}",
+        )
+    except Exception:  # noqa: BLE001 - dashboard support is optional
+        _LOGGER.exception("Could not register the Ht HA dashboard strategy")
+        return
+    hass.data[DATA_FRONTEND_REGISTERED] = True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: HtHAConfigEntry) -> bool:

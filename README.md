@@ -22,6 +22,8 @@ htha/
 |       |-- const.py             # Constants and parameter definitions
 |       |-- coordinator.py       # Data coordinator for polling
 |       |-- entity.py            # Base entity classes
+|       |-- frontend/            # Dashboard strategy (custom:htha-heatpump)
+|       |-- icons.json           # Entity icons
 |       |-- manifest.json        # Home Assistant manifest
 |       |-- number.py            # Number entities (setpoints)
 |       |-- select.py            # Select entities (operating mode)
@@ -31,6 +33,7 @@ htha/
 |       |   |-- de.json          # German translations
 |       |   |-- en.json          # English translations
 |       |-- README.md            # Integration documentation
+|-- dashboards/                # Example dashboard YAML
 |-- plans/
 |   |-- home-assistant-integration-plan.md  # Development plan
 |-- test_htha_config_flow.py     # Config flow tests
@@ -46,6 +49,7 @@ htha/
 - **Number Entities**: Control setpoints like room temperature and hot water temperature
 - **Select Entity**: Change operating mode (Heating, Cooling, Hot Water, Auto, etc.)
 - **Write Protection**: Safety switch to prevent accidental changes to heat pump settings
+- **Ready-made dashboard**: `custom:htha-heatpump` dashboard strategy, loaded automatically
 - **Configurable Parameters**: Choose which parameters to expose through the options flow
 
 ## Supported Heat Pumps
@@ -174,31 +178,35 @@ pytest -v
 
 ## Entities
 
-### Default Entities
+Entity names are translated (English and German) and follow Home Assistant's
+naming rules, so they read as *device name + entity name*, for example
+"Heliotherm Heat Pump Heating flow temperature".
 
-The following entities are created by default:
+### Default entities
 
-#### Sensors
-- Outdoor Temperature
-- Hot Water Temperature
-- Flow Temperature
-- Return Temperature
+| Type | Entities |
+|------|----------|
+| Sensors | Outdoor temperature, Outdoor temperature (damped), Hot water temperature, Heating flow temperature, Heating return temperature, Heat source inlet temperature, Heat source outlet temperature, Refrigerant suction gas temperature |
+| Derived sensors | Operating state (off / standby / heating / hot water / cooling / fault), Heating flow/return spread, Heat source inlet/outlet spread |
+| Statistics (diagnostic) | Compressor starts, Heating circuit pump runtime, Heat source pump runtime, Hot water mode runtime |
+| Binary sensors | Fault, Compressor, Hot water mode, Heating circuit pump, Heat source pump/fan, Hot water circulation pump; Main switch and Fresh water station flow switch (diagnostic) |
+| Numbers | Room temperature setpoint, Hot water setpoint (normal), Hot water setpoint (minimum), Heating curve return setpoint at upper heating limit / at 0 °C outdoor / at lower heating limit (configuration) |
+| Select | Operating mode |
+| Configuration | Allow writes to heat pump (switch), Heat pump clock (datetime), Sync heat pump clock (button) |
 
-#### Binary Sensors
-- Fault Status
-- Heating Circuit Pump
-- Compressor
-- Hot Water Priority
+Every number/select parameter also has a read-only sensor twin, e.g.
+"Room temperature setpoint (read-only)". These are diagnostic and disabled by
+default on new installs; enable them if you need long-term statistics of a
+setpoint.
 
-#### Number Entities
-- Room Setpoint Temperature
-- Hot Water Normal Temperature
+### Upgrading from 1.0.11 or older
 
-#### Select Entities
-- Operating Mode
-
-#### Switches
-- Write Protection (controls whether changes are allowed)
+Version 1.0.12 only changes *display names*, icons, categories and units;
+`entity_id`s and `unique_id`s stay the same, so history and automations keep
+working. Entities you renamed yourself keep your name. Entity_ids that were
+generated from the old names (e.g. `sensor.heliotherm_heat_pump_temperature_2`)
+are not renamed automatically; you can rename them in the UI if you like. The
+three derived sensors are new entities.
 
 ### Operating Modes
 
@@ -215,12 +223,63 @@ The operating mode select entity supports the following options:
 | Emergency | Emergency operation |
 | Standby | Standby mode |
 
+## Dashboard
+
+The integration ships a ready-made, modern dashboard for the heat pump. It is
+loaded automatically (no extra HACS frontend resource needed) and builds
+itself from your entities, so it works with any entity_ids, languages and
+several heat pumps. Only built-in Home Assistant cards are used.
+
+<!-- Screenshot placeholder: add docs/dashboard.png here -->
+
+Sections: **overview** (state, mode, compressor, pumps, fault alert, 24 h
+activity), **heating** (flow/return/spread, room setpoint, 48 h graph, heating
+curve), **hot_water** (gauge, setpoints, 72 h graph), **source** (heat source
+and refrigerant temperatures/pressures), **statistics** (compressor starts and
+runtimes per day), **controls** (only shown while *Allow writes* is on),
+**schedule** (time programs) and **diagnostics** (everything else).
+
+Whole dashboard: Settings -> Dashboards -> Add dashboard -> New dashboard from
+scratch, open it, then three dots -> Edit -> three dots -> Raw configuration
+editor and paste:
+
+```yaml
+strategy:
+  type: custom:htha-heatpump
+```
+
+A single view in an existing dashboard:
+
+```yaml
+views:
+  - title: Heat pump
+    icon: mdi:heat-pump
+    strategy:
+      type: custom:htha-heatpump
+      # device_id: 0123abcd...           # optional: only this heat pump
+      # sections: [overview, heating, hot_water, controls]  # optional subset
+```
+
+Single sections inside your own `type: sections` view:
+
+```yaml
+sections:
+  - strategy:
+      type: custom:htha-heatpump
+      section: overview   # overview | heating | hot_water | source |
+                          # statistics | controls | schedule | diagnostics
+```
+
+To customise the cards, use "Take control" in the dashboard editor, or start
+from [`dashboards/heliotherm_heatpump.yaml`](https://github.com/silviuk/htha/blob/master/dashboards/heliotherm_heatpump.yaml)
+(the same layout as explicit cards for a default install).
+
 ## Write Protection
 
 For safety, the integration includes a write protection feature:
 
 - By default, writes are **disabled**
-- Enable writes by turning on the "Write Protection" switch
+- Enable writes by turning on the "Allow writes to heat pump" switch (switch it on again within 10 s to confirm)
 - When writes are disabled, number and select entities will show an error if you try to change them
 
 ## Troubleshooting

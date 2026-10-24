@@ -1,0 +1,28 @@
+# Ht HA - Heliotherm heat pump dashboard (auto-generated, recommended)
+#
+# The htha integration ships the `custom:htha-heatpump` strategy and loads it
+# automatically. It finds all heat pumps and their entities by itself, so this
+# works out of the box regardless of entity_ids or language.
+#
+# Whole dashboard (one view per heat pump):
+strategy:
+  type: custom:htha-heatpump
+
+# --- Alternatives -----------------------------------------------------------
+# A single view inside an existing dashboard:
+#
+# views:
+#   - title: Heat pump
+#     icon: mdi:heat-pump
+#     strategy:
+#       type: custom:htha-heatpump
+#       # device_id: <id>          # optional, pick one heat pump
+#       # sections: [overview, heating, hot_water, controls]   # optional subset/order
+#
+# Individual sections inside a `type: sections` view:
+#
+# sections:
+#   - strategy:
+#       type: custom:htha-heatpump
+#       section: overview          # overview | heating | hot_water | source |
+#                                  # statistics | controls | schedule | diagnostics

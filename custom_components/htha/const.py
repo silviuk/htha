@@ -578,3 +578,85 @@ PARAM_TRANSLATION_KEYS: Final[dict[str, str]] = {
     "Verdichteranforderung": "verdichteranforderung",
     "Frischwasserpumpe": "frischwasserpumpe",
 }
+
+
+# ---------------------------------------------------------------------------
+# Entity presentation metadata (added in 1.0.12)
+#
+# These only influence how entities are presented (category, enabled by
+# default, precision). They never change entity_ids or unique_ids.
+# ---------------------------------------------------------------------------
+
+# Sensor parameters that are diagnostic information rather than primary data.
+DIAGNOSTIC_SENSOR_PARAMS: Final[frozenset[str]] = frozenset(
+    {
+        "BSZ Verdichter Schaltungen",
+        "BSZ HKP Betriebsstunden",
+        "BSZ EQ Betriebsstunden",
+        "BSZ WWV Betriebsstunden",
+        "BSZ ZIPWW Betriebsstunden",
+        "BSZ Verdichter Betriebsst. WW",
+        "BSZ Verdichter Betriebsst. HKR",
+        "BSZ Verdichter Betriebsst. ges",
+        "BSZ Verdichter akt. Laufzeit",
+        "BSZ Verdichter Schaltung WW",
+        "BSZ HKP Schaltung",
+        "BSZ EQ Schaltungen",
+        "BSZ WWV Schaltungen",
+        "BSZ ZIPWW Schaltungen",
+        "Verdichter_Status",
+        "Verdichter laeuft seit",
+        "Verdichter Einschaltverz.(sec)",
+        "Verdichteranforderung",
+    }
+)
+
+# Binary sensor parameters that are diagnostic.
+DIAGNOSTIC_BINARY_SENSOR_PARAMS: Final[frozenset[str]] = frozenset(
+    {
+        "Hauptschalter",
+        "FWS Stroemungsschalter",
+    }
+)
+
+# Number parameters that are device configuration (as opposed to the primary
+# setpoints a user changes day to day).
+CONFIG_NUMBER_PARAMS: Final[frozenset[str]] = frozenset(
+    {
+        "HKR RLT Soll_oHG (Heizkurve)",
+        "HKR RLT Soll_0 (Heizkurve)",
+        "HKR RLT Soll_uHG (Heizkurve)",
+        "HKR Aufheiztemp. (K)",
+        "HKR Absenktemp. (K)",
+        "HKR Heizgrenze",
+        "WW Hysterese Normaltemp.",
+        "WW Hysterese Minimaltemp.",
+    }
+)
+
+# Units for read-only sensor mirrors of number parameters that have no entry
+# in PARAM_SENSOR_METADATA.
+SENSOR_MIRROR_UNITS: Final[dict[str, str]] = {
+    "HKR Soll_Raum": "°C",
+    "WW Normaltemp.": "°C",
+    "WW Minimaltemp.": "°C",
+}
+
+# Translation keys of the derived (computed) sensors.
+DERIVED_OPERATING_STATE: Final = "operating_state"
+DERIVED_HEATING_SPREAD: Final = "heating_circuit_spread"
+DERIVED_SOURCE_SPREAD: Final = "heat_source_spread"
+
+# Possible states of the derived operating state sensor.
+OPERATING_STATES: Final[list[str]] = [
+    "off",
+    "standby",
+    "heating",
+    "hot_water",
+    "cooling",
+    "fault",
+]
+
+# Frontend (dashboard strategy) served by the integration.
+FRONTEND_URL_BASE: Final = "/htha_frontend"
+FRONTEND_SCRIPT: Final = "htha-heatpump-strategy.js"

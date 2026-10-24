@@ -56,88 +56,91 @@
                 "name": "Außentemperatur"
             },
             "temp_aussen_verzoegert": {
-                "name": "Außentemperatur verzögert"
+                "name": "Außentemperatur (gedämpft)"
             },
             "temp_brauchwasser": {
                 "name": "Warmwassertemperatur"
             },
             "temp_vorlauf": {
-                "name": "Vorlauftemperatur"
+                "name": "Heizungsvorlauftemperatur"
             },
             "temp_ruecklauf": {
-                "name": "Rücklauftemperatur"
+                "name": "Heizungsrücklauftemperatur"
             },
             "temp_eq_eintritt": {
-                "name": "EQ Eintrittstemperatur"
+                "name": "Wärmequelle Eintrittstemperatur"
             },
             "temp_eq_austritt": {
-                "name": "EQ Austrittstemperatur"
+                "name": "Wärmequelle Austrittstemperatur"
             },
             "temp_sauggas": {
-                "name": "Sauggastemperatur"
+                "name": "Kältemittel Sauggastemperatur"
             },
             "temp_frischwasser_istwert": {
-                "name": "Frischwasser Istwert"
+                "name": "Frischwasserstation Temperatur"
             },
             "temp_verdampfung": {
-                "name": "Verdampfungstemperatur"
+                "name": "Kältemittel Verdampfungstemperatur"
             },
             "temp_kondensation": {
-                "name": "Kondensationstemperatur"
+                "name": "Kältemittel Kondensationstemperatur"
             },
             "temp_heissgas": {
-                "name": "Heißgastemperatur"
+                "name": "Kältemittel Heißgastemperatur"
             },
             "niederdruck": {
-                "name": "Niederdruck"
+                "name": "Kältemittel Niederdruck"
             },
             "hochdruck": {
-                "name": "Hochdruck"
+                "name": "Kältemittel Hochdruck"
+            },
+            "hkr_sollwert": {
+                "name": "Heizkreis Solltemperatur"
             },
             "bsz_verdichter_schaltungen": {
-                "name": "Verdichter Schaltungen"
+                "name": "Verdichter Starts"
             },
             "bsz_hkp_betriebsstunden": {
-                "name": "HKP Betriebsstunden"
+                "name": "Heizkreispumpe Laufzeit"
             },
             "bsz_eq_betriebsstunden": {
-                "name": "EQ Betriebsstunden"
+                "name": "Wärmequellenpumpe Laufzeit"
             },
             "bsz_wwv_betriebsstunden": {
-                "name": "WWV Betriebsstunden"
+                "name": "Warmwasserbetrieb Laufzeit"
             },
             "bsz_zipww_betriebsstunden": {
-                "name": "ZIPWW Betriebsstunden"
+                "name": "Zirkulationspumpe Laufzeit"
             },
             "bsz_verdichter_betriebsst_ww": {
-                "name": "Verdichter Betriebsstunden WW"
+                "name": "Verdichter Laufzeit (Warmwasser)"
             },
             "bsz_verdichter_betriebsst_hkr": {
-                "name": "Verdichter Betriebsstunden HKR"
+                "name": "Verdichter Laufzeit (Heizen)"
             },
             "bsz_verdichter_betriebsst_ges": {
-                "name": "Verdichter Betriebsstunden gesamt"
+                "name": "Verdichter Laufzeit (gesamt)"
             },
             "bsz_verdichter_akt_laufzeit": {
-                "name": "Verdichter akt. Laufzeit"
+                "name": "Verdichter aktuelle Laufzeit"
             },
             "bsz_verdichter_schaltung_ww": {
-                "name": "Verdichter Schaltungen WW"
+                "name": "Verdichter Starts (Warmwasser)"
             },
             "bsz_hkp_schaltung": {
-                "name": "HKP Schaltungen"
+                "name": "Heizkreispumpe Starts"
             },
             "bsz_eq_schaltungen": {
-                "name": "EQ Schaltungen"
+                "name": "Wärmequellenpumpe Starts"
             },
             "bsz_wwv_schaltungen": {
-                "name": "WWV Schaltungen"
+                "name": "Warmwasserbetrieb Starts"
             },
             "bsz_zipww_schaltungen": {
-                "name": "ZIPWW Schaltungen"
+                "name": "Zirkulationspumpe Starts"
             },
             "verdichter_status": {
-                "name": "Verdichter Status"
+                "name": "Verdichter Statuscode"
             },
             "verdichter_laeft_seit": {
                 "name": "Verdichter läuft seit"
@@ -149,30 +152,80 @@
                 "name": "Verdichteranforderung"
             },
             "frischwasserpumpe": {
-                "name": "Frischwasserpumpe"
-            },
-            "hkr_sollwert": {
-                "name": "HKR Sollwert"
+                "name": "Frischwasserpumpe Drehzahl"
             },
             "time_programs": {
                 "name": "Zeitprogramme"
+            },
+            "hkr_soll_raum": {
+                "name": "Raumtemperatur Sollwert (nur Anzeige)"
+            },
+            "ww_normaltemp": {
+                "name": "Warmwasser Sollwert (normal) (nur Anzeige)"
+            },
+            "ww_minimaltemp": {
+                "name": "Warmwasser Sollwert (minimal) (nur Anzeige)"
+            },
+            "hkr_rlt_soll_ohg": {
+                "name": "Heizkurve Rücklaufsollwert an oberer Heizgrenze (nur Anzeige)"
+            },
+            "hkr_rlt_soll_0": {
+                "name": "Heizkurve Rücklaufsollwert bei 0 °C außen (nur Anzeige)"
+            },
+            "hkr_rlt_soll_uhg": {
+                "name": "Heizkurve Rücklaufsollwert an unterer Heizgrenze (nur Anzeige)"
+            },
+            "hkr_aufheiztemp": {
+                "name": "Aufheiztemperatur (nur Anzeige)"
+            },
+            "hkr_absenktemp": {
+                "name": "Absenktemperatur (nur Anzeige)"
+            },
+            "hkr_heizgrenze": {
+                "name": "Heizgrenze (nur Anzeige)"
+            },
+            "ww_hysterese_normaltemp": {
+                "name": "Warmwasser Hysterese (normal) (nur Anzeige)"
+            },
+            "ww_hysterese_minimaltemp": {
+                "name": "Warmwasser Hysterese (minimal) (nur Anzeige)"
+            },
+            "betriebsart": {
+                "name": "Betriebsart Code"
+            },
+            "operating_state": {
+                "name": "Betriebszustand",
+                "state": {
+                    "off": "Aus",
+                    "standby": "Bereitschaft",
+                    "heating": "Heizen",
+                    "hot_water": "Warmwasser",
+                    "cooling": "Kühlen",
+                    "fault": "Störung"
+                }
+            },
+            "heating_circuit_spread": {
+                "name": "Heizkreis Spreizung (Vorlauf − Rücklauf)"
+            },
+            "heat_source_spread": {
+                "name": "Wärmequelle Spreizung (Eintritt − Austritt)"
             }
         },
         "binary_sensor": {
             "stoerung": {
-                "name": "Störungsstatus"
+                "name": "Störung"
             },
             "heizkreispumpe": {
                 "name": "Heizkreispumpe"
             },
             "eq_pumpe_ventilator": {
-                "name": "EQ Pumpe/Ventilator"
+                "name": "Wärmequellenpumpe/Ventilator"
             },
             "warmwasservorrang": {
-                "name": "Warmwasservorrang"
+                "name": "Warmwasserbetrieb"
             },
             "zirkulationspumpe_ww": {
-                "name": "Zirkulationspumpe WW"
+                "name": "Warmwasser-Zirkulationspumpe"
             },
             "verdichter": {
                 "name": "Verdichter"
@@ -181,42 +234,42 @@
                 "name": "Hauptschalter"
             },
             "fws_stroemungsschalter": {
-                "name": "FWS Strömungsschalter"
+                "name": "Frischwasserstation Strömungsschalter"
             }
         },
         "number": {
             "hkr_soll_raum": {
-                "name": "Raumsolltemperatur"
+                "name": "Raumtemperatur Sollwert"
             },
             "ww_normaltemp": {
-                "name": "Warmwasser Normaltemperatur"
+                "name": "Warmwasser Sollwert (normal)"
             },
             "ww_minimaltemp": {
-                "name": "Warmwasser Minimaltemperatur"
+                "name": "Warmwasser Sollwert (minimal)"
             },
             "hkr_rlt_soll_ohg": {
-                "name": "HKR RLT Soll oHG (Heizkurve)"
+                "name": "Heizkurve Rücklaufsollwert an oberer Heizgrenze"
             },
             "hkr_rlt_soll_0": {
-                "name": "HKR RLT Soll 0 (Heizkurve)"
+                "name": "Heizkurve Rücklaufsollwert bei 0 °C außen"
             },
             "hkr_rlt_soll_uhg": {
-                "name": "HKR RLT Soll uHG (Heizkurve)"
+                "name": "Heizkurve Rücklaufsollwert an unterer Heizgrenze"
             },
             "hkr_aufheiztemp": {
-                "name": "HKR Aufheiztemperatur"
+                "name": "Aufheiztemperatur"
             },
             "hkr_absenktemp": {
-                "name": "HKR Absenktemperatur"
+                "name": "Absenktemperatur"
             },
             "hkr_heizgrenze": {
-                "name": "HKR Heizgrenze"
+                "name": "Heizgrenze"
             },
             "ww_hysterese_normaltemp": {
-                "name": "WW Hysterese Normaltemp."
+                "name": "Warmwasser Hysterese (normal)"
             },
             "ww_hysterese_minimaltemp": {
-                "name": "WW Hysterese Minimaltemp."
+                "name": "Warmwasser Hysterese (minimal)"
             }
         },
         "select": {
@@ -230,23 +283,23 @@
                     "heating_cooling": "Heizen + Kühlen",
                     "auto": "Automatik",
                     "emergency": "Notbetrieb",
-                    "standby": "Standby"
+                    "standby": "Bereitschaft"
                 }
             }
         },
         "switch": {
             "write_protection": {
-                "name": "Schreiben aktivieren"
+                "name": "Schreibzugriff auf Wärmepumpe erlauben"
             }
         },
         "datetime": {
             "ht_datetime": {
-                "name": "Wärmepumpe Datum/Zeit"
+                "name": "Uhrzeit der Wärmepumpe"
             }
         },
         "button": {
             "ht_datetime_sync": {
-                "name": "Wärmepumpe Datum/Zeit synch."
+                "name": "Uhrzeit der Wärmepumpe synchronisieren"
             }
         }
     }

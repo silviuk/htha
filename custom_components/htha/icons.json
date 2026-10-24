@@ -1,0 +1,282 @@
+{
+    "entity": {
+        "sensor": {
+            "temp_aussen": {
+                "default": "mdi:home-thermometer-outline"
+            },
+            "temp_aussen_verzoegert": {
+                "default": "mdi:home-thermometer-outline"
+            },
+            "temp_brauchwasser": {
+                "default": "mdi:water-thermometer"
+            },
+            "temp_vorlauf": {
+                "default": "mdi:thermometer-chevron-up"
+            },
+            "temp_ruecklauf": {
+                "default": "mdi:thermometer-chevron-down"
+            },
+            "temp_eq_eintritt": {
+                "default": "mdi:import"
+            },
+            "temp_eq_austritt": {
+                "default": "mdi:export"
+            },
+            "temp_sauggas": {
+                "default": "mdi:snowflake-thermometer"
+            },
+            "temp_frischwasser_istwert": {
+                "default": "mdi:water-thermometer-outline"
+            },
+            "temp_verdampfung": {
+                "default": "mdi:snowflake-thermometer"
+            },
+            "temp_kondensation": {
+                "default": "mdi:sun-thermometer-outline"
+            },
+            "temp_heissgas": {
+                "default": "mdi:thermometer-alert"
+            },
+            "niederdruck": {
+                "default": "mdi:gauge-low"
+            },
+            "hochdruck": {
+                "default": "mdi:gauge-full"
+            },
+            "hkr_sollwert": {
+                "default": "mdi:thermometer-check"
+            },
+            "bsz_verdichter_schaltungen": {
+                "default": "mdi:counter"
+            },
+            "bsz_hkp_betriebsstunden": {
+                "default": "mdi:timer-outline"
+            },
+            "bsz_eq_betriebsstunden": {
+                "default": "mdi:timer-outline"
+            },
+            "bsz_wwv_betriebsstunden": {
+                "default": "mdi:timer-outline"
+            },
+            "bsz_zipww_betriebsstunden": {
+                "default": "mdi:timer-outline"
+            },
+            "bsz_verdichter_betriebsst_ww": {
+                "default": "mdi:timer-outline"
+            },
+            "bsz_verdichter_betriebsst_hkr": {
+                "default": "mdi:timer-outline"
+            },
+            "bsz_verdichter_betriebsst_ges": {
+                "default": "mdi:timer-outline"
+            },
+            "bsz_verdichter_akt_laufzeit": {
+                "default": "mdi:timer-play-outline"
+            },
+            "bsz_verdichter_schaltung_ww": {
+                "default": "mdi:counter"
+            },
+            "bsz_hkp_schaltung": {
+                "default": "mdi:counter"
+            },
+            "bsz_eq_schaltungen": {
+                "default": "mdi:counter"
+            },
+            "bsz_wwv_schaltungen": {
+                "default": "mdi:counter"
+            },
+            "bsz_zipww_schaltungen": {
+                "default": "mdi:counter"
+            },
+            "verdichter_status": {
+                "default": "mdi:information-outline"
+            },
+            "verdichter_laeft_seit": {
+                "default": "mdi:timer-outline"
+            },
+            "verdichter_einschaltverz": {
+                "default": "mdi:timer-sand"
+            },
+            "verdichteranforderung": {
+                "default": "mdi:numeric"
+            },
+            "frischwasserpumpe": {
+                "default": "mdi:water-pump"
+            },
+            "time_programs": {
+                "default": "mdi:calendar-clock"
+            },
+            "hkr_soll_raum": {
+                "default": "mdi:home-thermometer"
+            },
+            "ww_normaltemp": {
+                "default": "mdi:water-boiler"
+            },
+            "ww_minimaltemp": {
+                "default": "mdi:water-boiler-alert"
+            },
+            "hkr_rlt_soll_ohg": {
+                "default": "mdi:chart-bell-curve-cumulative"
+            },
+            "hkr_rlt_soll_0": {
+                "default": "mdi:chart-bell-curve-cumulative"
+            },
+            "hkr_rlt_soll_uhg": {
+                "default": "mdi:chart-bell-curve-cumulative"
+            },
+            "hkr_aufheiztemp": {
+                "default": "mdi:thermometer-plus"
+            },
+            "hkr_absenktemp": {
+                "default": "mdi:thermometer-minus"
+            },
+            "hkr_heizgrenze": {
+                "default": "mdi:thermometer-off"
+            },
+            "ww_hysterese_normaltemp": {
+                "default": "mdi:arrow-expand-vertical"
+            },
+            "ww_hysterese_minimaltemp": {
+                "default": "mdi:arrow-expand-vertical"
+            },
+            "betriebsart": {
+                "default": "mdi:numeric"
+            },
+            "operating_state": {
+                "default": "mdi:heat-pump-outline",
+                "state": {
+                    "off": "mdi:power-off",
+                    "standby": "mdi:sleep",
+                    "heating": "mdi:radiator",
+                    "hot_water": "mdi:water-boiler",
+                    "cooling": "mdi:snowflake",
+                    "fault": "mdi:alert-circle"
+                }
+            },
+            "heating_circuit_spread": {
+                "default": "mdi:delta"
+            },
+            "heat_source_spread": {
+                "default": "mdi:delta"
+            }
+        },
+        "binary_sensor": {
+            "stoerung": {
+                "default": "mdi:check-circle",
+                "state": {
+                    "on": "mdi:alert-circle"
+                }
+            },
+            "heizkreispumpe": {
+                "default": "mdi:pump-off",
+                "state": {
+                    "on": "mdi:pump"
+                }
+            },
+            "eq_pumpe_ventilator": {
+                "default": "mdi:fan-off",
+                "state": {
+                    "on": "mdi:fan"
+                }
+            },
+            "warmwasservorrang": {
+                "default": "mdi:water-boiler-off",
+                "state": {
+                    "on": "mdi:water-boiler"
+                }
+            },
+            "zirkulationspumpe_ww": {
+                "default": "mdi:water-pump-off",
+                "state": {
+                    "on": "mdi:water-pump"
+                }
+            },
+            "verdichter": {
+                "default": "mdi:heat-pump-outline",
+                "state": {
+                    "on": "mdi:heat-pump"
+                }
+            },
+            "hauptschalter": {
+                "default": "mdi:power-plug-off",
+                "state": {
+                    "on": "mdi:power-plug"
+                }
+            },
+            "fws_stroemungsschalter": {
+                "default": "mdi:water-remove",
+                "state": {
+                    "on": "mdi:water-check"
+                }
+            }
+        },
+        "number": {
+            "hkr_soll_raum": {
+                "default": "mdi:home-thermometer"
+            },
+            "ww_normaltemp": {
+                "default": "mdi:water-boiler"
+            },
+            "ww_minimaltemp": {
+                "default": "mdi:water-boiler-alert"
+            },
+            "hkr_rlt_soll_ohg": {
+                "default": "mdi:chart-bell-curve-cumulative"
+            },
+            "hkr_rlt_soll_0": {
+                "default": "mdi:chart-bell-curve-cumulative"
+            },
+            "hkr_rlt_soll_uhg": {
+                "default": "mdi:chart-bell-curve-cumulative"
+            },
+            "hkr_aufheiztemp": {
+                "default": "mdi:thermometer-plus"
+            },
+            "hkr_absenktemp": {
+                "default": "mdi:thermometer-minus"
+            },
+            "hkr_heizgrenze": {
+                "default": "mdi:thermometer-off"
+            },
+            "ww_hysterese_normaltemp": {
+                "default": "mdi:arrow-expand-vertical"
+            },
+            "ww_hysterese_minimaltemp": {
+                "default": "mdi:arrow-expand-vertical"
+            }
+        },
+        "select": {
+            "betriebsart": {
+                "default": "mdi:heat-pump-outline",
+                "state": {
+                    "off": "mdi:power-off",
+                    "heating": "mdi:radiator",
+                    "cooling": "mdi:snowflake",
+                    "hot_water": "mdi:water-boiler",
+                    "heating_cooling": "mdi:sun-snowflake-variant",
+                    "auto": "mdi:autorenew",
+                    "emergency": "mdi:alert",
+                    "standby": "mdi:sleep"
+                }
+            }
+        },
+        "switch": {
+            "write_protection": {
+                "default": "mdi:lock",
+                "state": {
+                    "on": "mdi:lock-open-variant"
+                }
+            }
+        },
+        "datetime": {
+            "ht_datetime": {
+                "default": "mdi:clock-outline"
+            }
+        },
+        "button": {
+            "ht_datetime_sync": {
+                "default": "mdi:clock-check-outline"
+            }
+        }
+    }
+}

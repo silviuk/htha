@@ -53,182 +53,235 @@
     "entity": {
         "sensor": {
             "temp_aussen": {
-                "name": "Outdoor Temperature"
+                "name": "Outdoor temperature"
             },
             "temp_aussen_verzoegert": {
-                "name": "Outdoor Temperature Delayed"
+                "name": "Outdoor temperature (damped)"
             },
             "temp_brauchwasser": {
-                "name": "Hot Water Temperature"
+                "name": "Hot water temperature"
             },
             "temp_vorlauf": {
-                "name": "Flow Temperature"
+                "name": "Heating flow temperature"
             },
             "temp_ruecklauf": {
-                "name": "Return Temperature"
+                "name": "Heating return temperature"
             },
             "temp_eq_eintritt": {
-                "name": "EQ Inlet Temperature"
+                "name": "Heat source inlet temperature"
             },
             "temp_eq_austritt": {
-                "name": "EQ Outlet Temperature"
+                "name": "Heat source outlet temperature"
             },
             "temp_sauggas": {
-                "name": "Suction Gas Temperature"
+                "name": "Refrigerant suction gas temperature"
             },
             "temp_frischwasser_istwert": {
-                "name": "Fresh Water Actual Temperature"
+                "name": "Fresh water station temperature"
             },
             "temp_verdampfung": {
-                "name": "Evaporation Temperature"
+                "name": "Refrigerant evaporation temperature"
             },
             "temp_kondensation": {
-                "name": "Condensation Temperature"
+                "name": "Refrigerant condensation temperature"
             },
             "temp_heissgas": {
-                "name": "Hot Gas Temperature"
+                "name": "Refrigerant hot gas temperature"
             },
             "niederdruck": {
-                "name": "Low Pressure"
+                "name": "Refrigerant low pressure"
             },
             "hochdruck": {
-                "name": "High Pressure"
-            },
-            "bsz_verdichter_schaltungen": {
-                "name": "Compressor Switches"
-            },
-            "bsz_hkp_betriebsstunden": {
-                "name": "Heating Circuit Pump Hours"
-            },
-            "bsz_eq_betriebsstunden": {
-                "name": "EQ Operating Hours"
-            },
-            "bsz_wwv_betriebsstunden": {
-                "name": "Hot Water Operating Hours"
-            },
-            "bsz_zipww_betriebsstunden": {
-                "name": "Circulation Pump Hours"
-            },
-            "bsz_verdichter_betriebsst_ww": {
-                "name": "Compressor Hours Hot Water"
-            },
-            "bsz_verdichter_betriebsst_hkr": {
-                "name": "Compressor Hours Heating"
-            },
-            "bsz_verdichter_betriebsst_ges": {
-                "name": "Compressor Hours Total"
-            },
-            "bsz_verdichter_akt_laufzeit": {
-                "name": "Compressor Current Runtime"
-            },
-            "bsz_verdichter_schaltung_ww": {
-                "name": "Compressor Switches Hot Water"
-            },
-            "bsz_hkp_schaltung": {
-                "name": "Heating Circuit Pump Switches"
-            },
-            "bsz_eq_schaltungen": {
-                "name": "EQ Switches"
-            },
-            "bsz_wwv_schaltungen": {
-                "name": "Hot Water Switches"
-            },
-            "bsz_zipww_schaltungen": {
-                "name": "Circulation Pump Switches"
-            },
-            "verdichter_status": {
-                "name": "Compressor Status"
-            },
-            "verdichter_laeft_seit": {
-                "name": "Compressor Running Since"
-            },
-            "verdichter_einschaltverz": {
-                "name": "Compressor Switch-on Delay"
-            },
-            "verdichteranforderung": {
-                "name": "Compressor Request"
-            },
-            "frischwasserpumpe": {
-                "name": "Fresh Water Pump"
+                "name": "Refrigerant high pressure"
             },
             "hkr_sollwert": {
-                "name": "Heating Circuit Setpoint"
+                "name": "Heating circuit target temperature"
+            },
+            "bsz_verdichter_schaltungen": {
+                "name": "Compressor starts"
+            },
+            "bsz_hkp_betriebsstunden": {
+                "name": "Heating circuit pump runtime"
+            },
+            "bsz_eq_betriebsstunden": {
+                "name": "Heat source pump runtime"
+            },
+            "bsz_wwv_betriebsstunden": {
+                "name": "Hot water mode runtime"
+            },
+            "bsz_zipww_betriebsstunden": {
+                "name": "Circulation pump runtime"
+            },
+            "bsz_verdichter_betriebsst_ww": {
+                "name": "Compressor runtime (hot water)"
+            },
+            "bsz_verdichter_betriebsst_hkr": {
+                "name": "Compressor runtime (heating)"
+            },
+            "bsz_verdichter_betriebsst_ges": {
+                "name": "Compressor runtime (total)"
+            },
+            "bsz_verdichter_akt_laufzeit": {
+                "name": "Compressor current run time"
+            },
+            "bsz_verdichter_schaltung_ww": {
+                "name": "Compressor starts (hot water)"
+            },
+            "bsz_hkp_schaltung": {
+                "name": "Heating circuit pump starts"
+            },
+            "bsz_eq_schaltungen": {
+                "name": "Heat source pump starts"
+            },
+            "bsz_wwv_schaltungen": {
+                "name": "Hot water mode starts"
+            },
+            "bsz_zipww_schaltungen": {
+                "name": "Circulation pump starts"
+            },
+            "verdichter_status": {
+                "name": "Compressor status code"
+            },
+            "verdichter_laeft_seit": {
+                "name": "Compressor running for"
+            },
+            "verdichter_einschaltverz": {
+                "name": "Compressor start delay"
+            },
+            "verdichteranforderung": {
+                "name": "Compressor demand"
+            },
+            "frischwasserpumpe": {
+                "name": "Fresh water pump speed"
             },
             "time_programs": {
-                "name": "Time Programs"
+                "name": "Time programs"
+            },
+            "hkr_soll_raum": {
+                "name": "Room temperature setpoint (read-only)"
+            },
+            "ww_normaltemp": {
+                "name": "Hot water setpoint (normal) (read-only)"
+            },
+            "ww_minimaltemp": {
+                "name": "Hot water setpoint (minimum) (read-only)"
+            },
+            "hkr_rlt_soll_ohg": {
+                "name": "Heating curve return setpoint at upper heating limit (read-only)"
+            },
+            "hkr_rlt_soll_0": {
+                "name": "Heating curve return setpoint at 0 °C outdoor (read-only)"
+            },
+            "hkr_rlt_soll_uhg": {
+                "name": "Heating curve return setpoint at lower heating limit (read-only)"
+            },
+            "hkr_aufheiztemp": {
+                "name": "Heat-up offset (read-only)"
+            },
+            "hkr_absenktemp": {
+                "name": "Setback offset (read-only)"
+            },
+            "hkr_heizgrenze": {
+                "name": "Heating limit (read-only)"
+            },
+            "ww_hysterese_normaltemp": {
+                "name": "Hot water hysteresis (normal) (read-only)"
+            },
+            "ww_hysterese_minimaltemp": {
+                "name": "Hot water hysteresis (minimum) (read-only)"
+            },
+            "betriebsart": {
+                "name": "Operating mode code"
+            },
+            "operating_state": {
+                "name": "Operating state",
+                "state": {
+                    "off": "Off",
+                    "standby": "Standby",
+                    "heating": "Heating",
+                    "hot_water": "Hot water",
+                    "cooling": "Cooling",
+                    "fault": "Fault"
+                }
+            },
+            "heating_circuit_spread": {
+                "name": "Heating flow/return spread"
+            },
+            "heat_source_spread": {
+                "name": "Heat source inlet/outlet spread"
             }
         },
         "binary_sensor": {
             "stoerung": {
-                "name": "Fault Status"
+                "name": "Fault"
             },
             "heizkreispumpe": {
-                "name": "Heating Circuit Pump"
+                "name": "Heating circuit pump"
             },
             "eq_pumpe_ventilator": {
-                "name": "EQ Pump/Fan"
+                "name": "Heat source pump/fan"
             },
             "warmwasservorrang": {
-                "name": "Hot Water Priority"
+                "name": "Hot water mode"
             },
             "zirkulationspumpe_ww": {
-                "name": "Circulation Pump"
+                "name": "Hot water circulation pump"
             },
             "verdichter": {
                 "name": "Compressor"
             },
             "hauptschalter": {
-                "name": "Main Switch"
+                "name": "Main switch"
             },
             "fws_stroemungsschalter": {
-                "name": "Flow Switch"
+                "name": "Fresh water station flow switch"
             }
         },
         "number": {
             "hkr_soll_raum": {
-                "name": "Room Setpoint"
+                "name": "Room temperature setpoint"
             },
             "ww_normaltemp": {
-                "name": "Hot Water Normal Temperature"
+                "name": "Hot water setpoint (normal)"
             },
             "ww_minimaltemp": {
-                "name": "Hot Water Minimum Temperature"
+                "name": "Hot water setpoint (minimum)"
             },
             "hkr_rlt_soll_ohg": {
-                "name": "Heating Curve Upper Setpoint"
+                "name": "Heating curve return setpoint at upper heating limit"
             },
             "hkr_rlt_soll_0": {
-                "name": "Heating Curve Zero Setpoint"
+                "name": "Heating curve return setpoint at 0 °C outdoor"
             },
             "hkr_rlt_soll_uhg": {
-                "name": "Heating Curve Lower Setpoint"
+                "name": "Heating curve return setpoint at lower heating limit"
             },
             "hkr_aufheiztemp": {
-                "name": "Heat-up Temperature"
+                "name": "Heat-up offset"
             },
             "hkr_absenktemp": {
-                "name": "Setback Temperature"
+                "name": "Setback offset"
             },
             "hkr_heizgrenze": {
-                "name": "Heating Limit"
+                "name": "Heating limit"
             },
             "ww_hysterese_normaltemp": {
-                "name": "Hot Water Normal Hysteresis"
+                "name": "Hot water hysteresis (normal)"
             },
             "ww_hysterese_minimaltemp": {
-                "name": "Hot Water Minimum Hysteresis"
+                "name": "Hot water hysteresis (minimum)"
             }
         },
         "select": {
             "betriebsart": {
-                "name": "Operating Mode",
+                "name": "Operating mode",
                 "state": {
                     "off": "Off",
                     "heating": "Heating",
                     "cooling": "Cooling",
-                    "hot_water": "Hot Water",
-                    "heating_cooling": "Heating + Cooling",
-                    "auto": "Auto",
+                    "hot_water": "Hot water",
+                    "heating_cooling": "Heating + cooling",
+                    "auto": "Automatic",
                     "emergency": "Emergency",
                     "standby": "Standby"
                 }
@@ -236,17 +289,17 @@
         },
         "switch": {
             "write_protection": {
-                "name": "Enable Writes"
+                "name": "Allow writes to heat pump"
             }
         },
         "datetime": {
             "ht_datetime": {
-                "name": "Heat Pump Date/Time"
+                "name": "Heat pump clock"
             }
         },
         "button": {
             "ht_datetime_sync": {
-                "name": "Sync Heat Pump Date/Time"
+                "name": "Sync heat pump clock"
             }
         }
     }
