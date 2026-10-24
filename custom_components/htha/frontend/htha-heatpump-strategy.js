@@ -10,7 +10,7 @@
  * matched by domain + translation_key), so it works with any entity_ids and
  * with several heat pumps. Only built-in Home Assistant cards are used.
  */
-const HTHA_VERSION = "1.0.14";
+const HTHA_VERSION = "1.0.15";
 
 const ROLES = {
   operating_state: "sensor.operating_state",
@@ -424,18 +424,18 @@ function collectEntities(obj, set) {
 
 const DEFAULT_SCHEDULE_TOGGLE = "input_boolean.htha_show_time_programs";
 
-// One row per program for today; the current hour is red.
+// One row per program for today (name above the 24 h bar so it fits narrow columns); the current hour is red.
 function todayTemplate(sensor) {
   return `{% set sensor = '${sensor}' %}
 {% set d = now().weekday() %}
 {% set hnow = now().hour %}
 {% set progs = state_attr(sensor, 'time_programs') %}
 {% if progs %}
-| Today | 0 – 24 h |
-| :--- | :--- |
+| Today · 0 – 24 h |
+| :--- |
 {% for program in progs -%}
 {% set day_entries = (program.entries[d] if program.entries | length > d else []) | reject('none') | list -%}
-| {{ program.name }} | {% for h in range(24) -%}
+| {{ program.name }}<br>{% for h in range(24) -%}
 {%- set ns = namespace(state=0) -%}
 {%- for entry in day_entries -%}
   {%- if (entry.start.split(':')[0] | int) <= h and h < (entry.end.split(':')[0] | int) -%}{%- set ns.state = entry.state -%}{%- endif -%}
