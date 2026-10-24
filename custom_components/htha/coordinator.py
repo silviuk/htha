@@ -186,31 +186,29 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
                             *self._mp_params
                         )
                         data.update(mp_values)
-                    except ValueError as ex:
-                        if "bytes must be in range" in str(ex):
-                            _LOGGER.debug(
-                                "fast_query_async failed with protocol error '%s', "
-                                "falling back to query_async for MP parameters",
-                                ex,
-                            )
-                            # Close the broken connection and reconnect
-                            await self._disconnect()
-                            await self._connect()
-                            
-                            # Fall back to querying MP parameters using query_async
-                            for param in self._mp_params:
-                                try:
-                                    value = await self._heatpump.query_async(param)
-                                    data.update(value)
-                                except Exception as inner_ex:
-                                    _LOGGER.warning(
-                                        "Failed to query MP parameter '%s': %s",
-                                        param,
-                                        inner_ex,
-                                    )
-                            mp_fallback_used = True
-                        else:
-                            raise
+                    except (IOError, ValueError) as ex:
+                        _LOGGER.warning(
+                            "fast_query_async failed (%s: %s), "
+                            "falling back to query_async for MP parameters",
+                            type(ex).__name__,
+                            ex,
+                        )
+                        # Close the (possibly broken) connection and reconnect
+                        await self._disconnect()
+                        await self._connect()
+
+                        # Fall back to querying MP parameters one by one using query_async
+                        for param in self._mp_params:
+                            try:
+                                value = await self._heatpump.query_async(param)
+                                data.update(value)
+                            except Exception as inner_ex:
+                                _LOGGER.warning(
+                                    "Failed to query MP parameter '%s': %s",
+                                    param,
+                                    inner_ex,
+                                )
+                        mp_fallback_used = True
                     except Exception as ex:
                         _LOGGER.error(
                             "Failed to query MP parameters: %s. Params: %s",
@@ -224,10 +222,23 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
                                 data.update(value)
                             except Exception as inner_ex:
                                 _LOGGER.warning(
-                                    "Failed to query MP parameter '%s': %s",
+                                    "Fast query of MP parameter '%s' failed (%s), "
+                                    "trying query_async",
                                     param,
                                     inner_ex,
                                 )
+                                try:
+                                    if not self._heatpump.is_open:
+                                        await self._disconnect()
+                                        await self._connect()
+                                    value = await self._heatpump.query_async(param)
+                                    data.update(value)
+                                except Exception as slow_ex:
+                                    _LOGGER.warning(
+                                        "Failed to query MP parameter '%s': %s",
+                                        param,
+                                        slow_ex,
+                                    )
                         # Don't raise here, try to get SP params too
 
                 # Query SP parameters using regular query_async

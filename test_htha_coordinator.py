@@ -117,6 +117,83 @@ class TestHtHACoordinator:
             mock_heatpump.logout_async.assert_called_once()
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "error",
+        [
+            ValueError("bytes must be in range(0, 256)"),
+            IOError("invalid checksum [0x00] of response"),
+        ],
+    )
+    async def test_async_update_data_fast_query_fallback(
+        self, hass: HomeAssistant, mock_config_entry, mock_heatpump, error, caplog
+    ):
+        """Test fallback to one-by-one query_async on any IOError/ValueError of fast_query_async."""
+        coordinator = HtHACoordinator(
+            hass,
+            mock_config_entry,
+            host="192.168.1.100",
+            port=9999,
+            timeout=10,
+            scan_interval=30,
+            selected_params=["Temp. Aussen", "BSZ Verdichter Schaltungen"],
+        )
+
+        values = {"Temp. Aussen": 10.6, "BSZ Verdichter Schaltungen": 16567}
+
+        async def query(name):
+            return {name: values[name]}
+
+        with patch(
+            "custom_components.htha.coordinator.AioHtHeatpump",
+            return_value=mock_heatpump,
+        ):
+            mock_heatpump.fast_query_async.side_effect = error
+            mock_heatpump.query_async.side_effect = query
+
+            data = await coordinator._async_update_data()
+
+            assert data == {"Temp. Aussen": 10.6, "BSZ Verdichter Schaltungen": 16567}
+            mock_heatpump.fast_query_async.assert_called_once()
+            assert mock_heatpump.query_async.call_count == 2
+            assert "falling back to query_async" in caplog.text
+            assert "Traceback" not in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_async_update_data_single_fast_query_failure_uses_query_async(
+        self, hass: HomeAssistant, mock_config_entry, mock_heatpump
+    ):
+        """Test that a parameter failing in the per-parameter fast query is read via query_async."""
+        coordinator = HtHACoordinator(
+            hass,
+            mock_config_entry,
+            host="192.168.1.100",
+            port=9999,
+            timeout=10,
+            scan_interval=30,
+            selected_params=["Temp. Aussen", "BSZ Verdichter Schaltungen"],
+        )
+
+        async def fast_query(*names):
+            if len(names) > 1:
+                raise RuntimeError("unexpected")
+            if names[0] == "BSZ Verdichter Schaltungen":
+                raise RuntimeError("unexpected")
+            return {"Temp. Aussen": 10.6}
+
+        with patch(
+            "custom_components.htha.coordinator.AioHtHeatpump",
+            return_value=mock_heatpump,
+        ):
+            mock_heatpump.is_open = True
+            mock_heatpump.fast_query_async.side_effect = fast_query
+            mock_heatpump.query_async.return_value = {"BSZ Verdichter Schaltungen": 16567}
+
+            data = await coordinator._async_update_data()
+
+            assert data == {"Temp. Aussen": 10.6, "BSZ Verdichter Schaltungen": 16567}
+            mock_heatpump.query_async.assert_called_once_with("BSZ Verdichter Schaltungen")
+
+    @pytest.mark.asyncio
     async def test_async_update_data_connection_failure(
         self, hass: HomeAssistant, mock_config_entry, mock_heatpump
     ):
