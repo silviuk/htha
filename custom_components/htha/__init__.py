@@ -21,10 +21,10 @@ from .const import (
     CONF_WRITE_ENABLED,
     DEFAULT_PARAMS,
     DOMAIN,
-    FRONTEND_SCRIPT,
     FRONTEND_URL_BASE,
 )
 from .coordinator import HtHACoordinator
+from .lovelace_resource import async_ensure_resource, async_remove_resource, resource_url
 
 if TYPE_CHECKING:
     pass
@@ -88,14 +88,15 @@ async def async_register_frontend(hass: HomeAssistant) -> None:
         await hass.http.async_register_static_paths(
             [StaticPathConfig(FRONTEND_URL_BASE, str(frontend_dir), False)]
         )
-        add_extra_js_url(
-            hass,
-            f"{FRONTEND_URL_BASE}/{FRONTEND_SCRIPT}?v={integration.version}",
-        )
+        add_extra_js_url(hass, resource_url(str(integration.version)))
     except Exception:  # noqa: BLE001 - dashboard support is optional
         _LOGGER.exception("Could not register the Ht HA dashboard strategy")
         return
     hass.data[DATA_FRONTEND_REGISTERED] = True
+    try:
+        await async_ensure_resource(hass, str(integration.version))
+    except Exception:  # noqa: BLE001 - dashboard support is optional
+        _LOGGER.exception("Could not add the Ht HA dashboard resource")
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: HtHAConfigEntry) -> bool:
@@ -173,6 +174,21 @@ async def async_unload_entry(hass: HomeAssistant, entry: HtHAConfigEntry) -> boo
         hass.data[DOMAIN].pop(entry.entry_id)
 
     return unload_ok
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: HtHAConfigEntry) -> None:
+    """Clean up when a config entry is deleted.
+
+    The dashboard resource is removed together with the last entry, and only
+    if Ht HA added it.
+    """
+    remaining = [e for e in hass.config_entries.async_entries(DOMAIN) if e.entry_id != entry.entry_id]
+    if remaining:
+        return
+    try:
+        await async_remove_resource(hass)
+    except Exception:  # noqa: BLE001 - best effort cleanup
+        _LOGGER.exception("Could not remove the Ht HA dashboard resource")
 
 
 async def async_update_options(hass: HomeAssistant, entry: HtHAConfigEntry) -> None:

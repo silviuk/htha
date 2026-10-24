@@ -10,7 +10,7 @@
  * matched by domain + translation_key), so it works with any entity_ids and
  * with several heat pumps. Only built-in Home Assistant cards are used.
  */
-const HTHA_VERSION = "1.0.12";
+const HTHA_VERSION = "1.0.13";
 
 const ROLES = {
   operating_state: "sensor.operating_state",
@@ -491,10 +491,44 @@ class HthaDashboardStrategy extends HTMLElement {
   }
 }
 
-const define = (tag, cls) => { if (!customElements.get(tag)) customElements.define(tag, cls); };
-define("ll-strategy-section-htha-heatpump", HthaSectionStrategy);
-define("ll-strategy-view-htha-heatpump", HthaViewStrategy);
-define("ll-strategy-dashboard-htha-heatpump", HthaDashboardStrategy);
+// Registration.
+//
+// Home Assistant's core bundle installs a scoped custom element registry
+// polyfill that replaces window.customElements. Modules loaded via
+// extra_module_url can run before that (always with the legacy/es5 build,
+// which e.g. older Android WebViews get, and as a race on a cold cache with
+// the modern build). Elements defined into the native registry are then
+// invisible to Home Assistant, which waits 5 s and fails with "Timeout waiting
+// for strategy element ...". So register synchronously into whatever registry
+// is current now, and keep checking until Home Assistant's own registry is in
+// place and holds our elements.
+const ELEMENTS = [
+  ["ll-strategy-section-htha-heatpump", HthaSectionStrategy],
+  ["ll-strategy-view-htha-heatpump", HthaViewStrategy],
+  ["ll-strategy-dashboard-htha-heatpump", HthaDashboardStrategy],
+];
+const registerAll = () => {
+  const registry = window.customElements;
+  let ok = true;
+  for (const [tag, cls] of ELEMENTS) {
+    if (registry.get(tag)) continue;
+    try {
+      // A fresh subclass per registry: a constructor may only be defined once per registry.
+      registry.define(tag, class extends cls {});
+    } catch (err) {
+      ok = false;
+      console.warn(`htha: could not register ${tag}`, err);
+    }
+  }
+  return ok && !!registry.get("home-assistant");
+};
+if (!registerAll()) {
+  let tries = 0;
+  const timer = setInterval(() => {
+    if (registerAll() || ++tries >= 240) clearInterval(timer);
+  }, 250);
+  if (timer && typeof timer.unref === "function") timer.unref();
+}
 
 // Exposed for tests / tooling.
 window.hthaHeatpumpStrategy = { version: HTHA_VERSION, buildSection, buildView, findHeatPumps, SECTIONS, ROLES };

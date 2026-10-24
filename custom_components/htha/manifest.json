@@ -3,7 +3,8 @@
     "name": "Ht HA",
     "after_dependencies": [
         "frontend",
-        "http"
+        "http",
+        "lovelace"
     ],
     "codeowners": [
         "@silviuk"
@@ -18,5 +19,5 @@
     "requirements": [
         "htheatpump@git+https://github.com/silviuk/htheatpump.git@v1.3.5"
     ],
-    "version": "1.0.12"
+    "version": "1.0.13"
 }
