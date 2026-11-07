@@ -1,26 +1,40 @@
-# Ht HA
+# Ht HA: Heliotherm heat pump for Home Assistant
 
-Heliotherm heat pump monitoring, controls and weekly schedules in Home Assistant, over serial-to-TCP.
+[![GitHub Release](https://img.shields.io/github/v/release/silviuk/htha?style=for-the-badge)](https://github.com/silviuk/htha/releases)
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5?style=for-the-badge)](https://hacs.xyz/)
+[![Last commit](https://img.shields.io/github/last-commit/silviuk/htha/master?style=for-the-badge)](https://github.com/silviuk/htha/commits/master)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](LICENSE)
 
-[![Release](https://img.shields.io/github/v/release/silviuk/htha)](https://github.com/silviuk/htha/releases)
-[![Commits](https://img.shields.io/github/last-commit/silviuk/htha/master)](https://github.com/silviuk/htha/commits/master)
-[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5)](https://hacs.xyz/)
-[![MIT License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+Monitor and control a **Heliotherm** heat pump from Home Assistant over a serial-to-TCP link: live temperatures and states, compressor statistics, setpoints, and weekly heating and hot-water schedules, with a ready-made dashboard included.
+
+[![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=silviuk&repository=htha&category=integration)
+[![Open your Home Assistant instance and start setting up Ht HA.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=htha)
+
+![Heat pump dashboard overview](docs/screenshots/dashboard-overview.png)
 
 ## Highlights
 
-- Temperatures, operating state, pumps, counters, setpoints and clock entities.
-- Ready-made dashboard that discovers your heat pump's entities automatically.
-- Heliotherm-style schedule editor with a week grid, validation, change comparison and saved profiles.
-- Writes disabled by default, with explicit confirmation and additional schedule send gates.
-- English and German labels; configurable polling and exposed parameters.
+- Live temperatures, operating state, pumps, setpoints, counters and the controller clock.
+- Ready-made dashboard that finds your heat pump's entities automatically, on desktop and phone.
+- Daily compressor starts and runtimes as long-term statistics.
+- Optional weekly schedule editor with validation and a comparison against the pump's current schedule.
+- Writes are off by default and need an explicit two-step confirmation.
+- English and German labels.
 
 ## Screenshots
 
-![Heat pump dashboard](docs/dashboard-cleanup-evidence/after/1100-en-light.png)
-![Weekly schedule editor](docs/schedule-editor-evidence/1100-en-light.png)
+<table>
+  <tr>
+    <td width="68%"><img src="docs/screenshots/dashboard-charts-controls.png" alt="History charts, statistics and read-only controls"></td>
+    <td width="32%"><img src="docs/screenshots/dashboard-phone.png" alt="Dashboard on a phone"></td>
+  </tr>
+  <tr>
+    <td>History charts, daily statistics and controls (read-only until writes are allowed)</td>
+    <td>The same dashboard on a phone</td>
+  </tr>
+</table>
 
-Offline previews using synthetic data; these are not live controller screenshots.
+Screenshots are from a live HP07S08W-S-WEB. The schedule editor is shown further down under [Schedule editor](#schedule-editor).
 
 ## Supported hardware and connection
 
@@ -40,13 +54,21 @@ Use the serial settings required by your controller (typically 9600 baud, 8N1). 
 
 ## Installation
 
-**HACS:** Open HACS -> Custom repositories, add `https://github.com/silviuk/htha` with category **Integration**, download **Ht HA**, then restart Home Assistant.
+### HACS (recommended)
 
-**Manual:** Copy [`custom_components/htha`](custom_components/htha) into your Home Assistant `custom_components` directory, then restart.
+[![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=silviuk&repository=htha&category=integration)
+
+Or add it by hand: in HACS open the menu, choose **Custom repositories**, add `https://github.com/silviuk/htha` with type **Integration**, then download **Ht HA**. Restart Home Assistant afterwards.
+
+### Manual
+
+ Copy [`custom_components/htha`](custom_components/htha) into your Home Assistant `custom_components` directory, then restart.
 
 ## Setup
 
-Go to **Settings -> Devices & services -> Add integration -> Ht HA**. Enter:
+[![Open your Home Assistant instance and start setting up Ht HA.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=htha)
+
+Or go to **Settings > Devices & services > Add integration** and search for **Ht HA**. Enter:
 
 | Field | Value |
 | --- | --- |
@@ -62,7 +84,7 @@ Under the integration's **Configure** options, choose exposed parameters, adjust
 
 **Do I get the dashboard when I install htha? Yes:** the dashboard strategy and schedule editor card are bundled and loaded automatically. **Home Assistant does not create a dashboard by itself.** Add one using the configuration below.
 
-For a whole dashboard, go to **Settings -> Dashboards -> Add dashboard**, create a dashboard from scratch, then open **Edit -> Raw configuration editor** and paste:
+For a whole dashboard, go to **Settings > Dashboards > Add dashboard**, create a dashboard from scratch, then open **Edit > Raw configuration editor** and paste:
 
 ```yaml
 strategy:
@@ -109,6 +131,8 @@ No manual resource is normally needed. Both scripts are served under `/htha_fron
 
 ## Schedule editor
 
+![Weekly schedule editor](docs/schedule-editor-evidence/1100-en-light.png)
+
 Edit recurring quarter-hour cells in a weekly grid, select multiple cells, assign modes and copy days. Validate to see findings and a diff before sending. Save personal profiles or start from the read-only **Factory default (Heliotherm)** profiles for heating and hot water.
 
 Verified mapping for **firmware 2.03N**: heating **0 Setback / 1 Normal / 2 Boost**; hot water **0 Off / 1 On**. Other firmware or incompatible metadata requires a verified mapping override. Hot water Off retains the controller's minimum-temperature maintenance; Normal does not mean continuous compressor operation.
@@ -141,7 +165,7 @@ Writes are disabled by default. Turn on **Allow writes to heat pump**, then turn
 - **Cannot connect / unavailable entities:** Check the configured host/port, serial server, cable and serial settings, then inspect Home Assistant logs. Reload the integration after correcting the connection.
 - **Cannot change a setting:** Confirm Allow writes is on and the parameter is writable. For schedules, review every missing gate shown by the editor.
 - **Strategy registration timeout** (`ll-strategy-section-htha-heatpump`): Restart Home Assistant and reload the page. In the Companion app, refresh or clear the frontend cache under its troubleshooting settings. Check that the current versioned modules load; the static YAML dashboard is an alternative.
-- **Daily runtime bars:** Controller hour counters generally update shortly after midnight, so the current day can stay at zero. Reusing old entity IDs can resume an old statistics series and book a gap in one hour, producing a bar above 24 h. Correct that hour using **Developer tools -> Statistics -> Adjust sum** rather than deleting statistics.
+- **Daily runtime bars:** Controller hour counters generally update shortly after midnight, so the current day can stay at zero. Reusing old entity IDs can resume an old statistics series and book a gap in one hour, producing a bar above 24 h. Correct that hour using **Developer tools > Statistics > Adjust sum** rather than deleting statistics.
 
 For debug logs:
 
