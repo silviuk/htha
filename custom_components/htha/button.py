@@ -85,7 +85,9 @@ class HtHADateTimeSyncButton(ButtonEntity):
             identifiers={(DOMAIN, str(config_entry.entry_id))},
             name="Heliotherm Heat Pump",
             manufacturer="Heliotherm",
-            model="Heat Pump",
+            model=config_entry.options.get("model", "").strip() or "Heat Pump",
+            serial_number=coordinator.serial_number,
+            sw_version=coordinator.sw_version,
             configuration_url=f"http://{coordinator.host}:{coordinator.port}",
         )
 
