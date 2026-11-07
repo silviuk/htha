@@ -212,3 +212,51 @@ test('optional mapping override drives Normal policy without translating draft',
  const {card,calls}=fixture();card._model.mapping_valid=true;card._model.mode_catalog=[{state:2,semantic:'normal',confirmed:true}];
  await card.validate();assert.equal(calls[0].service_data.policy.normal_state,2);assert.deepEqual(calls[0].service_data.draft,draft());
 });
+
+test('replaced values follow local paint, undo, redo and the live baseline in both draft grids',()=>{
+ const {card,calls}=fixture();
+ card._model.mode_catalog=['setback','normal','boost'].map((semantic,state)=>({state,semantic,confirmed:true}));
+ const marks=()=>[...card.shadowRoot.innerHTML.matchAll(/class="replaced old-normal"/g)].length;
+ card.render();assert.equal(marks(),0);
+ card._selection.choose(0,24);card._mode=2;card.paint();
+ assert.equal(marks(),2); // One slot in the overview and one in day detail.
+ const html=card.shadowRoot.innerHTML;
+ assert.equal((html.match(/class="cell changed /g)||[]).length,2);
+ assert.match(html,/aria-label="[^"]*06:00–06:15 was Normal \[1\], now Boost \[2\]"/);
+ assert.match(html,/title="06:00–06:15 was Normal \[1\], now Boost \[2\]"/);
+ assert.doesNotMatch(card.grid(card._local.week),/class="replaced /); // Current grid never has marks.
+ card._local.history();card.edit();assert.equal(marks(),0);
+ card._local.history(true);card.edit();assert.equal(marks(),2);
+ card._model.current_program=draft(2);card.render(); // Compare to new pump data, not a cached diff.
+ assert.equal(marks(),0);assert.match(card.shadowRoot.innerHTML,/class="replaced old-boost"/);
+ assert.equal(calls.length,0);
+});
+
+for(const [category,semantics] of [['heating',['setback','normal','boost']],['hot_water',['minimum','charging']]])test('replaced slots use each old semantic color: '+category,()=>{
+ const {card,api}=fixture();card._category=category;
+ card._model.mode_catalog=semantics.map((semantic,state)=>({state,semantic,confirmed:true}));
+ for(const [old,semantic] of semantics.entries()) {
+  const html=card.grid(api.toCells(draft((old+1)%semantics.length)),true,true,api.toCells(draft(old)));
+  assert.equal((html.match(new RegExp('class="replaced old-'+semantic+'"','g'))||[]).length,96);
+ }
+});
+
+test('unknown or unavailable baseline cells and mismatched categories have no replacement marks',()=>{
+ const {card}=fixture();card._local.week[0][0]=2;
+ for(const state of ['unknown','unavailable']) {
+  card._model.current_state=state;card.render();assert.doesNotMatch(card.shadowRoot.innerHTML,/class="replaced /);
+ }
+ card._model.current_state='read';
+ for(const baseline of [null,{entries:[]},{entries:Array.from({length:7},()=>[{start:'00:15',end:'24:00',state:1}])},draft(99)]) {
+  card._model.current_program=baseline;card.render();assert.doesNotMatch(card.shadowRoot.innerHTML,/class="replaced /);
+ }
+ card._model.current_program=draft();card._model.metadata={...meta,index:0};card.render();
+ assert.doesNotMatch(card.shadowRoot.innerHTML,/class="replaced /);
+});
+
+for(const language of ['en','de'])test('changed legend and accessible labels are localized: '+language,()=>{
+ const {card}=fixture({language});card._model.mode_catalog=[{state:1,semantic:'normal',confirmed:true},{state:2,semantic:'boost',confirmed:true}];
+ card._local.week[0][0]=2;card.render();const html=card.shadowRoot.innerHTML;
+ assert.match(html,language==='de'?/Geändert \(alter Wert heller mit ×\)/:/Changed \(old value shown lighter with ×\)/);
+ assert.match(html,language==='de'?/war Normalbetrieb \[1\], jetzt Aufheizen \[2\]/:/was Normal \[1\], now Boost \[2\]/);
+});

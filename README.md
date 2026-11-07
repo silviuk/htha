@@ -123,9 +123,9 @@ config_entry_id: YOUR_HTHA_CONFIG_ENTRY_ID
 No manual resource is normally needed. Both scripts are served under `/htha_frontend/`, loaded through the frontend and registered as versioned JavaScript modules in storage-mode resources. Existing matching resources are updated; only resources created by htha are removed when its last entry is deleted. YAML resource lists are not edited; if explicit resources are needed, add these with `type: module`:
 
 ```yaml
-- url: /htha_frontend/htha-heatpump-strategy.js?v=1.3.0
+- url: /htha_frontend/htha-heatpump-strategy.js?v=1.3.1
   type: module
-- url: /htha_frontend/htha-schedule-scratchpad-card.js?v=1.3.0
+- url: /htha_frontend/htha-schedule-scratchpad-card.js?v=1.3.1
   type: module
 ```
 
@@ -134,6 +134,8 @@ No manual resource is normally needed. Both scripts are served under `/htha_fron
 ![Weekly schedule editor](docs/schedule-editor-evidence/1100-en-light.png)
 
 Edit recurring quarter-hour cells in a weekly grid, select multiple cells, assign modes and copy days. Validate to see findings and a diff before sending. Save personal profiles or start from the read-only **Factory default (Heliotherm)** profiles for heating and hot water.
+
+Changed draft slots keep the new mode color in the top 40%; the lower part shows the replaced pump mode tinted against the card background with an ×. Both the week overview and expanded day update as you edit, using the current pump schedule already available in the card. Unknown baseline slots have no replacement mark.
 
 Verified mapping for **firmware 2.03N**: heating **0 Setback / 1 Normal / 2 Boost**; hot water **0 Off / 1 On**. Other firmware or incompatible metadata requires a verified mapping override. Hot water Off retains the controller's minimum-temperature maintenance; Normal does not mean continuous compressor operation.
 

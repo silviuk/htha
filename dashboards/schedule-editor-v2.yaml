@@ -1,6 +1,6 @@
 # Local example only; not deployed. Ht HA auto-loads the bundled card.
 # YAML resource fallback (type: module):
-# /htha_frontend/htha-schedule-scratchpad-card.js?v=1.3.0
+# /htha_frontend/htha-schedule-scratchpad-card.js?v=1.3.1
 # Substitute the existing validation sensor and loaded HTHA config entry ID.
 # The card only indicates Allow writes and cannot enable it.
 type: custom:htha-schedule-scratchpad-card
