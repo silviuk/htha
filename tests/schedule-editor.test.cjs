@@ -29,6 +29,38 @@ function factory(category='heating') {
   return {id:'factory_default_'+category,name:'Factory default (Heliotherm)',revision:1,category,read_only:true,mode_name:category==='heating'?'Normal':'On'};
 }
 
+for(const language of ['en','de'])test('saved labels and translated factory copy prompt '+language,async()=>{
+  const {card,window}=fixture({language}),p=factory();
+  card._profiles=[p,{id:'saved',name:p.name,revision:7}];card._profile=p;card.render();
+  const html=card.shadowRoot.innerHTML;
+  assert.ok(html.includes(language==='de'?'Gespeichert · Version 7':'Saved · version 7'));
+  assert.ok(html.includes(language==='de'?'Integriert, schreibgeschützt':'Built-in, read-only'));
+  assert.ok(!html.includes('· r7'));
+  let defaultName;window.prompt=(_,value)=>{defaultName=value;return null;};
+  await card.saveProfile();
+  const expected=language==='de'?'Werkseinstellung (Heliotherm) (Kopie)':'Factory default (Heliotherm) (copy)';
+  assert.equal(defaultName,expected);
+  card._profiles.push({id:'copy',name:'  '+expected.toUpperCase()+'  ',revision:1},{id:'copy2',name:expected+' (2)',revision:1});
+  await card.saveProfile();assert.equal(defaultName,expected+' (3)');
+});
+
+test('profile prompt defaults avoid category duplicates and reserve both factory translations',async()=>{
+  const {card,window,calls}=fixture();let defaultName;
+  window.prompt=(_,value)=>{defaultName=value;return null;};
+  card._profile={id:'p',name:'Winter',revision:1};
+  card._profiles=[card._profile,{id:'other-category',name:'Winter (2)',category:'hot_water'}];
+  await card.saveProfile();assert.equal(defaultName,'Winter (2)');
+  await card.saveProfile(true);assert.equal(defaultName,'Winter');
+  card._profileId='p';await card.renameProfile();assert.equal(defaultName,'Winter');
+  for(const name of ['Factory default (Heliotherm)','Werkseinstellung (Heliotherm)']) {
+    card._profiles=[{id:'p',name,revision:1}];
+    await card.renameProfile();assert.equal(defaultName,name+' (2)');
+  }
+  const long='X'.repeat(80);card._profile={name:long};card._profiles=[{id:'x',name:long.toLowerCase()}];
+  await card.saveProfile();assert.equal(defaultName,'X'.repeat(76)+' (2)');
+  assert.equal(calls.length,0);
+});
+
 for(const category of ['heating','hot_water'])for(const language of ['en','de'])test('factory picker/localized explanation/read-only actions '+category+' '+language,async()=>{
   const {card,calls}=fixture({language}),p=factory(category);card._category=category;
   card._hass.callWS=async request=>{calls.push(request);return {response:{profiles:[{id:'user',name:'User profile',revision:2}],builtin_profiles:[p]}};};
