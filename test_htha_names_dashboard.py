@@ -14,10 +14,12 @@ from homeassistant.const import EntityCategory
 from custom_components.htha import (
     DATA_FRONTEND_REGISTERED,
     async_register_frontend,
+    async_remove_entry,
 )
 from custom_components.htha import lovelace_resource
 from custom_components.htha.const import (
     FRONTEND_SCRIPT,
+    SCHEDULE_FRONTEND_SCRIPT,
     FRONTEND_URL_BASE,
     OPERATING_STATES,
     PARAM_NUMBER_METADATA,
@@ -26,6 +28,7 @@ from custom_components.htha.const import (
 )
 from custom_components.htha.sensor import (
     HtHATemperatureSpreadSensor,
+    HtHAScheduleValidationSensor,
     build_param_sensor_description,
     compute_operating_state,
 )
@@ -169,15 +172,22 @@ async def test_frontend_registration_is_idempotent():
     with patch(
         "homeassistant.loader.async_get_integration",
         AsyncMock(return_value=integration),
-    ), patch("homeassistant.components.frontend.add_extra_js_url") as add_js:
+    ), patch("homeassistant.components.frontend.add_extra_js_url") as add_js, patch(
+        "custom_components.htha.async_ensure_resource", new_callable=AsyncMock,
+    ) as ensure_resource:
         await async_register_frontend(hass)
         await async_register_frontend(hass)
+        assert ensure_resource.await_count == 2
+        for script in (FRONTEND_SCRIPT, SCHEDULE_FRONTEND_SCRIPT):
+            ensure_resource.assert_any_await(hass, "9.9.9", script)
     hass.http.async_register_static_paths.assert_awaited_once()
     (config,) = hass.http.async_register_static_paths.await_args.args[0]
     assert config.url_path == FRONTEND_URL_BASE
     assert Path(config.path, FRONTEND_SCRIPT).is_file()
-    add_js.assert_called_once_with(
-        hass, f"{FRONTEND_URL_BASE}/{FRONTEND_SCRIPT}?v=9.9.9")
+    assert add_js.call_count == 2
+    for script in (FRONTEND_SCRIPT, SCHEDULE_FRONTEND_SCRIPT):
+        add_js.assert_any_call(hass, f"{FRONTEND_URL_BASE}/{script}?v=9.9.9")
+        assert Path(config.path, script).is_file()
     assert hass.data[DATA_FRONTEND_REGISTERED] is True
 
 
@@ -256,48 +266,52 @@ def _fake_store(data=None):
     return store
 
 
-async def test_lovelace_resource_created_once_and_versioned():
+@pytest.mark.parametrize("script", [FRONTEND_SCRIPT, SCHEDULE_FRONTEND_SCRIPT])
+async def test_lovelace_resource_created_once_and_versioned(script):
     other = {"id": "x", "type": "module", "url": "/hacsfiles/iconset.js"}
     resources = _FakeResources([other])
     hass = _resource_hass(resources)
     store = _fake_store()
     with patch.object(lovelace_resource, "_store", return_value=store):
-        await lovelace_resource.async_ensure_resource(hass, "1.0.13")
-        await lovelace_resource.async_ensure_resource(hass, "1.0.13")
+        await lovelace_resource.async_ensure_resource(hass, "1.0.13", script)
+        await lovelace_resource.async_ensure_resource(hass, "1.0.13", script)
     ours = [i for i in resources.items if i["id"] != "x"]
-    assert ours == [{"id": "new1", "type": "module", "url": f"{FRONTEND_URL_BASE}/{FRONTEND_SCRIPT}?v=1.0.13"}]
+    assert ours == [{"id": "new1", "type": "module", "url": f"{FRONTEND_URL_BASE}/{script}?v=1.0.13"}]
     assert other in resources.items
     store.async_save.assert_awaited_once_with({"resource_id": "new1"})
     resources.async_load.assert_awaited_once()
 
 
-async def test_lovelace_resource_version_is_updated_not_duplicated():
-    old = {"id": "r1", "type": "module", "url": f"{FRONTEND_URL_BASE}/{FRONTEND_SCRIPT}?v=1.0.12"}
+@pytest.mark.parametrize("script", [FRONTEND_SCRIPT, SCHEDULE_FRONTEND_SCRIPT])
+async def test_lovelace_resource_version_is_updated_not_duplicated(script):
+    old = {"id": "r1", "type": "module", "url": f"{FRONTEND_URL_BASE}/{script}?v=1.0.12"}
     resources = _FakeResources([old])
     store = _fake_store()
     with patch.object(lovelace_resource, "_store", return_value=store):
-        await lovelace_resource.async_ensure_resource(_resource_hass(resources), "1.0.13")
-    assert resources.items == [{"id": "r1", "type": "module", "url": f"{FRONTEND_URL_BASE}/{FRONTEND_SCRIPT}?v=1.0.13"}]
+        await lovelace_resource.async_ensure_resource(_resource_hass(resources), "1.0.13", script)
+    assert resources.items == [{"id": "r1", "type": "module", "url": f"{FRONTEND_URL_BASE}/{script}?v=1.0.13"}]
     store.async_save.assert_not_awaited()
 
 
-async def test_lovelace_resource_skipped_in_yaml_mode():
+@pytest.mark.parametrize("script", [FRONTEND_SCRIPT, SCHEDULE_FRONTEND_SCRIPT])
+async def test_lovelace_resource_skipped_in_yaml_mode(script):
     hass = _resource_hass(None)
     hass.data["lovelace"].resources = object()  # read-only YAML collection
     with patch.object(lovelace_resource, "_store") as store:
-        await lovelace_resource.async_ensure_resource(hass, "1.0.13")
+        await lovelace_resource.async_ensure_resource(hass, "1.0.13", script)
     store.assert_not_called()
 
 
-async def test_lovelace_resource_removed_only_if_ours():
-    ours = {"id": "new1", "type": "module", "url": f"{FRONTEND_URL_BASE}/{FRONTEND_SCRIPT}?v=1.0.13"}
+@pytest.mark.parametrize("script", [FRONTEND_SCRIPT, SCHEDULE_FRONTEND_SCRIPT])
+async def test_lovelace_resource_removed_only_if_ours(script):
+    ours = {"id": "new1", "type": "module", "url": f"{FRONTEND_URL_BASE}/{script}?v=1.0.13"}
     resources = _FakeResources([ours])
     with patch.object(lovelace_resource, "_store", return_value=_fake_store(None)):
-        await lovelace_resource.async_remove_resource(_resource_hass(resources))
+        await lovelace_resource.async_remove_resource(_resource_hass(resources), script)
     assert resources.items == [ours]  # not created by us -> kept
     store = _fake_store({"resource_id": "new1"})
     with patch.object(lovelace_resource, "_store", return_value=store):
-        await lovelace_resource.async_remove_resource(_resource_hass(resources))
+        await lovelace_resource.async_remove_resource(_resource_hass(resources), script)
     assert resources.items == []
     store.async_remove.assert_awaited_once()
 
@@ -307,3 +321,79 @@ def test_strategy_registers_into_current_registry():
     assert "window.customElements" in js and "setInterval" in js
     manifest = _load("manifest.json")
     assert f'HTHA_VERSION = "{manifest["version"]}"' in js
+
+
+async def test_frontend_resources_have_independent_ownership_and_legacy_store():
+    resources = _FakeResources()
+    hass = _resource_hass(resources)
+    stores = {}
+
+    def store_factory(_hass, _version, key):
+        if key not in stores:
+            stores[key] = _fake_store()
+            async def save(data):
+                stores[key].async_load.return_value = data
+            stores[key].async_save.side_effect = save
+        return stores[key]
+
+    with patch.object(lovelace_resource, "Store", side_effect=store_factory):
+        for script in (FRONTEND_SCRIPT, SCHEDULE_FRONTEND_SCRIPT):
+            await lovelace_resource.async_ensure_resource(hass, "1.3.0", script)
+        assert len(resources.items) == 2
+        assert lovelace_resource.STORE_KEY in stores  # preserve pre-upgrade ownership
+        assert len(stores) == 2
+        await lovelace_resource.async_remove_resource(hass)
+        assert len(resources.items) == 1
+        assert SCHEDULE_FRONTEND_SCRIPT in resources.items[0]["url"]
+        await lovelace_resource.async_remove_resource(hass, SCHEDULE_FRONTEND_SCRIPT)
+        assert resources.items == []
+
+
+@pytest.mark.parametrize("script", [FRONTEND_SCRIPT, SCHEDULE_FRONTEND_SCRIPT])
+async def test_resource_cleanup_keeps_repurposed_user_resource(script):
+    other = {"id": "new1", "type": "module", "url": "/user-card.js"}
+    resources = _FakeResources([other])
+    with patch.object(lovelace_resource, "_store", return_value=_fake_store({"resource_id": "new1"})):
+        await lovelace_resource.async_remove_resource(_resource_hass(resources), script)
+    assert resources.items == [other]
+
+
+@pytest.mark.parametrize("script", [FRONTEND_SCRIPT, SCHEDULE_FRONTEND_SCRIPT])
+async def test_resource_registration_deferred_until_start(script):
+    hass = _resource_hass(_FakeResources())
+    hass.config.components = {"frontend", "http"}
+    hass.is_running = False
+    await lovelace_resource.async_ensure_resource(hass, "1.3.0", script)
+    callback = hass.bus.async_listen_once.call_args.args[1]
+    hass.config.components.add("lovelace")
+    with patch.object(lovelace_resource, "_store", return_value=_fake_store()):
+        await callback(MagicMock())
+    assert hass.data["lovelace"].resources.items[0]["url"] == lovelace_resource.resource_url("1.3.0", script)
+
+
+def test_schedule_validation_exposes_own_entry_for_frontend_discovery():
+    coordinator = MagicMock()
+    entry = MagicMock(entry_id="pump-entry")
+    sensor = HtHAScheduleValidationSensor(coordinator, entry, MagicMock(key="schedule_validation"))
+    with patch("custom_components.htha.schedule_services.snapshot", return_value={"status": "ready"}):
+        assert sensor.extra_state_attributes == {"status": "ready", "config_entry_id": "pump-entry"}
+
+
+@pytest.mark.parametrize("has_remaining", [False, True])
+async def test_frontend_resources_removed_only_with_last_entry(has_remaining):
+    hass = MagicMock()
+    hass.data = {}
+    entry = MagicMock(entry_id="removed")
+    hass.config_entries.async_entries.return_value = (
+        [entry, MagicMock(entry_id="remaining")] if has_remaining else [entry]
+    )
+    with patch("homeassistant.helpers.storage.Store", return_value=_fake_store()), patch(
+        "custom_components.htha.async_remove_resource", new_callable=AsyncMock,
+    ) as remove_resource:
+        await async_remove_entry(hass, entry)
+    if has_remaining:
+        remove_resource.assert_not_awaited()
+    else:
+        assert remove_resource.await_count == 2
+        for script in (FRONTEND_SCRIPT, SCHEDULE_FRONTEND_SCRIPT):
+            remove_resource.assert_any_await(hass, script)

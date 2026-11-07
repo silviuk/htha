@@ -8,9 +8,9 @@
  *
  * Entities are discovered from the entity registry (platform "htha",
  * matched by domain + translation_key), so it works with any entity_ids and
- * with several heat pumps. Only built-in Home Assistant cards are used.
+ * with several heat pumps. Built-in cards and the bundled schedule editor are used.
  */
-const HTHA_VERSION = "1.2.0";
+const HTHA_VERSION = "1.3.0";
 
 const ROLES = {
   operating_state: "sensor.operating_state",
@@ -37,6 +37,7 @@ const ROLES = {
   source_pump_hours: "sensor.bsz_eq_betriebsstunden",
   hot_water_hours: "sensor.bsz_wwv_betriebsstunden",
   time_programs: "sensor.time_programs",
+  schedule_validation: "sensor.schedule_validation",
   mode_code: "sensor.betriebsart",
   fault: "binary_sensor.stoerung",
   compressor: "binary_sensor.verdichter",
@@ -353,6 +354,7 @@ const BUILDERS = {
   },
 
   // Time programs. Options (section/view config):
+  //   schedule_editor: false to use the read-only view instead
   //   time_programs: full | summary | collapsible
   //   time_programs_toggle: input_boolean that expands the full week
   //     (default: input_boolean.htha_show_time_programs when it exists).
@@ -360,6 +362,15 @@ const BUILDERS = {
   // when the toggle is on. Without one it shows the full week, as before.
   schedule(hass, p, t, config = {}) {
     const sensor = p.e.time_programs;
+    const validation = p.e.schedule_validation;
+    const entryId = validation && ((hass.entities[validation] || {}).config_entry_id
+      || (hass.states[validation]?.attributes || {}).config_entry_id);
+    if (config.schedule_editor !== false && validation && entryId) {
+      return section([heading(t.schedule, "mdi:calendar-clock"), {
+        type: "custom:htha-schedule-scratchpad-card", entity: validation,
+        config_entry_id: entryId, ...FULL,
+      }]);
+    }
     if (!sensor) return null;
     const toggle = config.time_programs_toggle
       || (hass.states[DEFAULT_SCHEDULE_TOGGLE] ? DEFAULT_SCHEDULE_TOGGLE : null);
@@ -394,7 +405,7 @@ const BUILDERS = {
     }
     const rest = p.all
       .filter((id) => !shown.has(id) && !MIRRORS.has(p.keys[id]))
-      .filter((id) => id !== e.time_programs && id !== e.clock_sync)
+      .filter((id) => id !== e.time_programs && id !== e.schedule_validation && id !== e.clock_sync)
       .sort();
     return section([
       heading(t.diagnostics, "mdi:stethoscope"),

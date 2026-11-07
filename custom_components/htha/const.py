@@ -657,6 +657,7 @@ OPERATING_STATES: Final[list[str]] = [
     "fault",
 ]
 
-# Frontend (dashboard strategy) served by the integration.
+# Frontend modules served by the integration.
 FRONTEND_URL_BASE: Final = "/htha_frontend"
 FRONTEND_SCRIPT: Final = "htha-heatpump-strategy.js"
+SCHEDULE_FRONTEND_SCRIPT: Final = "htha-schedule-scratchpad-card.js"
