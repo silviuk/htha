@@ -62,6 +62,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         True if setup was successful
     """
     _LOGGER.info("Setting up %s integration", DOMAIN)
+    from .schedule_services import register_services
+
+    register_services(hass)
     await async_register_frontend(hass)
     return True
 
@@ -133,9 +136,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HtHAConfigEntry) -> bool
     # Store coordinator in entry runtime data
     entry.runtime_data = coordinator
 
-    # Fetch initial data
-    await coordinator.async_config_entry_first_refresh()
-
     # Store write_enabled flag for platforms to access
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
@@ -144,7 +144,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: HtHAConfigEntry) -> bool
 
     from .schedule_services import setup_scratchpad
 
-    setup_scratchpad(hass, entry, coordinator)
+    await setup_scratchpad(hass, entry, coordinator)
+
+    # Surface interrupted-write recovery even if the controller is unavailable.
+    await coordinator.async_config_entry_first_refresh()
 
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

@@ -336,6 +336,10 @@ class HtHATemperatureSpreadSensor(HtHAEntity, SensorEntity):
 class HtHAScheduleValidationSensor(HtHAEntity, SensorEntity):
     """In-memory scratchpad/report; no restore of approvals after restart."""
 
+    _unrecorded_attributes = frozenset({"draft", "metadata", "policy", "findings", "canonical",
+                                       "previous_program", "actual_program", "warning_ids",
+                                       "apply_error", "recovery_read_error", "recovery_storage_error", "disconnect_error"})
+
     @property
     def native_value(self):
         return self.coordinator.schedule_scratchpad.report["status"]

@@ -65,13 +65,13 @@ class ValidatorTests(unittest.TestCase):
         self.assertTrue({'floor_non_normal','short_window'} <= codes)
 
     def test_dhw_household_risks_and_pv_are_advisory(self):
-        report=self.check(meta={**META,'index':0,'nos':2},policy={**POLICY,'kind':'hot_water'})
+        report=self.check(meta={**META,'index':0,'nos':2,'name':'Hot water'},policy={**POLICY,'kind':'hot_water'})
         self.assertEqual(report['critical_count'],0)
         self.assertFalse(any(x['id'].startswith('demand_') for x in report['findings']))
         draft=deepcopy(DRAFT)
         for day in draft['entries']: day[0]['state']=0
-        report=self.check(draft,meta={**META,'index':0,'nos':2},policy={**POLICY,'kind':'hot_water'})
-        self.assertEqual(sum(x['id'].startswith('demand_') for x in report['findings']),14)
+        report=self.check(draft,meta={**META,'index':0,'nos':2,'name':'Hot water'},policy={**POLICY,'kind':'hot_water'})
+        self.assertEqual(sum(x['id'].startswith('demand_') for x in report['findings']),0)
         self.assertEqual(report['critical_count'],0)
 
     def test_normalization_discards_padding_merges_equal(self):
@@ -88,6 +88,8 @@ class Coordinator:
     def __init__(self):
         self._connection_lock=asyncio.Lock()
         self.program={**deepcopy(META),**deepcopy(DRAFT)}
+        for day in self.program['entries']:
+            day.extend([dict(start='24:00',end='24:00',state=0) for _ in range(6)])
         self.heatpump=self
         self.time_programs=[deepcopy(self.program)]
         self.reads=0;self.writes=[];self.fail=False;self.mismatch=False
@@ -171,7 +173,7 @@ class TransactionTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):await self.manager.apply(DRAFT,hash_,True)
     async def test_readback_mismatch_is_failure_no_retry(self):
         self.enabled=True;hash_=await self.ready();self.c.mismatch=True
-        with self.assertRaises(ValueError):await self.manager.apply(DRAFT,hash_,True)
+        with self.assertRaises(RuntimeError):await self.manager.apply(DRAFT,hash_,True)
         self.assertEqual(len(self.c.writes),1)
         self.assertTrue(self.manager.report['possible_partial_write'])
         self.assertFalse(self.manager.can_apply)

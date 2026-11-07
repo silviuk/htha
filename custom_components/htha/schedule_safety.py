@@ -6,6 +6,7 @@ from copy import deepcopy
 import hashlib
 import json
 import re
+from uuid import uuid4
 
 DAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 MANUAL = "web control 321 customer manual pp.10-13 (7 slots/day, 15-minute steps)"
@@ -57,6 +58,9 @@ def validate(draft, metadata, policy):
         add("critical", "unsupported_controller", "Unsupported controller format; do not assume newer RCG behavior.")
     if policy.get("kind") != {0: "hot_water", 2: "heating"}.get(metadata.get("index"), "unsupported"):
         add("critical", "program_kind", "Select heating or hot_water explicitly.", source="Integration safety rule")
+    names = {0: {"hot water", "warmwasser", "brauchwasser"}, 2: {"heating", "heizung", "heizkreis 1", "heizkreis"}}
+    if str(metadata.get("name", "")).strip().casefold() not in names.get(metadata.get("index"), set()):
+        add("critical", "program_name", "Controller program name does not identify the selected heating/hot-water program.", source="Integration safety rule")
     if policy.get("mapping_confirmed") is not True or type(policy.get("normal_state")) is not int or policy.get("normal_state") not in range(states):
         add("critical", "mode_mapping", "Verify the Normal-mode numeric code on this controller/firmware; Modbus global operating modes are NOT schedule codes.", source="Integration safety rule")
     rows = draft.get("entries") if isinstance(draft, dict) else None
@@ -92,19 +96,26 @@ def validate(draft, metadata, policy):
             continue
         normal = policy.get("normal_state")
         on = [(a, b) for a, b, mode in valid if mode == normal]
+        # Adjacent intervals and the two midnight halves form one window.
+        merged = []
+        for a, b in on:
+            if merged and merged[-1][1] == a:
+                merged[-1] = (merged[-1][0], b)
+            else:
+                merged.append((a, b))
+        on = merged
+        if len(on) > 1 and on[0][0] == 0 and on[-1][1] == 1440:
+            on = [(on[-1][0], 1440 + on[0][1]), *on[1:-1]]
         if any(b - a < 30 for a, b in on):
             add("warning", "short_window", "A Normal window is shorter than 30 min; review comfort/recovery. This is NOT a manufacturer compressor minimum-run limit.", d, "Advisory household review policy (30 min), not a hardware limit")
         if len(on) > 2:
             add("warning", "many_windows", "More than two Normal windows/day; review repeated reheat opportunities. Windows are not compressor starts.", d, "Household policy: two demand periods, optional acknowledged PV period")
         if policy.get("kind") == "heating" and policy.get("floor_heating", True) and any(mode != normal for _, _, mode in valid):
             add("warning", "floor_non_normal", "Non-Normal floor-heating periods: verify whether these are setback or boost and review recovery/comfort. No universal setback-hour limit is established.", d, "General floor-heating practice, not a manufacturer prohibition")
-        if policy.get("kind") == "hot_water":
-            # Household-specific demand from the brief; never a hygienic certification.
-            for label, a, b in (("morning", 375, 540), ("evening", 1200, 1320)):
-                covered = sum(max(0, min(y, b) - max(x, a)) for x, y in on)
-                if covered < b - a:
-                    add("warning", f"demand_{label}", f"Normal windows do not cover the household's {label} demand (06:15-09:00 / 20:00-22:00). Minimum-temperature reheating may still occur.", d, "User household demand, not manufacturer requirement")
-    add("warning", "non_atomic", "Applying a week sends multiple independent slot writes. A network failure can leave a partial schedule; inspect and reload before deciding what to do. No automatic rollback/retry.", source="htheatpump set_time_prog_async transaction behavior")
+    if policy.get("kind") == "hot_water":
+        add("info", "precharge", "For a buffer-fed fresh-water station, plan Normal charging before demand. No household demand windows are enforced.", source="Optional household planning")
+    add("info", "mapping_attestation", "The native program reports a state count, not mode labels. The supplied Normal code only affects advice; it does not translate or protect the numeric codes written.", source="Native controller metadata")
+    add("warning", "non_atomic", "Applying a week sends multiple independent slot writes. A network failure can leave a partial schedule; inspect recovery evidence and refresh the baseline keeping your draft before deciding what to do. No automatic rollback/retry.", source="htheatpump set_time_prog_async transaction behavior")
     add("info", "pv", "Optional midday PV alignment concerns self-consumption, not warmer-air COP for groundwater equipment. No PV timing requirement is enforced.", source="Household energy advice")
     add("info", "hygiene", "Schedule validation is not a drinking-water hygiene assessment. Verify buffer/fresh-water station and distribution/circulation design.", source="System-specific hygiene review")
     add("info", "cycling", "No exact-model starts/hour/day or minimum on/off-time limit was found; no invented hardware limits are applied.", source="HPW-WEB 2006 model sheet p.5")
@@ -126,7 +137,7 @@ class Scratchpad:
     automatic retry/rollback; review the freshly read controller state first.
     """
 
-    def __init__(self, coordinator, allow_writes, program_factory, notify=lambda: None):
+    def __init__(self, coordinator, allow_writes, program_factory, notify=lambda: None, recovery=None):
         self.coordinator = coordinator
         self.allow_writes = allow_writes
         self.program_factory = program_factory
@@ -140,6 +151,32 @@ class Scratchpad:
         self.ack_hash = None
         self.ack_ids = set()
         self.revision = 0
+        self.session_id = uuid4().hex
+        self.recovery = recovery
+        self.previous_program = None
+        self.actual_program = None
+
+    async def _save_recovery(self, in_progress):
+        if self.recovery:
+            await self.recovery({"in_progress": in_progress, "previous_program": self.previous_program,
+                                 "actual_program": self.actual_program})
+
+    async def refresh_baseline(self):
+        """Read current controller state without replacing the user's edits."""
+        async with self.lock:
+            if self.metadata is None:
+                raise ValueError("Load a program first")
+            current = await self._read(self.metadata["index"])
+            self.metadata = {k: current[k] for k in ("index", "name", "ead", "nos", "ste", "nod")}
+            self.actual_program = current
+            self.baseline_hash = digest(normalized(current["entries"]))
+            self.report = {"status": "unvalidated", "findings": [], "critical_count": 0, "warning_ids": []}
+            self.ack_hash, self.ack_ids = None, set()
+            self.changed()
+
+    async def restore(self, expected_hash, confirm):
+        """Restore only a separately checked/acknowledged previous program draft."""
+        return await self.apply(deepcopy(self.draft), expected_hash, confirm, restoring=True)
 
     def changed(self):
         self.revision += 1
@@ -190,12 +227,16 @@ class Scratchpad:
             self.ack_hash, self.ack_ids = expected_hash, set(warning_ids)
             self.changed()
 
-    async def apply(self, draft, expected_hash, confirm):
+    async def apply(self, draft, expected_hash, confirm, restoring=False):
         async with self.lock:
+            if restoring and (not self.previous_program or not draft or self.metadata is None
+                              or normalized(draft["entries"]) != normalized(self.previous_program["entries"])
+                              or self.metadata != {k: self.previous_program[k] for k in self.metadata}):
+                raise ValueError("Check and acknowledge the previous program as the current draft first")
             if confirm is not True or not self.can_apply:
                 raise ValueError("Apply requires confirmation, Allow writes, valid check and warning acknowledgements")
             checked = validate(draft, self.metadata, self.policy)
-            if checked["draft_hash"] != expected_hash or expected_hash != self.report.get("draft_hash"):
+            if checked["critical_count"] or self.report.get("critical_count") or checked["draft_hash"] != expected_hash or expected_hash != self.report.get("draft_hash"):
                 self.ack_hash, self.ack_ids = None, set()
                 self.report["status"] = "stale"
                 self.changed()
@@ -214,29 +255,72 @@ class Scratchpad:
                         raise ValueError("Write permission or validation was revoked")
                     payload = deepcopy(self.metadata)
                     payload["entries"] = []
-                    for day in draft["entries"]:
+                    if len(current["entries"]) != 7 or any(
+                        not isinstance(day, list) or len(day) != payload["ead"]
+                        for day in current["entries"]
+                    ):
+                        raise ValueError("Controller did not return all native slots; refusing to invent placeholder modes")
+                    for d, day in enumerate(draft["entries"]):
                         padded = deepcopy(day)
                         while len(padded) < payload["ead"]:
-                            padded.append({"start": "24:00", "end": "24:00", "state": day[-1]["state"]})
+                            slot = current["entries"][d][len(padded)]
+                            if not isinstance(slot, dict) or type(slot.get("state")) is not int or slot["state"] not in range(payload["nos"]):
+                                raise ValueError("Controller slot mode unavailable; refusing to invent a placeholder mode")
+                            padded.append({"start": "24:00", "end": "24:00", "state": slot["state"]})
                         payload["entries"].append(padded)
+                    if restoring:
+                        # Restore the actual saved slots, including their original padding.
+                        payload = deepcopy(self.previous_program)
+                        if any(len(day) != payload["ead"] or any(
+                            not isinstance(slot, dict) or type(slot.get("state")) is not int
+                            or slot["state"] not in range(payload["nos"])
+                            for slot in day) for day in payload["entries"]):
+                            raise ValueError("Previous program lacks complete native slots; refusing to invent restore data")
+                    self.previous_program = deepcopy(current)
+                    self.actual_program = None
+                    await self._save_recovery(True)
+                    if not self.allow_writes():
+                        raise ValueError("Write permission was revoked")
                     self.report["status"] = "applying"
                     self.changed()
                     writing = True
                     await c.heatpump.set_time_prog_async(self.program_factory(payload))
                     actual = (await c.heatpump.get_time_prog_async(self.metadata["index"], with_entries=True)).as_json()
                     if normalized(actual["entries"]) != normalized(draft["entries"]):
-                        raise ValueError("Independent read-back differs; controller may be partially changed")
+                        raise RuntimeError("Independent read-back differs; controller may be partially changed")
                     self.baseline_hash = digest(normalized(actual["entries"]))
-                    c.time_programs = [actual if p["index"] == actual["index"] else p for p in (c.time_programs or [])]
                     self.report["status"] = "applied"
-                except Exception as err:
+                    self.actual_program = actual
+                    await self._save_recovery(False)
+                except (Exception, asyncio.CancelledError) as err:
                     self.report["status"] = "failed"
-                    self.report["apply_error"] = str(err)
+                    self.report["apply_error"] = str(err) or type(err).__name__
                     self.report["possible_partial_write"] = writing
+                    if writing:
+                        try:
+                            # Reconnect separately: the failed transport may be unusable.
+                            await c._disconnect()
+                            await c._connect()
+                            self.actual_program = (await c.heatpump.get_time_prog_async(self.metadata["index"], with_entries=True)).as_json()
+                        except (Exception, asyncio.CancelledError) as read_err:
+                            self.actual_program = None
+                            self.report["recovery_read_error"] = str(read_err) or type(read_err).__name__
+                        try:
+                            await self._save_recovery(True)
+                        except (Exception, asyncio.CancelledError) as save_err:
+                            # The pre-write marker is already durable. Keep the original
+                            # transaction exception (especially cancellation) as the result.
+                            self.report["recovery_storage_error"] = str(save_err) or type(save_err).__name__
                     raise
                 finally:
                     self.ack_hash, self.ack_ids = None, set()
-                    await c._disconnect()
-                    self.changed()
+                    c.time_programs = None
+                    c._last_time_programs_update = 0
+                    try:
+                        await c._disconnect()
+                    except (Exception, asyncio.CancelledError) as disconnect_err:
+                        self.report["disconnect_error"] = str(disconnect_err) or type(disconnect_err).__name__
+                    finally:
+                        self.changed()
             await c.async_request_refresh()
             return self.report

@@ -349,7 +349,7 @@
                 },
                 "policy": {
                     "name": "Check policy",
-                    "description": "kind: heating/hot_water; normal_state: verified code; mapping_confirmed: true only after verification; floor_heating: true/false."
+                    "description": "kind: heating/hot_water; normal_state: user-attested advice mapping; mapping_confirmed: true after verification. The mapping does not translate or protect numeric codes written."
                 }
             }
         },
@@ -389,9 +389,49 @@
                 },
                 "confirm": {
                     "name": "Confirm physical change",
-                    "description": "Must be true. Only this service writes to the heat pump."
+                    "description": "Must be true. Apply and restore are the only scratchpad actions that write."
                 }
             }
+        },
+        "refresh_time_program_baseline": {
+            "name": "Refresh pump baseline, keep my draft",
+            "description": "Read only. Keeps edits and invalidates validation and acknowledgements.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA entry",
+                    "description": "Loaded HTHA integration entry."
+                }
+            }
+        },
+        "restore_previous_time_program": {
+            "name": "Restore previous program",
+            "description": "Check and acknowledge previous_program as the draft first. Requires Allow writes and explicit confirmation.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA entry",
+                    "description": "Loaded HTHA integration entry."
+                },
+                "draft_hash": {
+                    "name": "Checked hash"
+                },
+                "confirm": {
+                    "name": "Confirm physical change"
+                }
+            }
+        }
+    },
+    "exceptions": {
+        "entry_not_loaded": {
+            "message": "HTHA entry is not loaded."
+        },
+        "schedule_gate": {
+            "message": "Schedule action refused: {reason}"
+        }
+    },
+    "issues": {
+        "schedule_recovery": {
+            "title": "Schedule recovery required",
+            "description": "An apply for {entry} failed or was interrupted. Refresh the baseline while keeping the draft, inspect actual_program and previous_program, then check and acknowledge the previous program before a confirmed restore. No automatic restore is performed."
         }
     }
 }

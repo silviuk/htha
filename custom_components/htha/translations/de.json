@@ -345,7 +345,7 @@
                 },
                 "policy": {
                     "name": "Prüfregeln",
-                    "description": "kind: heating/hot_water; normal_state: geprüfter Code; mapping_confirmed erst nach Prüfung true; floor_heating: true/false."
+                    "description": "kind: heating/hot_water; normal_state: user-attested advice mapping; mapping_confirmed: true after verification. The mapping does not translate or protect numeric codes written."
                 }
             }
         },
@@ -385,9 +385,49 @@
                 },
                 "confirm": {
                     "name": "Reale Änderung bestätigen",
-                    "description": "Muss true sein. Nur dieser Dienst schreibt an die Wärmepumpe."
+                    "description": "Must be true. Apply and restore are the only scratchpad actions that write."
                 }
             }
+        },
+        "refresh_time_program_baseline": {
+            "name": "Refresh pump baseline, keep my draft",
+            "description": "Read only. Keeps edits and invalidates validation and acknowledgements.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA entry",
+                    "description": "Loaded HTHA integration entry."
+                }
+            }
+        },
+        "restore_previous_time_program": {
+            "name": "Restore previous program",
+            "description": "Check and acknowledge previous_program as the draft first. Requires Allow writes and explicit confirmation.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA entry",
+                    "description": "Loaded HTHA integration entry."
+                },
+                "draft_hash": {
+                    "name": "Checked hash"
+                },
+                "confirm": {
+                    "name": "Confirm physical change"
+                }
+            }
+        }
+    },
+    "exceptions": {
+        "entry_not_loaded": {
+            "message": "HTHA-Eintrag ist nicht geladen."
+        },
+        "schedule_gate": {
+            "message": "Zeitprogramm gesperrt: {reason}"
+        }
+    },
+    "issues": {
+        "schedule_recovery": {
+            "title": "Zeitprogramm pr?fen",
+            "description": "Ein Schreibvorgang f?r {entry} wurde unterbrochen oder ist fehlgeschlagen. Aktuellen Stand laden (Entwurf behalten), vorheriges Programm pr?fen und bei Bedarf best?tigt wiederherstellen."
         }
     }
 }

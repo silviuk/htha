@@ -8,16 +8,19 @@ load_time_program_draft:
       description: Loaded HTHA integration config entry ID.
       required: true
       selector:
-        text: {}
+        config_entry:
+          integration: htha
     program_index:
       name: Program index
       description: 0 = hot water; 2 = primary heating.
       required: true
       selector:
-        number:
-          min: 0
-          max: 2
-          mode: box
+        select:
+          options:
+            - label: Hot water
+              value: "0"
+            - label: Heating
+              value: "2"
 validate_time_program:
   name: Check schedule draft
   description: Validate the full week and explicitly verified Normal code. No pump
@@ -28,7 +31,8 @@ validate_time_program:
       description: Loaded HTHA integration config entry ID.
       required: true
       selector:
-        text: {}
+        config_entry:
+          integration: htha
     draft:
       name: Complete weekly draft
       description: 'entries: seven arrays of start/end (HH:MM) and integer state;
@@ -53,7 +57,8 @@ acknowledge_time_program_warnings:
       description: Loaded HTHA integration config entry ID.
       required: true
       selector:
-        text: {}
+        config_entry:
+          integration: htha
     draft_hash:
       name: Checked hash
       description: Exact draft_hash returned by the latest validation.
@@ -78,7 +83,8 @@ apply_time_program:
       description: Loaded HTHA integration config entry ID.
       required: true
       selector:
-        text: {}
+        config_entry:
+          integration: htha
     draft:
       name: Complete weekly draft
       description: 'entries: seven arrays of start/end (HH:MM) and integer state;
@@ -94,7 +100,34 @@ apply_time_program:
         text: {}
     confirm:
       name: Confirm physical change
-      description: Must be true. Only this service writes to the heat pump.
+      description: Must be true. Apply and restore are the only scratchpad actions that write.
+      required: true
+      selector:
+        boolean: {}
+
+refresh_time_program_baseline:
+  name: Refresh pump baseline, keep my draft
+  description: Read only. Keeps edits; clears validation and acknowledgements.
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: htha
+restore_previous_time_program:
+  name: Restore previous program
+  description: Check and acknowledge previous_program as the draft first. Requires Allow writes and confirmation.
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: htha
+    draft_hash:
+      required: true
+      selector:
+        text: {}
+    confirm:
       required: true
       selector:
         boolean: {}
