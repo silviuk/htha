@@ -10,7 +10,15 @@
       "cells": 768,
       "sendDisabled": true,
       "unknownCurrent": "read",
-      "headline": "Schedule editor"
+      "headline": "Schedule editor",
+      "replaced": {
+        "count": 264,
+        "overview": 232,
+        "detail": 32,
+        "visible": true,
+        "noPointer": true,
+        "labels": true
+      }
     },
     {
       "file": "1100-en-dark.png",
@@ -21,7 +29,15 @@
       "cells": 768,
       "sendDisabled": true,
       "unknownCurrent": "read",
-      "headline": "Schedule editor"
+      "headline": "Schedule editor",
+      "replaced": {
+        "count": 264,
+        "overview": 232,
+        "detail": 32,
+        "visible": true,
+        "noPointer": true,
+        "labels": true
+      }
     },
     {
       "file": "1100-de-light.png",
@@ -32,7 +48,15 @@
       "cells": 768,
       "sendDisabled": true,
       "unknownCurrent": "read",
-      "headline": "Zeitprogramm-Editor"
+      "headline": "Zeitprogramm-Editor",
+      "replaced": {
+        "count": 264,
+        "overview": 232,
+        "detail": 32,
+        "visible": true,
+        "noPointer": true,
+        "labels": true
+      }
     },
     {
       "file": "1100-de-dark.png",
@@ -43,7 +67,15 @@
       "cells": 768,
       "sendDisabled": true,
       "unknownCurrent": "read",
-      "headline": "Zeitprogramm-Editor"
+      "headline": "Zeitprogramm-Editor",
+      "replaced": {
+        "count": 264,
+        "overview": 232,
+        "detail": 32,
+        "visible": true,
+        "noPointer": true,
+        "labels": true
+      }
     },
     {
       "file": "360-en-light.png",
@@ -54,7 +86,15 @@
       "cells": 768,
       "sendDisabled": true,
       "unknownCurrent": "read",
-      "headline": "Schedule editor"
+      "headline": "Schedule editor",
+      "replaced": {
+        "count": 264,
+        "overview": 232,
+        "detail": 32,
+        "visible": true,
+        "noPointer": true,
+        "labels": true
+      }
     },
     {
       "file": "360-en-dark.png",
@@ -65,7 +105,15 @@
       "cells": 768,
       "sendDisabled": true,
       "unknownCurrent": "read",
-      "headline": "Schedule editor"
+      "headline": "Schedule editor",
+      "replaced": {
+        "count": 264,
+        "overview": 232,
+        "detail": 32,
+        "visible": true,
+        "noPointer": true,
+        "labels": true
+      }
     },
     {
       "file": "360-de-light.png",
@@ -76,7 +124,15 @@
       "cells": 768,
       "sendDisabled": true,
       "unknownCurrent": "read",
-      "headline": "Zeitprogramm-Editor"
+      "headline": "Zeitprogramm-Editor",
+      "replaced": {
+        "count": 264,
+        "overview": 232,
+        "detail": 32,
+        "visible": true,
+        "noPointer": true,
+        "labels": true
+      }
     },
     {
       "file": "360-de-dark.png",
@@ -87,7 +143,91 @@
       "cells": 768,
       "sendDisabled": true,
       "unknownCurrent": "read",
-      "headline": "Zeitprogramm-Editor"
+      "headline": "Zeitprogramm-Editor",
+      "replaced": {
+        "count": 264,
+        "overview": 232,
+        "detail": 32,
+        "visible": true,
+        "noPointer": true,
+        "labels": true
+      }
+    },
+    {
+      "file": "412-en-light.png",
+      "category": "heating",
+      "width": 412,
+      "documentWidth": 412,
+      "grids": 2,
+      "cells": 768,
+      "sendDisabled": true,
+      "unknownCurrent": "read",
+      "headline": "Schedule editor",
+      "replaced": {
+        "count": 264,
+        "overview": 232,
+        "detail": 32,
+        "visible": true,
+        "noPointer": true,
+        "labels": true
+      }
+    },
+    {
+      "file": "412-en-dark.png",
+      "category": "heating",
+      "width": 412,
+      "documentWidth": 412,
+      "grids": 2,
+      "cells": 768,
+      "sendDisabled": true,
+      "unknownCurrent": "read",
+      "headline": "Schedule editor",
+      "replaced": {
+        "count": 264,
+        "overview": 232,
+        "detail": 32,
+        "visible": true,
+        "noPointer": true,
+        "labels": true
+      }
+    },
+    {
+      "file": "412-de-light.png",
+      "category": "heating",
+      "width": 412,
+      "documentWidth": 412,
+      "grids": 2,
+      "cells": 768,
+      "sendDisabled": true,
+      "unknownCurrent": "read",
+      "headline": "Zeitprogramm-Editor",
+      "replaced": {
+        "count": 264,
+        "overview": 232,
+        "detail": 32,
+        "visible": true,
+        "noPointer": true,
+        "labels": true
+      }
+    },
+    {
+      "file": "412-de-dark.png",
+      "category": "heating",
+      "width": 412,
+      "documentWidth": 412,
+      "grids": 2,
+      "cells": 768,
+      "sendDisabled": true,
+      "unknownCurrent": "read",
+      "headline": "Zeitprogramm-Editor",
+      "replaced": {
+        "count": 264,
+        "overview": 232,
+        "detail": 32,
+        "visible": true,
+        "noPointer": true,
+        "labels": true
+      }
     },
     {
       "file": "1100-en-light-hot-water.png",
@@ -98,7 +238,15 @@
       "cells": 768,
       "sendDisabled": true,
       "unknownCurrent": "read",
-      "headline": "Schedule editor"
+      "headline": "Schedule editor",
+      "replaced": {
+        "count": 544,
+        "overview": 476,
+        "detail": 68,
+        "visible": true,
+        "noPointer": true,
+        "labels": true
+      }
     },
     {
       "file": "360-de-dark-hot-water.png",
@@ -109,7 +257,15 @@
       "cells": 768,
       "sendDisabled": true,
       "unknownCurrent": "read",
-      "headline": "Zeitprogramm-Editor"
+      "headline": "Zeitprogramm-Editor",
+      "replaced": {
+        "count": 544,
+        "overview": 476,
+        "detail": 68,
+        "visible": true,
+        "noPointer": true,
+        "labels": true
+      }
     }
   ],
   "domChecks": {

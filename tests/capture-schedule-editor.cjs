@@ -40,15 +40,19 @@ function cdp(method,params={},sessionId){return new Promise((resolve,reject)=>{c
    const help=await evaluate(`(()=>{const r=document.querySelector('htha-schedule-scratchpad-card').shadowRoot,d=r.getElementById('advice'),b=d.querySelector('summary').getBoundingClientRect();return {closed:!d.open,width:b.width,height:b.height,noCheckbox:!r.getElementById('normal-confirm'),hasInfo:d.textContent.includes('OFFLINE INFO')};})()`);
    assert.deepEqual(help,{closed:true,width:28,height:28,noCheckbox:true,hasInfo:true});
    if(factory)assert.equal(await evaluate(`(()=>{const r=document.querySelector('htha-schedule-scratchpad-card').shadowRoot;return ['rename','delete','update-profile'].every(id=>r.getElementById(id).disabled) && !r.getElementById('save-profile').disabled;})()`),true,'Factory mutations disabled; Save as enabled');
+   const replaced=await evaluate(`(()=>{const r=document.querySelector('htha-schedule-scratchpad-card').shadowRoot,marks=[...r.querySelectorAll('.replaced')],mark=marks[0];return {count:marks.length,overview:r.querySelectorAll('.week-grid .replaced').length,detail:r.querySelectorAll('.day-scroll .replaced').length,visible:!mark || getComputedStyle(mark).visibility==='visible',noPointer:!mark || getComputedStyle(mark).pointerEvents==='none',labels:[...r.querySelectorAll('.cell.changed')].every(e=>e.title.includes('${language==='de'?'war':'was'} ') && e.getAttribute('aria-label').includes('${language==='de'?'jetzt':'now'} '))};})()`);
+   if(!factory){assert.ok(replaced.overview>0);assert.ok(replaced.detail>0);}
+   assert.ok(replaced.visible);assert.ok(replaced.noPointer);assert.ok(replaced.labels);
+   if(!factory)assert.equal(await evaluate(`(()=>{const r=document.querySelector('htha-schedule-scratchpad-card').shadowRoot,d=r.getElementById('day-detail');d.open=true;const m=r.querySelector('.day-scroll .replaced'),b=m.getBoundingClientRect(),row=m.closest('.timeline').getBoundingClientRect();d.open=false;return b.width>20 && b.height>15 && b.height<row.height && getComputedStyle(m.querySelector('path')).stroke!=='none';})()`),true,'Expanded day shows old color and cross below the new color');
    const {cssContentSize}=await cdp('Page.getLayoutMetrics',{},s);
    const {data}=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:{x:0,y:0,width,height:Math.ceil(cssContentSize.height),scale:1}},s);
-   const file=`${width}-${language}-${theme}${category==='hot_water'?'-hot-water':''}.png`;fs.writeFileSync(path.join(out,file),Buffer.from(data,'base64'));results.push({file,category,...layout});
+   const file=`${width}-${language}-${theme}${category==='hot_water'?'-hot-water':''}.png`;fs.writeFileSync(path.join(out,file),Buffer.from(data,'base64'));results.push({file,category,...layout,replaced});
   }
   // Real DOM checks beyond stubs: focus, scroll, dirty state, pointer cancellation.
   const dom=await evaluate(`(()=>{
    const c=document.querySelector('htha-schedule-scratchpad-card');c._dirty=true;
    const r=c.shadowRoot;r.getElementById('day-detail').open=true;const scroll=r.querySelector('[data-scroll]');scroll.scrollLeft=500;
-   const button=r.querySelector('.day-scroll [data-cell="0:24"]');button.focus();const before=c._draft.entries[0][0].state;
+   const button=r.querySelector('.day-scroll [data-cell="0:0"]');button.focus();scroll.scrollLeft=500;const before=c._draft.entries[0][0].state;
    c.hass={...c._hass,states:{'sensor.offline_validation':{attributes:{...c._model,revision:8,draft:{entries:[]}}}}};
    const result={focusPreserved:r.activeElement===button,scrollPreserved:scroll.scrollLeft===500,draftPreserved:c._draft.entries[0][0].state===before};
    c._selection.clear();button.scrollIntoView({block:'center'});const rect=button.getBoundingClientRect();result.pointer={x:rect.x+rect.width/2,y:rect.y+rect.height/2};return result;
