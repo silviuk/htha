@@ -318,100 +318,332 @@
     },
     "services": {
         "load_time_program_draft": {
-            "name": "Zeitprogramm als Entwurf laden",
-            "description": "Nur lesen. Reglerwoche als temporären Entwurf laden; verwirft Prüfungen und Bestätigungen.",
+            "name": "Pumpenprogramm als Entwurf laden",
+            "description": "Nur lesen. Entwurf ersetzen, Freigaben löschen.",
             "fields": {
                 "config_entry_id": {
-                    "name": "HTHA-Konfigurationseintrag-ID",
-                    "description": "ID des geladenen HTHA-Konfigurationseintrags."
+                    "name": "HTHA-Eintrags-ID",
+                    "description": "Geladener HTHA-Integrationseintrag."
                 },
                 "program_index": {
                     "name": "Programmindex",
-                    "description": "0 = Warmwasser; 2 = Hauptheizkreis."
+                    "description": "0 = Warmwasser; 2 = Heizung."
+                },
+                "expected_draft_revision": {
+                    "name": "Erwartete Editorrevision",
+                    "description": "Exakte Snapshot-Revision; veraltete Tabs verursachen Konflikt. Bei älteren Diensten optional, beim Profilladen erforderlich."
+                },
+                "session_id": {
+                    "name": "Editor-Sitzungs-ID",
+                    "description": "Exakte session_id des letzten Editor-Snapshots."
                 }
             }
         },
         "validate_time_program": {
-            "name": "Zeitprogramm-Entwurf prüfen",
-            "description": "Gesamte Woche und ausdrücklich geprüften Normal-Code prüfen. Keine Schreibbefehle an die Wärmepumpe.",
+            "name": "Zeitprogramm prüfen und vergleichen",
+            "description": "Kein Schreiben. Woche und Zuordnung prüfen, zusammenführen und numerischen Vergleich liefern; fresh_read liest die Vergleichsbasis unter Managersperre.",
             "fields": {
                 "config_entry_id": {
-                    "name": "HTHA-Konfigurationseintrag-ID",
-                    "description": "ID des geladenen HTHA-Konfigurationseintrags."
+                    "name": "HTHA-Eintrags-ID",
+                    "description": "Geladener HTHA-Integrationseintrag."
                 },
                 "draft": {
                     "name": "Vollständiger Wochenentwurf",
-                    "description": "entries: sieben Listen aus start/end (HH:MM) und ganzzahligem state; 00:00–24:00 explizit abdecken."
+                    "description": "Sieben geordnete Listen mit Beginn/Ende HH:MM und ganzzahligem Zustand für 00:00–24:00. Maximal 96 Intervalle/Tag; Reglerkapazität nach Zusammenführung geprüft."
                 },
                 "policy": {
-                    "name": "Prüfregeln",
-                    "description": "kind: heating/hot_water; normal_state: user-attested advice mapping; mapping_confirmed: true after verification. The mapping does not translate or protect numeric codes written."
+                    "name": "Prüfrichtlinie",
+                    "description": "kind, normal_state, mapping_confirmed, floor_heating. Normal-Code-Bestätigung bleibt zusätzlich zur vollständigen Moduszuordnung erforderlich."
+                },
+                "fresh_read": {
+                    "name": "Vergleichsbasis neu lesen",
+                    "description": "Schreibgeschützt unter Managersperre aktualisieren, Entwurf behalten; Fehler entzieht Freigabe."
+                },
+                "expected_draft_revision": {
+                    "name": "Erwartete Editorrevision",
+                    "description": "Exakte Snapshot-Revision; veraltete Tabs verursachen Konflikt. Bei älteren Diensten optional, beim Profilladen erforderlich."
+                },
+                "session_id": {
+                    "name": "Editor-Sitzungs-ID",
+                    "description": "Exakte session_id des letzten Editor-Snapshots."
+                },
+                "expected_mapping_revision": {
+                    "name": "Erwartete Zuordnungsrevision",
+                    "description": "Exakte mapping_revision; 0 vor der ersten Zuordnung."
                 }
             }
         },
         "acknowledge_time_program_warnings": {
             "name": "Geprüfte Warnungen bestätigen",
-            "description": "Genau die letzten Warnungs-IDs für diesen Entwurfs-Hash bestätigen. Kritische Fehler sind nicht übersteuerbar.",
+            "description": "Alle Warnungen prüfen und exakt deren an den geprüften Hash gebundene IDs bestätigen.",
             "fields": {
                 "config_entry_id": {
-                    "name": "HTHA-Konfigurationseintrag-ID",
-                    "description": "ID des geladenen HTHA-Konfigurationseintrags."
+                    "name": "HTHA-Eintrags-ID",
+                    "description": "Geladener HTHA-Integrationseintrag."
                 },
                 "draft_hash": {
                     "name": "Geprüfter Hash",
-                    "description": "Exakter draft_hash der letzten Prüfung."
+                    "description": "Exakter draft_hash der aktuellen Prüfung; bindet Nutzdaten, Metadaten, Richtlinie, Zuordnung, Vergleichsbasis und Sitzung."
                 },
                 "warning_ids": {
                     "name": "Warnungs-IDs",
-                    "description": "Genau alle warning_ids der letzten Prüfung; vor dem Bestätigen jeden Hinweis lesen."
+                    "description": "Exakt alle warning_ids nach Einzelprüfung jeder Warnung."
+                },
+                "expected_draft_revision": {
+                    "name": "Erwartete Editorrevision",
+                    "description": "Exakte Snapshot-Revision; veraltete Tabs verursachen Konflikt. Bei älteren Diensten optional, beim Profilladen erforderlich."
+                },
+                "session_id": {
+                    "name": "Editor-Sitzungs-ID",
+                    "description": "Exakte session_id des letzten Editor-Snapshots."
                 }
             }
         },
         "apply_time_program": {
-            "name": "Geprüftes Zeitprogramm übertragen",
-            "description": "Nur Administratoren. Schreibzugriff EIN, unveränderter geprüfter Entwurf, bestätigte Warnungen und Freigabe nötig. Unabhängiges Rücklesen; kein automatischer Wiederholungsversuch/Rollback bei Teilfehlern.",
+            "name": "Geprüftes Zeitprogramm senden",
+            "description": "Nur Administratoren. Schreibzugriff, gültige Prüfung, bestätigte verwendete Modi, exakte Warnungsbestätigungen und ausdrückliche Bestätigung erforderlich. Dauerhafte Wiederherstellungsdaten und unabhängiges Rücklesen; keine automatischen Wiederholungen oder Rücksetzungen.",
             "fields": {
                 "config_entry_id": {
-                    "name": "HTHA-Konfigurationseintrag-ID",
-                    "description": "ID des geladenen HTHA-Konfigurationseintrags."
+                    "name": "HTHA-Eintrags-ID",
+                    "description": "Geladener HTHA-Integrationseintrag."
                 },
                 "draft": {
                     "name": "Vollständiger Wochenentwurf",
-                    "description": "entries: sieben Listen aus start/end (HH:MM) und ganzzahligem state; 00:00–24:00 explizit abdecken."
+                    "description": "Sieben geordnete Listen mit Beginn/Ende HH:MM und ganzzahligem Zustand für 00:00–24:00. Maximal 96 Intervalle/Tag; Reglerkapazität nach Zusammenführung geprüft."
                 },
                 "draft_hash": {
                     "name": "Geprüfter Hash",
-                    "description": "Exakter draft_hash der letzten Prüfung."
+                    "description": "Exakter draft_hash der aktuellen Prüfung; bindet Nutzdaten, Metadaten, Richtlinie, Zuordnung, Vergleichsbasis und Sitzung."
                 },
                 "confirm": {
-                    "name": "Reale Änderung bestätigen",
-                    "description": "Must be true. Apply and restore are the only scratchpad actions that write."
+                    "name": "Ausdrückliche Bestätigung",
+                    "description": "Muss wahr sein. Profillöschen betrifft nur die HA-Bibliothek. Ausschließlich Anwenden/Wiederherstellen schreibt Zeitprogramme."
+                },
+                "expected_draft_revision": {
+                    "name": "Erwartete Editorrevision",
+                    "description": "Exakte Snapshot-Revision; veraltete Tabs verursachen Konflikt. Bei älteren Diensten optional, beim Profilladen erforderlich."
+                },
+                "session_id": {
+                    "name": "Editor-Sitzungs-ID",
+                    "description": "Exakte session_id des letzten Editor-Snapshots."
                 }
             }
         },
         "refresh_time_program_baseline": {
-            "name": "Refresh pump baseline, keep my draft",
-            "description": "Read only. Keeps edits and invalidates validation and acknowledgements.",
+            "name": "Vergleichsbasis aktualisieren, Entwurf behalten",
+            "description": "Nur lesen. Freigabe vor erneutem Lesen löschen, Entwurf bei Fehler behalten.",
             "fields": {
                 "config_entry_id": {
-                    "name": "HTHA entry",
-                    "description": "Loaded HTHA integration entry."
+                    "name": "HTHA-Eintrags-ID",
+                    "description": "Geladener HTHA-Integrationseintrag."
+                },
+                "expected_draft_revision": {
+                    "name": "Erwartete Editorrevision",
+                    "description": "Exakte Snapshot-Revision; veraltete Tabs verursachen Konflikt. Bei älteren Diensten optional, beim Profilladen erforderlich."
+                },
+                "session_id": {
+                    "name": "Editor-Sitzungs-ID",
+                    "description": "Exakte session_id des letzten Editor-Snapshots."
                 }
             }
         },
         "restore_previous_time_program": {
-            "name": "Restore previous program",
-            "description": "Check and acknowledge previous_program as the draft first. Requires Allow writes and explicit confirmation.",
+            "name": "Vorheriges Programm nach Prüfung wiederherstellen",
+            "description": "Derselbe geschützte Schreibpfad. Zuerst das exakte vorherige Programm als aktuellen Entwurf prüfen und bestätigen.",
             "fields": {
                 "config_entry_id": {
-                    "name": "HTHA entry",
-                    "description": "Loaded HTHA integration entry."
+                    "name": "HTHA-Eintrags-ID",
+                    "description": "Geladener HTHA-Integrationseintrag."
                 },
                 "draft_hash": {
-                    "name": "Checked hash"
+                    "name": "Geprüfter Hash",
+                    "description": "Exakter draft_hash der aktuellen Prüfung; bindet Nutzdaten, Metadaten, Richtlinie, Zuordnung, Vergleichsbasis und Sitzung."
                 },
                 "confirm": {
-                    "name": "Confirm physical change"
+                    "name": "Ausdrückliche Bestätigung",
+                    "description": "Muss wahr sein. Profillöschen betrifft nur die HA-Bibliothek. Ausschließlich Anwenden/Wiederherstellen schreibt Zeitprogramme."
+                },
+                "expected_draft_revision": {
+                    "name": "Erwartete Editorrevision",
+                    "description": "Exakte Snapshot-Revision; veraltete Tabs verursachen Konflikt. Bei älteren Diensten optional, beim Profilladen erforderlich."
+                },
+                "session_id": {
+                    "name": "Editor-Sitzungs-ID",
+                    "description": "Exakte session_id des letzten Editor-Snapshots."
+                }
+            }
+        },
+        "get_time_program_editor": {
+            "name": "Editor-Snapshot abrufen",
+            "description": "Gespeicherten aktuellen Stand, Entwurf, Zuordnung, Freigabebedingungen und Profilübersicht abrufen; kein Pumpenlesen, kein Entwurfsersatz.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA-Eintrags-ID",
+                    "description": "Geladener HTHA-Integrationseintrag."
+                },
+                "program_index": {
+                    "name": "Programmindex",
+                    "description": "0 = Warmwasser; 2 = Heizung."
+                }
+            }
+        },
+        "list_time_program_profiles": {
+            "name": "Zeitprogrammprofile auflisten",
+            "description": "Kategoriegefilterte Benutzerprofile und schreibgesch?tzte Werkseinstellung, mit Bibliotheksrevision. Keine Pumpenaufrufe.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA-Eintrags-ID",
+                    "description": "Geladener HTHA-Integrationseintrag."
+                },
+                "category": {
+                    "name": "Kategorie",
+                    "description": "heating oder hot_water; getrennte Profilkataloge."
+                }
+            }
+        },
+        "save_time_program_profile": {
+            "name": "Zeitprogrammprofil in HA speichern",
+            "description": "Anlegen oder ausdrücklich per UUID/Revision überschreiben. Maximal 50 je Kategorie. Kapazitäts-/Risiko-bedingt ungültige Entwürfe dürfen gespeichert werden; keine Freigabe gespeichert. Erfolg erst nach dauerhafter Store-Speicherung.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA-Eintrags-ID",
+                    "description": "Geladener HTHA-Integrationseintrag."
+                },
+                "category": {
+                    "name": "Kategorie",
+                    "description": "heating oder hot_water; getrennte Profilkataloge."
+                },
+                "name": {
+                    "name": "Profilname",
+                    "description": "Bereinigter Klartext, 1–80 Zeichen. Namen je Kategorie ohne Beachtung der Groß-/Kleinschreibung eindeutig."
+                },
+                "draft": {
+                    "name": "Vollständiger Wochenentwurf",
+                    "description": "Sieben geordnete Listen mit Beginn/Ende HH:MM und ganzzahligem Zustand für 00:00–24:00. Maximal 96 Intervalle/Tag; Reglerkapazität nach Zusammenführung geprüft."
+                },
+                "profile_id": {
+                    "name": "Profil-UUID",
+                    "description": "UUID eines vorhandenen Profils in diesem Eintrag. Nur beim Neuanlegen weglassen."
+                },
+                "expected_profile_revision": {
+                    "name": "Erwartete Profilrevision",
+                    "description": "Exakte Revision für Überschreiben/Umbenennen/Löschen; veraltete Änderungen verursachen Konflikt."
+                },
+                "description": {
+                    "name": "Beschreibung",
+                    "description": "Optionaler Klartext, maximal 1000 Zeichen."
+                },
+                "expected_draft_revision": {
+                    "name": "Erwartete Editorrevision",
+                    "description": "Exakte Snapshot-Revision; veraltete Tabs verursachen Konflikt. Bei älteren Diensten optional, beim Profilladen erforderlich."
+                },
+                "session_id": {
+                    "name": "Editor-Sitzungs-ID",
+                    "description": "Exakte session_id des letzten Editor-Snapshots."
+                }
+            }
+        },
+        "rename_time_program_profile": {
+            "name": "Profil umbenennen",
+            "description": "Per UUID und exakter Profilrevision umbenennen; keine Pumpenaufrufe.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA-Eintrags-ID",
+                    "description": "Geladener HTHA-Integrationseintrag."
+                },
+                "profile_id": {
+                    "name": "Profil-UUID",
+                    "description": "UUID eines vorhandenen Profils in diesem Eintrag. Nur beim Neuanlegen weglassen."
+                },
+                "name": {
+                    "name": "Profilname",
+                    "description": "Bereinigter Klartext, 1–80 Zeichen. Namen je Kategorie ohne Beachtung der Groß-/Kleinschreibung eindeutig."
+                },
+                "expected_profile_revision": {
+                    "name": "Erwartete Profilrevision",
+                    "description": "Exakte Revision für Überschreiben/Umbenennen/Löschen; veraltete Änderungen verursachen Konflikt."
+                }
+            }
+        },
+        "delete_time_program_profile": {
+            "name": "Profil löschen",
+            "description": "Nur bestätigtes Löschen aus Bibliothek; Pumpenprogramm und aktiver Entwurf bleiben erhalten.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA-Eintrags-ID",
+                    "description": "Geladener HTHA-Integrationseintrag."
+                },
+                "profile_id": {
+                    "name": "Profil-UUID",
+                    "description": "UUID eines vorhandenen Profils in diesem Eintrag. Nur beim Neuanlegen weglassen."
+                },
+                "expected_profile_revision": {
+                    "name": "Erwartete Profilrevision",
+                    "description": "Exakte Revision für Überschreiben/Umbenennen/Löschen; veraltete Änderungen verursachen Konflikt."
+                },
+                "confirm": {
+                    "name": "Ausdrückliche Bestätigung",
+                    "description": "Muss wahr sein. Profillöschen betrifft nur die HA-Bibliothek. Ausschließlich Anwenden/Wiederherstellen schreibt Zeitprogramme."
+                }
+            }
+        },
+        "load_time_program_profile": {
+            "name": "Profil als Entwurf verwenden",
+            "description": "Benutzerprofil oder schreibgesch?tzte Werkseinstellung als unabh?ngigen Entwurf laden und Freigaben l?schen. Werkseinstellungen ben?tigen geladene Programmdaten und l?sen nur best?tigte Zuordnungen auf. Vor dem Senden frisch pr?fen, ?nderungen und Warnungen best?tigen und den normalen gesch?tzten Schreibvorgang verwenden.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA-Eintrags-ID",
+                    "description": "Geladener HTHA-Integrationseintrag."
+                },
+                "profile_id": {
+                    "name": "Profil-ID",
+                    "description": "UUID eines Benutzerprofils oder factory_default_heating / factory_default_hot_water. F?r Werkseinstellungen zuerst die Metadaten des gew?hlten Programms laden."
+                },
+                "expected_draft_revision": {
+                    "name": "Erwartete Editorrevision",
+                    "description": "Exakte Snapshot-Revision; veraltete Tabs verursachen Konflikt. Bei älteren Diensten optional, beim Profilladen erforderlich."
+                },
+                "session_id": {
+                    "name": "Editor-Sitzungs-ID",
+                    "description": "Exakte session_id des letzten Editor-Snapshots."
+                },
+                "read_only": {
+                    "name": "Schreibgeschützte Profilvorschau erlauben",
+                    "description": "Ohne passende Vergleichsbasis nur zum numerischen Bearbeiten laden. Neue Prüfung bleibt erforderlich."
+                }
+            }
+        },
+        "set_time_program_mode_mapping": {
+            "name": "Numerische Moduszuordnung bestätigen",
+            "description": "Anzeigezuordnung gebunden an Programmdaten, Regler und Firmware speichern. Entzieht Freigabe, übersetzt keine Zahlencodes und schreibt nicht an die Pumpe.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA-Eintrags-ID",
+                    "description": "Geladener HTHA-Integrationseintrag."
+                },
+                "program_index": {
+                    "name": "Programmindex",
+                    "description": "0 = Warmwasser; 2 = Heizung."
+                },
+                "mapping": {
+                    "name": "Zuordnung von Zahlencodes zu Bedeutungen",
+                    "description": "Exakt Schlüssel 0..nos-1. Heizung: setback, normal, boost. Warmwasser: minimum, charging. Null bleibt unbestätigt. Keine vermutete Reihenfolge oder Codeübersetzung."
+                },
+                "expected_mapping_revision": {
+                    "name": "Erwartete Zuordnungsrevision",
+                    "description": "Exakte mapping_revision; 0 vor der ersten Zuordnung."
+                },
+                "confirmed": {
+                    "name": "Reglerzuordnung bestätigen",
+                    "description": "Nur nach ausdrücklicher Prüfung dieser Codes an diesem Regler und dieser Firmware wahr."
+                },
+                "expected_draft_revision": {
+                    "name": "Erwartete Editorrevision",
+                    "description": "Exakte Snapshot-Revision; veraltete Tabs verursachen Konflikt. Bei älteren Diensten optional, beim Profilladen erforderlich."
+                },
+                "session_id": {
+                    "name": "Editor-Sitzungs-ID",
+                    "description": "Exakte session_id des letzten Editor-Snapshots."
                 }
             }
         }
@@ -422,12 +654,64 @@
         },
         "schedule_gate": {
             "message": "Zeitprogramm gesperrt: {reason}"
+        },
+        "editor_conflict": {
+            "message": "Der Editor wurde in einem anderen Tab oder einer anderen Sitzung geändert. Aktualisieren und erneut prüfen."
+        },
+        "mapping_conflict": {
+            "message": "Moduszuordnungsrevision geändert. Neu laden und erneut bestätigen."
+        },
+        "mapping_invalid": {
+            "message": "Eine eindeutige unterstützte Moduszuordnung mit exakt den nativen Zahlencodes ausdrücklich bestätigen."
+        },
+        "profile_conflict": {
+            "message": "Profilrevision geändert oder Bestätigung fehlt. Bibliothek neu laden."
+        },
+        "profile_incompatible": {
+            "message": "Profilkategorie, Metadaten oder Vergleichsbasis unvereinbar. Schreibgeschützte Vorschau nutzen, aktualisieren und prüfen."
+        },
+        "profile_missing": {
+            "message": "Profil in diesem Integrationseintrag nicht gefunden."
+        },
+        "profile_category": {
+            "message": "Profilkategorie/Programm muss zum ausgewählten geladenen Programm passen."
+        },
+        "profile_duplicate": {
+            "message": "Ein Profil dieses Namens existiert bereits in dieser Kategorie. Dessen UUID ausdrücklich aktualisieren oder anderen Namen wählen."
+        },
+        "profile_limit": {
+            "message": "Diese Kategorie enthält bereits 50 Profile."
+        },
+        "profile_name": {
+            "message": "Profilname als Klartext mit 1–80 Zeichen ohne Steuerzeichen angeben."
+        },
+        "profile_description": {
+            "message": "Beschreibung muss Klartext mit maximal 1000 Zeichen sein."
+        },
+        "draft_shape": {
+            "message": "Sieben vollständig abgedeckte Tage, maximal 96 geordnete Viertelstundenintervalle pro Tag, ganzzahlige Zustände und keine unbekannten Zellen verwenden."
+        },
+        "payload_too_large": {
+            "message": "Zeitprogrammanfrage überschreitet die Grenze von 70 KB."
+        },
+        "library_corrupt": {
+            "message": "Profil-Store ist beschädigt oder nicht unterstützt. Aus Sicherung reparieren; keine Freigaben wurden wiederhergestellt."
+        },
+        "baseline_unavailable": {
+            "message": "Zuerst eine passende Programmvergleichsbasis laden."
+        },
+        "profile_read_only": {
+            "message": "Die integrierte Werkseinstellung ist schreibgesch?tzt. Mit Speichern unter eine eigene Kopie erstellen."
         }
     },
     "issues": {
         "schedule_recovery": {
             "title": "Zeitprogramm pr?fen",
             "description": "Ein Schreibvorgang f?r {entry} wurde unterbrochen oder ist fehlgeschlagen. Aktuellen Stand laden (Entwurf behalten), vorheriges Programm pr?fen und bei Bedarf best?tigt wiederherstellen."
+        },
+        "schedule_profiles": {
+            "title": "Zeitprogramm-Profilbibliothek reparieren",
+            "description": "Die Profilbibliothek für {entry} ist beschädigt oder hat eine nicht unterstützte Version. Store aus einer geprüften Sicherung reparieren. Wiederherstellungsdaten sind separat; keine Schreibfreigaben wurden geladen."
         }
     }
 }

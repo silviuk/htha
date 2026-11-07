@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-07T20:01:31.898Z",
+  "node": "v24.20.0",
+  "results": [
+    {
+      "command": "node --test tests/schedule-card.test.cjs",
+      "exit_code": 0,
+      "error": null,
+      "output_file": "legacy-card-output.txt"
+    },
+    {
+      "command": "node --test tests/",
+      "exit_code": 0,
+      "error": null,
+      "output_file": "node-suite-output.txt"
+    },
+    {
+      "command": "node tests/capture-schedule-editor.cjs",
+      "exit_code": 0,
+      "error": null,
+      "output_file": "chrome-output.txt"
+    },
+    {
+      "command": "python -m pytest",
+      "exit_code": null,
+      "error": "ENOENT",
+      "output_file": "python-output.txt"
+    }
+  ]
+}

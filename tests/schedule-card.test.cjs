@@ -45,13 +45,13 @@ test('render exposes required controls and named, unverified modes', () => {
   const Card=cardClass(), card=new Card();
   card.setConfig({entity:'sensor.validation',config_entry_id:'mock'});
   card._draft={entries:[[{start:'00:00',end:'24:00',state:1}]]};
-  card._model={metadata:{nos:3,ead:7}};
+  card._model={metadata:{index:2,nos:3,ead:7}};
   card.shadowRoot.getElementById=()=>({});
   card.render();
   assert.match(card.shadowRoot.innerHTML,/data-copy/);
-  assert.match(card.shadowRoot.innerHTML,/Mode 0 \(label unverified\)/);
+  assert.match(card.shadowRoot.innerHTML,/Mode 0 \(unverified\)/);
   assert.match(card.shadowRoot.innerHTML,/24:00/);
   assert.match(card.shadowRoot.innerHTML,/id="save"[^>]*disabled/);
-  assert.match(card.shadowRoot.innerHTML,/Check the current draft/);
-  assert.match(card.shadowRoot.innerHTML,/does not translate or protect/);
+  assert.match(card.shadowRoot.innerHTML,/Validate the current draft/);
+  assert.match(card.shadowRoot.innerHTML,/Labels never translate numeric payloads/);
 });

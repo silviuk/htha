@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'">
+<title>HTHA offline schedule editor fixture</title>
+<style>body{margin:0;padding:20px;background:#eef1f5;font-family:system-ui,sans-serif}main{max-width:1060px;margin:auto}header{font-size:12px;color:#526075;margin-bottom:10px}body.dark{background:#111820;color:#e6edf5;--primary-text-color:#e6edf5;--secondary-text-color:#aab6c5;--card-background-color:#1d2733;--secondary-background-color:#263341;--divider-color:#526173;--primary-color:#187b8b;--error-color:#ff9eaa}body.dark header{color:#aab6c5}@media(max-width:600px){body{padding:8px}}</style></head>
+<body><main><header>OFFLINE FIXTURE · synthetic mappings/data · no HA or hardware access</header><htha-schedule-scratchpad-card></htha-schedule-scratchpad-card></main>
+<script src="../../custom_components/htha/frontend/htha-schedule-scratchpad-card.js"></script>
+<script>
+window.renderFixture=({language='en',theme='light',category='heating',factory=false}={})=>{
+ document.documentElement.lang=language;document.body.className=theme==='dark'?'dark':'';
+ const card=document.querySelector('htha-schedule-scratchpad-card');
+ card.setConfig({entity:'sensor.offline_validation',config_entry_id:'offline-fixture'});
+ card._category=category;const hot=category==='hot_water';
+ const metadata={index:hot?0:2,name:hot?'Warmwasser':'Heating',ead:7,nos:hot?2:3,ste:15,nod:7};
+ const baseline={entries:Array.from({length:7},()=>[{start:'00:00',end:'24:00',state:1}])};
+ const edited={entries:Array.from({length:7},(_,d)=>factory?[{start:'00:00',end:'24:00',state:1}]:hot?[
+  {start:'00:00',end:'05:00',state:0},{start:'05:00',end:'08:00',state:1},{start:'08:00',end:'17:00',state:0},{start:'17:00',end:'21:00',state:1},{start:'21:00',end:'24:00',state:0}
+ ]:[{start:'00:00',end:d>4?'07:00':'06:00',state:0},{start:d>4?'07:00':'06:00',end:'18:00',state:1},{start:'18:00',end:'20:00',state:2},{start:'20:00',end:'24:00',state:1}])};
+ const semantics=hot?['minimum','charging']:['setback','normal','boost'];
+ const model={metadata,revision:7,session_id:'offline-session',current_program:{...metadata,...baseline},current_state:'read',current_profile_names:[],
+  controller:{serial:'OFFLINE EXAMPLE',firmware:'2.03N · synthetic data'},baseline_read_at:'2026-11-07T11:05:00Z',baseline_hash:'fixture',
+  mode_catalog:semantics.map((semantic,state)=>({state,semantic,confirmed:true})),mapping_revision:1,mapping_valid:true,
+  mode_mapping:{revision:1,mapping:Object.fromEntries(semantics.map((s,i)=>[String(i),s]))},draft:edited,
+  writes_enabled:false,can_apply:false,status:'warnings',draft_hash:'offline-hash',warning_ids:['non_atomic:1'],warnings_acknowledged:false,missing_gates:['writes_off','warnings_required'],
+  findings:[{id:'non_atomic:1',severity:'warning',day:null,message:'Multiple slot writes can partially fail. No automatic retry or rollback.',source:'Native protocol'}],
+  diff:{changed_minutes:hot?7140:3480,days:edited.entries.map((row,day)=>{
+    const ranges=row.filter(e=>e.state!==1).map(e=>({...e,from_state:1,to_state:e.state}));
+    const minutes=ranges.reduce((n,r)=>n+(Number(r.end.slice(0,2))*60+Number(r.end.slice(3)))-(Number(r.start.slice(0,2))*60+Number(r.start.slice(3))),0);
+    return {day,ranges,changed_minutes:minutes,changed_cells:minutes/15,old_entries:1,new_entries:row.length,capacity:7};
+  })}};
+ model.diff.changed_minutes=model.diff.days.reduce((n,d)=>n+d.changed_minutes,0);
+ card._hass={language,locale:{language},config:{time_zone:'Europe/Berlin'},states:{},callWS:async()=>{throw new Error('Offline fixture: all service calls are disabled');}};
+ card._model=model;card.adoptDraft(edited);card._dirty=false;card._validatedHash='offline-hash';
+ card._policy={kind:category,normal_state:1,mapping_confirmed:true,floor_heating:true};
+ card._profile=factory?{id:'factory_default_'+category,name:'Factory default (Heliotherm)',revision:1,read_only:true}:{id:'fixture-profile',name:language==='de'?'Beispiel · Winter':'Example · winter',revision:1};
+ card._profileDraft=JSON.parse(JSON.stringify(edited));
+ card._profiles=[{...card._profile}];card._profileId=card._profile.id;card._selection.range(0,24,31);
+ card.now=()=>({day:5,percent:55});card.render();return card;
+};
+window.renderFixture();
+</script></body></html>

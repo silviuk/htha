@@ -1,0 +1,1 @@
+Captured 10 offline screenshots; no page overflow at 1100px/360px; focus/scroll/draft/cancel checks passed.

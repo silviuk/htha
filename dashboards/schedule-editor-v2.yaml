@@ -1,0 +1,7 @@
+# Local example only; not deployed. Add a JavaScript Module resource:
+# /htha_frontend/htha-schedule-scratchpad-card.js?v=4
+# Substitute the existing validation sensor and loaded HTHA config entry ID.
+# The card only indicates Allow writes and cannot enable it.
+type: custom:htha-schedule-scratchpad-card
+entity: sensor.heliotherm_schedule_validation
+config_entry_id: REPLACE_WITH_LOADED_HTHA_ENTRY_ID
