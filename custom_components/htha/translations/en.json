@@ -5,20 +5,20 @@
                 "title": "Heliotherm Heat Pump Setup",
                 "description": "Configure your Heliotherm heat pump connection.",
                 "data": {
-                    "host": "Host or Serial Port Device",
-                    "port": "Port or Baudrate",
+                    "host": "Host or serial device",
+                    "port": "TCP port or baud rate",
                     "timeout": "Timeout (seconds)",
-                    "scan_interval": "Scan Interval (seconds)"
+                    "scan_interval": "Polling interval (seconds)"
                 },
                 "data_description": {
                     "host": "IP address/hostname (TCP) or device path (Serial, e.g. /dev/ttyUSB0 or COM3)",
-                    "port": "TCP port number (default: 9999) or serial baudrate (default: 115200)",
+                    "port": "TCP port number (default: 9999) or serial baud rate (default: 115200)",
                     "timeout": "Connection timeout in seconds",
                     "scan_interval": "How often to poll for data (in seconds)"
                 }
             },
             "write_protection": {
-                "title": "Writeable settings",
+                "title": "Allow changes to heat pump settings",
                 "description": "{warning}",
                 "data": {
                     "write_enabled": "Enable writing to heat pump"
@@ -40,12 +40,16 @@
         "step": {
             "init": {
                 "title": "Ht HA Options",
-                "description": "Configure which parameters to expose.",
+                "description": "Configure the displayed model, polling interval, and exposed parameters. The model is entered manually, not detected from the heat pump.",
                 "data": {
-                    "selected_params": "Selected Parameters"
+                    "selected_params": "Parameters to expose",
+                    "model": "Heat pump model (optional)",
+                    "scan_interval": "Polling interval (seconds)"
                 },
                 "data_description": {
-                    "selected_params": "Select the parameters you want to expose as entities"
+                    "selected_params": "Select the parameters you want to expose as entities",
+                    "model": "Enter the model from the nameplate. Leave blank to display Heat Pump. This only changes device details.",
+                    "scan_interval": "How often to read heat pump data, in seconds."
                 }
             }
         }
@@ -56,7 +60,7 @@
                 "name": "Outdoor temperature"
             },
             "temp_aussen_verzoegert": {
-                "name": "Outdoor temperature (damped)"
+                "name": "Outdoor temperature (smoothed)"
             },
             "temp_brauchwasser": {
                 "name": "Hot water temperature"
@@ -143,7 +147,7 @@
                 "name": "Compressor status code"
             },
             "verdichter_laeft_seit": {
-                "name": "Compressor running for"
+                "name": "Current compressor runtime"
             },
             "verdichter_einschaltverz": {
                 "name": "Compressor start delay"
@@ -155,7 +159,7 @@
                 "name": "Fresh water pump speed"
             },
             "time_programs": {
-                "name": "Time programs"
+                "name": "Weekly schedules"
             },
             "hkr_soll_raum": {
                 "name": "Room temperature setpoint (read-only)"

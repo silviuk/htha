@@ -67,6 +67,9 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
         self.selected_params = selected_params
         self._heatpump: AioHtHeatpump | None = None
         self._connected = False
+        self.serial_number: str | None = None
+        self.sw_version: str | None = None
+        self._metadata_attempted = False
         self._connection_lock = asyncio.Lock()
 
         # Track parameters that consistently fail
@@ -145,6 +148,27 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
                 _LOGGER.error("Failed to connect to heat pump: %s", ex)
                 raise
 
+    async def _async_read_metadata(self) -> None:
+        """Read optional identity once, under the caller's connection lock.
+
+        Failure of either identity command must not prevent ordinary polling.
+        """
+        if self._metadata_attempted or self._heatpump is None:
+            return
+        self._metadata_attempted = True
+        try:
+            serial = await self._heatpump.get_serial_number_async()
+            if serial is not None:
+                self.serial_number = str(serial)
+        except Exception as err:
+            _LOGGER.debug("Heat pump serial number unavailable: %s", err)
+        try:
+            version, _ = await self._heatpump.get_version_async()
+            if version:
+                self.sw_version = str(version)
+        except Exception as err:
+            _LOGGER.debug("Heat pump firmware unavailable: %s", err)
+
     async def _disconnect(self) -> None:
         """Disconnect from the heat pump.
         
@@ -175,6 +199,8 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
 
                 if self._heatpump is None:
                     raise UpdateFailed("Heat pump instance not initialized")
+
+                await self._async_read_metadata()
 
                 # Query MP parameters using fast_query_async for efficiency
                 if self._mp_params:
