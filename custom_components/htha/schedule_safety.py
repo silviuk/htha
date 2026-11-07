@@ -13,6 +13,10 @@ DAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sun
 MANUAL = "web control 321 customer manual pp.10-13 (7 slots/day, 15-minute steps)"
 META_KEYS = ("index", "name", "ead", "nos", "ste", "nod")
 SEMANTICS = {2: ("setback", "normal", "boost"), 0: ("minimum", "charging")}
+# Owner-verified HP07S08W-S-WEB, firmware 2.03N. Internal DHW semantic
+# names are retained for stored-profile compatibility: minimum=Off, charging=On.
+VERIFIED_MODES = {2: {"0": "setback", "1": "normal", "2": "boost"},
+                  0: {"0": "minimum", "1": "charging"}}
 FACTORY_PRESETS = {
     "factory_default_heating": dict(category="heating", program_index=2, mode_name="Normal", semantic="normal"),
     "factory_default_hot_water": dict(category="hot_water", program_index=0, mode_name="On", semantic="charging"),
@@ -32,7 +36,6 @@ FINDINGS_DE = {
     "many_windows": "Mehr als zwei Normal-Zeitfenster pro Tag: wiederholtes Nachladen prüfen. Zeitfenster sind keine Kompressorstarts.",
     "floor_non_normal": "Nicht-Normal-Zeiten bei Fußbodenheizung: Absenkung/Aufheizen sowie Erholung und Komfort prüfen. Keine allgemeine Absenkdauer ist belegt.",
     "precharge": "Bei pufferbetriebener Frischwasserstation vor dem Bedarf normal laden. Keine festen Haushaltszeiten werden erzwungen.",
-    "mapping_attestation": "Native Metadaten nennen Zustandsanzahlen, keine Namen. Normal-Code-Bestätigung dient Hinweisen; zusätzlich sind alle verwendeten Moduszuordnungen zu bestätigen.",
     "non_atomic": "Mehrere unabhängige Schreibvorgänge können teilweise fehlschlagen. Wiederherstellungsdaten prüfen und Vergleichsbasis mit erhaltenem Entwurf aktualisieren. Kein automatischer Wiederholungsversuch oder Rücksetzen.",
     "pv": "Optionale PV-Ausrichtung betrifft Eigenverbrauch, nicht wärmere Außenluft bei Grundwasseranlagen. Keine feste PV-Zeit wird erzwungen.",
     "hygiene": "Zeitprogrammprüfung bewertet keine Trinkwasserhygiene. Puffer, Frischwasserstation, Verteilung und Zirkulation separat prüfen.",
@@ -177,7 +180,7 @@ def normalized(entries):
 def validate(draft, metadata, policy):
     """Fail closed on format/metadata; risk thresholds are explicitly advisory policy."""
     metadata = metadata if isinstance(metadata, dict) else {}
-    policy = policy if isinstance(policy, dict) else {}
+    policy = {"normal_state": 1, "mapping_confirmed": True, **(policy if isinstance(policy, dict) else {})}
     capacity = metadata.get("ead") if type(metadata.get("ead")) is int else 0
     states = metadata.get("nos") if type(metadata.get("nos")) is int else 0
     findings = []
@@ -254,7 +257,7 @@ def validate(draft, metadata, policy):
             add("warning", "floor_non_normal", "Non-Normal floor-heating periods: verify whether these are setback or boost and review recovery/comfort. No universal setback-hour limit is established.", d, "General floor-heating practice, not a manufacturer prohibition")
     if policy.get("kind") == "hot_water":
         add("info", "precharge", "For a buffer-fed fresh-water station, plan Normal charging before demand. No household demand windows are enforced.", source="Optional household planning")
-    add("info", "mapping_attestation", "The native program reports a state count, not mode labels. The supplied Normal code only affects advice; it does not translate or protect the numeric codes written.", source="Native controller metadata")
+
     add("warning", "non_atomic", "Applying a week sends multiple independent slot writes. A network failure can leave a partial schedule; inspect recovery evidence and refresh the baseline keeping your draft before deciding what to do. No automatic rollback/retry.", source="htheatpump set_time_prog_async transaction behavior")
     add("info", "pv", "Optional midday PV alignment concerns self-consumption, not warmer-air COP for groundwater equipment. No PV timing requirement is enforced.", source="Household energy advice")
     add("info", "hygiene", "Schedule validation is not a drinking-water hygiene assessment. Verify buffer/fresh-water station and distribution/circulation design.", source="System-specific hygiene review")
@@ -461,9 +464,15 @@ class Scratchpad:
 
     @property
     def mapping(self):
-        if self.library and self.metadata:
-            return deepcopy(self.library.data["mappings"].get(str(self.metadata["index"]), {}))
-        return {}
+        if not supported_metadata(self.metadata):
+            return {}
+        override = self.library.data["mappings"].get(str(self.metadata["index"])) if self.library else None
+        if override is not None:
+            return deepcopy(override)
+        modes = VERIFIED_MODES[self.metadata["index"]]
+        if self.controller_identity["firmware"] != "2.03N" or len(modes) != self.metadata["nos"]:
+            return {}
+        return dict(mapping=deepcopy(modes), revision=0, binding=self.mapping_binding)
 
     @property
     def mapping_binding(self):
@@ -471,7 +480,7 @@ class Scratchpad:
 
     @property
     def mapping_valid(self):
-        return bool(self.mapping and self.mapping.get("binding") == self.mapping_binding and not self.library.error)
+        return bool(self.mapping and self.mapping.get("binding") == self.mapping_binding and not (self.library and self.library.error))
 
     @property
     def catalog(self):
@@ -549,6 +558,9 @@ class Scratchpad:
             self.changed()
 
     def _checked(self, draft, policy):
+        normal = next((c["state"] for c in self.catalog if c["confirmed"] and c["semantic"] ==
+                       ("normal" if self.metadata["index"] == 2 else "charging")), 1)
+        policy = {"normal_state": normal, "mapping_confirmed": self.mapping_valid, **policy}
         bound_policy = {**policy, "_mapping": self.mapping, "_baseline": self.baseline_hash,
                         "_session": self.session_id, "_check_revision": self.revision + 1}
         report = validate(draft, self.metadata, bound_policy)
@@ -606,6 +618,7 @@ class Scratchpad:
     def can_apply(self):
         return bool(self.allow_writes() and self.mapping_valid and self.current_state == "read"
                     and self.report.get("mapping_revision") == self.mapping.get("revision")
+                    and self.report.get("canonical", {}).get("policy", {}).get("_mapping") == self.mapping
                     and self.report.get("status") in ("ready", "warnings")
                     and not self.report.get("critical_count") and self.report.get("draft_hash")
                     and (not self.report["warning_ids"] or

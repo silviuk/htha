@@ -18,7 +18,7 @@ views:
   path: heat-pump
   icon: mdi:heat-pump
   type: sections
-  max_columns: 4
+  max_columns: 3
   sections:
   - type: grid
     cards:
@@ -26,15 +26,6 @@ views:
       heading: Heliotherm Heat Pump
       heading_style: title
       icon: mdi:heat-pump
-      badges:
-      - type: entity
-        entity: sensor.heliotherm_heat_pump_outdoor_temperature
-        show_state: true
-        show_icon: true
-      - type: entity
-        entity: sensor.heliotherm_heat_pump_operating_state
-        show_state: true
-        show_icon: true
     - type: markdown
       text_only: true
       content: <ha-alert alert-type="error">The heat pump reports a **fault**. Check the unit's display.</ha-alert>
@@ -45,46 +36,23 @@ views:
     - type: tile
       entity: sensor.heliotherm_heat_pump_operating_state
       grid_options:
-        columns: 6
+        columns: 12
       name: State
-    - type: tile
-      entity: select.heliotherm_heat_pump_operating_mode
-      grid_options:
-        columns: 6
-      name: Operating mode
     - type: tile
       entity: binary_sensor.heliotherm_heat_pump_compressor
       grid_options:
-        columns: 6
+        columns: 12
       color: orange
       name: Compressor
     - type: tile
-      entity: binary_sensor.heliotherm_heat_pump_hot_water_mode
-      grid_options:
-        columns: 6
-      color: red
-      name: Hot water mode
-    - type: tile
-      entity: binary_sensor.heliotherm_heat_pump_heating_circuit_pump
-      grid_options:
-        columns: 6
-      color: deep-orange
-      name: Heating pump
-    - type: tile
-      entity: binary_sensor.heliotherm_heat_pump_heat_source_pump_fan
-      grid_options:
-        columns: 6
-      color: cyan
-      name: Source pump/fan
-    - type: tile
       entity: binary_sensor.heliotherm_heat_pump_fault
       grid_options:
-        columns: 6
+        columns: 12
       name: Fault
     - type: tile
       entity: sensor.heliotherm_heat_pump_outdoor_temperature
       grid_options:
-        columns: 6
+        columns: 12
       name: Outdoor
     - type: history-graph
       title: Activity (24 h)
@@ -104,33 +72,29 @@ views:
       heading: Heating circuit
       heading_style: title
       icon: mdi:radiator
-      badges:
-      - type: entity
-        entity: binary_sensor.heliotherm_heat_pump_heating_circuit_pump
-        show_state: false
-        show_icon: true
+    - type: tile
+      entity: binary_sensor.heliotherm_heat_pump_heating_circuit_pump
+      grid_options:
+        columns: 12
+      color: deep-orange
+      name: Heating pump
     - type: tile
       entity: sensor.heliotherm_heat_pump_heating_flow_temperature
       grid_options:
-        columns: 6
+        columns: 12
       color: red
       name: Flow
     - type: tile
       entity: sensor.heliotherm_heat_pump_heating_return_temperature
       grid_options:
-        columns: 6
+        columns: 12
       color: blue
       name: Return
     - type: tile
       entity: sensor.heliotherm_heat_pump_heating_flow_return_spread
       grid_options:
-        columns: 6
+        columns: 12
       name: Spread
-    - type: tile
-      entity: number.heliotherm_heat_pump_room_temperature_setpoint
-      grid_options:
-        columns: 6
-      name: Room setpoint
     - type: history-graph
       title: Flow, return & outdoor (48 h)
       hours_to_show: 48
@@ -141,36 +105,12 @@ views:
         name: Return
       - entity: sensor.heliotherm_heat_pump_outdoor_temperature
         name: Outdoor
-    - type: heading
-      heading: Heating curve (return setpoints)
-      heading_style: subtitle
-      icon: mdi:chart-bell-curve-cumulative
-    - type: tile
-      entity: number.heliotherm_heat_pump_heating_curve_return_setpoint_at_upper_heating_limit
-      grid_options:
-        columns: 4
-      name: At upper heating limit
-    - type: tile
-      entity: number.heliotherm_heat_pump_heating_curve_return_setpoint_at_0_c_outdoor
-      grid_options:
-        columns: 4
-      name: At 0 °C outdoor
-    - type: tile
-      entity: number.heliotherm_heat_pump_heating_curve_return_setpoint_at_lower_heating_limit
-      grid_options:
-        columns: 4
-      name: At lower heating limit
   - type: grid
     cards:
     - type: heading
       heading: Hot water
       heading_style: title
       icon: mdi:water-boiler
-      badges:
-      - type: entity
-        entity: binary_sensor.heliotherm_heat_pump_hot_water_mode
-        show_state: false
-        show_icon: true
     - type: gauge
       entity: sensor.heliotherm_heat_pump_hot_water_temperature
       name: Hot water
@@ -185,25 +125,15 @@ views:
       - from: 45
         color: var(--success-color)
     - type: tile
-      entity: number.heliotherm_heat_pump_hot_water_setpoint_normal
-      grid_options:
-        columns: 6
-      name: Setpoint (normal)
-    - type: tile
-      entity: number.heliotherm_heat_pump_hot_water_setpoint_minimum
-      grid_options:
-        columns: 6
-      name: Setpoint (minimum)
-    - type: tile
       entity: binary_sensor.heliotherm_heat_pump_hot_water_mode
       grid_options:
-        columns: 6
+        columns: 12
       color: red
       name: Hot water mode
     - type: tile
       entity: binary_sensor.heliotherm_heat_pump_hot_water_circulation_pump
       grid_options:
-        columns: 6
+        columns: 12
       name: Circulation pump
     - type: history-graph
       title: Hot water vs. setpoints (72 h)
@@ -221,38 +151,33 @@ views:
       heading: Heat source & refrigerant
       heading_style: title
       icon: mdi:heat-pump-outline
-      badges:
-      - type: entity
-        entity: binary_sensor.heliotherm_heat_pump_heat_source_pump_fan
-        show_state: false
-        show_icon: true
     - type: tile
       entity: sensor.heliotherm_heat_pump_heat_source_inlet_temperature
       grid_options:
-        columns: 6
+        columns: 12
       color: teal
       name: Inlet
     - type: tile
       entity: sensor.heliotherm_heat_pump_heat_source_outlet_temperature
       grid_options:
-        columns: 6
+        columns: 12
       color: cyan
       name: Outlet
     - type: tile
       entity: sensor.heliotherm_heat_pump_heat_source_inlet_outlet_spread
       grid_options:
-        columns: 6
+        columns: 12
       name: Spread
     - type: tile
       entity: binary_sensor.heliotherm_heat_pump_heat_source_pump_fan
       grid_options:
-        columns: 6
+        columns: 12
       color: cyan
       name: Source pump/fan
     - type: tile
       entity: sensor.heliotherm_heat_pump_refrigerant_suction_gas_temperature
       grid_options:
-        columns: 6
+        columns: 12
       name: Suction gas
     - type: history-graph
       title: Heat source & suction gas (48 h)
@@ -297,22 +222,22 @@ views:
     - type: tile
       entity: sensor.heliotherm_heat_pump_compressor_starts
       grid_options:
-        columns: 6
+        columns: 12
       name: Compressor starts (total)
     - type: tile
       entity: sensor.heliotherm_heat_pump_heating_circuit_pump_runtime
       grid_options:
-        columns: 6
+        columns: 12
       name: Heating pump
     - type: tile
       entity: sensor.heliotherm_heat_pump_heat_source_pump_runtime
       grid_options:
-        columns: 6
+        columns: 12
       name: Source pump/fan
     - type: tile
       entity: sensor.heliotherm_heat_pump_hot_water_mode_runtime
       grid_options:
-        columns: 6
+        columns: 12
       name: Hot water mode
   - type: grid
     cards:
@@ -320,12 +245,6 @@ views:
       heading: Controls
       heading_style: title
       icon: mdi:tune-variant
-      badges:
-      - type: entity
-        entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
-        show_state: true
-        show_icon: true
-        color: red
     - type: markdown
       text_only: true
       content: <ha-alert alert-type="info">**Read-only.** Settings can't be changed while *Allow writes* is off. Turn it on
@@ -348,109 +267,220 @@ views:
         columns: 12
       color: red
       name: Allow writes
-    - type: tile
-      entity: select.heliotherm_heat_pump_operating_mode
+    - type: vertical-stack
       grid_options:
         columns: 12
-      features:
-      - type: select-options
-      visibility:
-      - condition: state
-        entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
-        state: 'on'
-      name: Operating mode
-    - type: tile
-      entity: number.heliotherm_heat_pump_room_temperature_setpoint
+      cards:
+      - type: conditional
+        conditions:
+        - condition: state
+          entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
+          state_not: 'on'
+        card:
+          type: tile
+          entity: select.heliotherm_heat_pump_operating_mode
+          grid_options:
+            columns: 12
+          name: Operating mode
+      - type: conditional
+        conditions:
+        - condition: state
+          entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
+          state: 'on'
+        card:
+          type: tile
+          entity: select.heliotherm_heat_pump_operating_mode
+          grid_options:
+            columns: 12
+          features:
+          - type: select-options
+          name: Operating mode
+    - type: vertical-stack
       grid_options:
-        columns: 6
-      features:
-      - type: numeric-input
-        style: buttons
-      visibility:
-      - condition: state
-        entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
-        state: 'on'
-      name: Room setpoint
+        columns: 12
+      cards:
+      - type: conditional
+        conditions:
+        - condition: state
+          entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
+          state_not: 'on'
+        card:
+          type: tile
+          entity: number.heliotherm_heat_pump_room_temperature_setpoint
+          grid_options:
+            columns: 12
+          name: Room setpoint
+      - type: conditional
+        conditions:
+        - condition: state
+          entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
+          state: 'on'
+        card:
+          type: tile
+          entity: number.heliotherm_heat_pump_room_temperature_setpoint
+          grid_options:
+            columns: 12
+          features:
+          - type: numeric-input
+            style: buttons
+          name: Room setpoint
     - type: heading
       heading: Hot water setpoints
       heading_style: subtitle
       icon: mdi:water-boiler
-      visibility:
-      - condition: state
-        entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
-        state: 'on'
-    - type: tile
-      entity: number.heliotherm_heat_pump_hot_water_setpoint_normal
+    - type: vertical-stack
       grid_options:
-        columns: 6
-      features:
-      - type: numeric-input
-        style: buttons
-      visibility:
-      - condition: state
-        entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
-        state: 'on'
-      name: Setpoint (normal)
-    - type: tile
-      entity: number.heliotherm_heat_pump_hot_water_setpoint_minimum
+        columns: 12
+      cards:
+      - type: conditional
+        conditions:
+        - condition: state
+          entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
+          state_not: 'on'
+        card:
+          type: tile
+          entity: number.heliotherm_heat_pump_hot_water_setpoint_normal
+          grid_options:
+            columns: 12
+          name: Setpoint (normal)
+      - type: conditional
+        conditions:
+        - condition: state
+          entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
+          state: 'on'
+        card:
+          type: tile
+          entity: number.heliotherm_heat_pump_hot_water_setpoint_normal
+          grid_options:
+            columns: 12
+          features:
+          - type: numeric-input
+            style: buttons
+          name: Setpoint (normal)
+    - type: vertical-stack
       grid_options:
-        columns: 6
-      features:
-      - type: numeric-input
-        style: buttons
-      visibility:
-      - condition: state
-        entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
-        state: 'on'
-      name: Setpoint (minimum)
+        columns: 12
+      cards:
+      - type: conditional
+        conditions:
+        - condition: state
+          entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
+          state_not: 'on'
+        card:
+          type: tile
+          entity: number.heliotherm_heat_pump_hot_water_setpoint_minimum
+          grid_options:
+            columns: 12
+          name: Setpoint (minimum)
+      - type: conditional
+        conditions:
+        - condition: state
+          entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
+          state: 'on'
+        card:
+          type: tile
+          entity: number.heliotherm_heat_pump_hot_water_setpoint_minimum
+          grid_options:
+            columns: 12
+          features:
+          - type: numeric-input
+            style: buttons
+          name: Setpoint (minimum)
     - type: heading
       heading: Heating curve
       heading_style: subtitle
       icon: mdi:chart-bell-curve-cumulative
-      visibility:
-      - condition: state
-        entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
-        state: 'on'
-    - type: tile
-      entity: number.heliotherm_heat_pump_heating_curve_return_setpoint_at_upper_heating_limit
+    - type: vertical-stack
       grid_options:
-        columns: 4
-      features:
-      - type: numeric-input
-        style: buttons
-      visibility:
-      - condition: state
-        entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
-        state: 'on'
-      name: At upper heating limit
-    - type: tile
-      entity: number.heliotherm_heat_pump_heating_curve_return_setpoint_at_0_c_outdoor
+        columns: 12
+      cards:
+      - type: conditional
+        conditions:
+        - condition: state
+          entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
+          state_not: 'on'
+        card:
+          type: tile
+          entity: number.heliotherm_heat_pump_heating_curve_return_setpoint_at_upper_heating_limit
+          grid_options:
+            columns: 12
+          name: At upper heating limit
+      - type: conditional
+        conditions:
+        - condition: state
+          entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
+          state: 'on'
+        card:
+          type: tile
+          entity: number.heliotherm_heat_pump_heating_curve_return_setpoint_at_upper_heating_limit
+          grid_options:
+            columns: 12
+          features:
+          - type: numeric-input
+            style: buttons
+          name: At upper heating limit
+    - type: vertical-stack
       grid_options:
-        columns: 4
-      features:
-      - type: numeric-input
-        style: buttons
-      visibility:
-      - condition: state
-        entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
-        state: 'on'
-      name: At 0 °C outdoor
-    - type: tile
-      entity: number.heliotherm_heat_pump_heating_curve_return_setpoint_at_lower_heating_limit
+        columns: 12
+      cards:
+      - type: conditional
+        conditions:
+        - condition: state
+          entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
+          state_not: 'on'
+        card:
+          type: tile
+          entity: number.heliotherm_heat_pump_heating_curve_return_setpoint_at_0_c_outdoor
+          grid_options:
+            columns: 12
+          name: At 0 °C outdoor
+      - type: conditional
+        conditions:
+        - condition: state
+          entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
+          state: 'on'
+        card:
+          type: tile
+          entity: number.heliotherm_heat_pump_heating_curve_return_setpoint_at_0_c_outdoor
+          grid_options:
+            columns: 12
+          features:
+          - type: numeric-input
+            style: buttons
+          name: At 0 °C outdoor
+    - type: vertical-stack
       grid_options:
-        columns: 4
-      features:
-      - type: numeric-input
-        style: buttons
-      visibility:
-      - condition: state
-        entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
-        state: 'on'
-      name: At lower heating limit
+        columns: 12
+      cards:
+      - type: conditional
+        conditions:
+        - condition: state
+          entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
+          state_not: 'on'
+        card:
+          type: tile
+          entity: number.heliotherm_heat_pump_heating_curve_return_setpoint_at_lower_heating_limit
+          grid_options:
+            columns: 12
+          name: At lower heating limit
+      - type: conditional
+        conditions:
+        - condition: state
+          entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
+          state: 'on'
+        card:
+          type: tile
+          entity: number.heliotherm_heat_pump_heating_curve_return_setpoint_at_lower_heating_limit
+          grid_options:
+            columns: 12
+          features:
+          - type: numeric-input
+            style: buttons
+          name: At lower heating limit
     - type: tile
       entity: button.heliotherm_heat_pump_sync_heat_pump_clock
       grid_options:
-        columns: 6
+        columns: 12
       visibility:
       - condition: state
         entity: switch.heliotherm_heat_pump_allow_writes_to_heat_pump
@@ -478,7 +508,7 @@ views:
         {% set is_today = (day_num == current_day) -%}
         {% set day_entries = program.entries[day_num] | reject('none') | list -%}
         | {% if is_today %} **{{ days[day_num] }}**{% else %}{{ days[day_num] }}{% endif %} | {% for h in range(24) -%}
-        {%- set ns = namespace(state=0) -%}
+        {%- set ns = namespace(state=1 if program.index == 2 else 0) -%}
         {%- for entry in day_entries -%}
           {%- set start_h = entry.start.split(':')[0] | int -%}
           {%- set end_h = entry.end.split(':')[0] | int -%}
@@ -489,14 +519,14 @@ views:
         {%- if is_today and h == current_hour -%}
           {%- set color = '#f44336' -%}
         {%- else -%}
-          {%- set color = '#4caf50' if ns.state == 1 else '#2196f3' if ns.state == 2 else '#757575' -%}
+          {%- set color = '#4caf50' if ns.state == 1 else '#ff9800' if ns.state == 2 and program.index == 2 else '#2196f3' if program.index == 2 else '#757575' -%}
         {%- endif -%}
         <font color="{{ color }}">█</font>
         {%- endfor %} |
         {% endfor %}
         {% endfor %}
 
-        **Legend:** <font color="#4caf50">█</font> Comfort | <font color="#2196f3">█</font> Setback | <font color="#757575">█</font> Off | <font color="#f44336">▶</font> Now
+        Heating: 0 Setback, 1 Normal, 2 Boost; Hot water: 0 Off, 1 On. Red: current hour
         {% else %}
         No time programs loaded from the heat pump yet.
         {% endif %}
@@ -509,16 +539,16 @@ views:
     - type: tile
       entity: binary_sensor.heliotherm_heat_pump_fresh_water_station_flow_switch
       grid_options:
-        columns: 6
+        columns: 12
     - type: tile
       entity: binary_sensor.heliotherm_heat_pump_main_switch
       grid_options:
-        columns: 6
+        columns: 12
     - type: tile
       entity: datetime.heliotherm_heat_pump_heat_pump_clock
       grid_options:
-        columns: 6
+        columns: 12
     - type: tile
       entity: sensor.heliotherm_heat_pump_outdoor_temperature_damped
       grid_options:
-        columns: 6
+        columns: 12

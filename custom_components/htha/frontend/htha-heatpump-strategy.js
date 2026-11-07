@@ -10,7 +10,7 @@
  * matched by domain + translation_key), so it works with any entity_ids and
  * with several heat pumps. Only built-in Home Assistant cards are used.
  */
-const HTHA_VERSION = "1.1.0";
+const HTHA_VERSION = "1.2.0";
 
 const ROLES = {
   operating_state: "sensor.operating_state",
@@ -77,6 +77,7 @@ const TEXT = {
     hot_water: "Hot water", source: "Heat source & refrigerant", statistics: "Statistics",
     controls: "Controls", schedule: "Time programs", diagnostics: "Diagnostics",
     show_full_week: "Show full week",
+    schedule_legend: "Heating: 0 Setback, 1 Normal, 2 Boost; Hot water: 0 Off, 1 On. Red: current hour",
     state: "State", mode: "Operating mode", compressor: "Compressor", hot_water_mode: "Hot water mode",
     heating_pump: "Heating pump", source_pump: "Source pump/fan", fault: "Fault", outdoor: "Outdoor",
     flow: "Flow", return: "Return", spread: "Spread", room_setpoint: "Room setpoint",
@@ -102,6 +103,7 @@ const TEXT = {
     hot_water: "Warmwasser", source: "Wärmequelle & Kältekreis", statistics: "Statistik",
     controls: "Einstellungen", schedule: "Zeitprogramme", diagnostics: "Diagnose",
     show_full_week: "Ganze Woche anzeigen",
+    schedule_legend: "Heizung: 0 Absenken, 1 Normalbetrieb, 2 Aufheizen; Warmwasser: 0 Aus, 1 Ein. Rot: aktuelle Stunde",
     state: "Zustand", mode: "Betriebsart", compressor: "Verdichter", hot_water_mode: "Warmwasserbetrieb",
     heating_pump: "Heizkreispumpe", source_pump: "Quellenpumpe/Ventilator", fault: "Störung", outdoor: "Außen",
     flow: "Vorlauf", return: "Rücklauf", spread: "Spreizung", room_setpoint: "Raum-Sollwert",
@@ -164,12 +166,12 @@ function pickPump(hass, config) {
   return pumps[0];
 }
 
-const HALF = { grid_options: { columns: 6 } };
-const THIRD = { grid_options: { columns: 4 } };
+// Full section width remains readable on a 360px phone. HA collapses sections.
+const FULL = { grid_options: { columns: 12 } };
 
 function tile(entity, name, extra = {}) {
   if (!entity) return null;
-  const card = { type: "tile", entity, ...HALF, ...extra };
+  const card = { type: "tile", entity, ...FULL, ...extra };
   if (name) card.name = name;
   return card;
 }
@@ -180,11 +182,6 @@ function heading(text, icon, badges = [], style = "title") {
   const b = badges.filter(Boolean);
   if (b.length) card.badges = b;
   return card;
-}
-
-function badge(entity, extra = {}) {
-  if (!entity) return null;
-  return { type: "entity", entity, show_state: true, show_icon: true, ...extra };
 }
 
 function history(title, hours, entries) {
@@ -222,14 +219,10 @@ const BUILDERS = {
   overview(hass, p, t) {
     const e = p.e;
     return section([
-      heading(p.name, "mdi:heat-pump", [badge(e.outdoor), badge(e.operating_state)]),
+      heading(p.name, "mdi:heat-pump"),
       e.fault ? alert("error", t.fault_alert, isOn(e.fault)) : null,
       tile(e.operating_state, t.state),
-      tile(e.mode, t.mode),
       tile(e.compressor, t.compressor, { color: "orange" }),
-      tile(e.hot_water_mode, t.hot_water_mode, { color: "red" }),
-      tile(e.heating_pump, t.heating_pump, { color: "deep-orange" }),
-      tile(e.source_pump, t.source_pump, { color: "cyan" }),
       tile(e.fault, t.fault),
       tile(e.outdoor, t.outdoor),
       history(t.activity, 24, [
@@ -243,23 +236,18 @@ const BUILDERS = {
 
   heating(hass, p, t) {
     const e = p.e;
-    const curve = [e.curve_upper, e.curve_zero, e.curve_lower].some(Boolean);
     return section([
-      heading(t.heating, "mdi:radiator", [badge(e.heating_pump, { show_state: false })]),
+      heading(t.heating, "mdi:radiator"),
+      tile(e.heating_pump, t.heating_pump, { color: "deep-orange" }),
       tile(e.flow, t.flow, { color: "red" }),
       tile(e.return, t.return, { color: "blue" }),
       tile(e.heating_spread, t.spread),
-      tile(e.room_setpoint, t.room_setpoint),
       tile(e.heating_target, t.target),
       history(t.temps_48h, 48, [
         { entity: e.flow, name: t.flow },
         { entity: e.return, name: t.return },
         { entity: e.outdoor, name: t.outdoor },
       ]),
-      curve ? heading(t.heating_curve, "mdi:chart-bell-curve-cumulative", [], "subtitle") : null,
-      tile(e.curve_upper, t.curve_upper, THIRD),
-      tile(e.curve_zero, t.curve_zero, THIRD),
-      tile(e.curve_lower, t.curve_lower, THIRD),
     ]);
   },
 
@@ -268,7 +256,8 @@ const BUILDERS = {
     const min = num(hass, e.hw_minimum, 40);
     const normal = num(hass, e.hw_normal, Math.max(min, 45));
     return section([
-      heading(t.hot_water, "mdi:water-boiler", [badge(e.hot_water_mode, { show_state: false })]),
+      heading(t.hot_water, "mdi:water-boiler"),
+      tile(e.hot_water_mode, t.hot_water_mode, { color: "red" }),
       e.hot_water ? {
         type: "gauge", entity: e.hot_water, name: t.hw_temp, min: 10, max: 65, needle: true,
         segments: [
@@ -277,9 +266,6 @@ const BUILDERS = {
           { from: normal, color: "var(--success-color)" },
         ],
       } : null,
-      tile(e.hw_normal, t.hw_normal),
-      tile(e.hw_minimum, t.hw_minimum),
-      tile(e.hot_water_mode, t.hot_water_mode, { color: "red" }),
       tile(e.circulation_pump, t.circulation),
       tile(e.fresh_water, null),
       history(t.hw_72h, 72, [
@@ -293,11 +279,11 @@ const BUILDERS = {
   source(hass, p, t) {
     const e = p.e;
     return section([
-      heading(t.source, "mdi:heat-pump-outline", [badge(e.source_pump, { show_state: false })]),
+      heading(t.source, "mdi:heat-pump-outline"),
+      tile(e.source_pump, t.source_pump, { color: "cyan" }),
       tile(e.source_in, t.inlet, { color: "teal" }),
       tile(e.source_out, t.outlet, { color: "cyan" }),
       tile(e.source_spread, t.spread),
-      tile(e.source_pump, t.source_pump, { color: "cyan" }),
       tile(e.suction_gas, t.suction_gas),
       tile(e.evaporation, t.evaporation),
       tile(e.condensation, t.condensation),
@@ -340,24 +326,27 @@ const BUILDERS = {
     if (!e.writes) return null;
     const on = isOn(e.writes);
     const ctl = (entity, name, feature, extra = {}) =>
-      tile(entity, name, { features: [feature], visibility: on, ...extra });
+      entity ? { type: "vertical-stack", ...FULL, cards: [
+        { type: "conditional", conditions: isOff(e.writes), card: tile(entity, name, extra) },
+        { type: "conditional", conditions: on, card: tile(entity, name, { features: [feature], ...extra }) },
+      ] } : null;
     const numIn = { type: "numeric-input", style: "buttons" };
     const others = [e.heat_up, e.setback, e.heating_limit, e.hw_hyst_normal, e.hw_hyst_minimum].filter(Boolean);
     return section([
-      heading(t.controls, "mdi:tune-variant", [badge(e.writes, { color: "red" })]),
+      heading(t.controls, "mdi:tune-variant"),
       alert("info", t.writes_off, isOff(e.writes)),
       alert("warning", t.writes_on, on),
       tile(e.writes, t.writes, { color: "red", grid_options: { columns: 12 } }),
       ctl(e.mode, t.mode, { type: "select-options" }, { grid_options: { columns: 12 } }),
       ctl(e.room_setpoint, t.room_setpoint, numIn),
-      e.hw_normal || e.hw_minimum ? { ...heading(t.hw_setpoints, "mdi:water-boiler", [], "subtitle"), visibility: on } : null,
+      e.hw_normal || e.hw_minimum ? heading(t.hw_setpoints, "mdi:water-boiler", [], "subtitle") : null,
       ctl(e.hw_normal, t.hw_normal, numIn),
       ctl(e.hw_minimum, t.hw_minimum, numIn),
-      e.curve_upper ? { ...heading(t.curve_settings, "mdi:chart-bell-curve-cumulative", [], "subtitle"), visibility: on } : null,
-      ctl(e.curve_upper, t.curve_upper, numIn, THIRD),
-      ctl(e.curve_zero, t.curve_zero, numIn, THIRD),
-      ctl(e.curve_lower, t.curve_lower, numIn, THIRD),
-      others.length ? { ...heading(t.other_settings, "mdi:cog", [], "subtitle"), visibility: on } : null,
+      e.curve_upper ? heading(t.curve_settings, "mdi:chart-bell-curve-cumulative", [], "subtitle") : null,
+      ctl(e.curve_upper, t.curve_upper, numIn, FULL),
+      ctl(e.curve_zero, t.curve_zero, numIn, FULL),
+      ctl(e.curve_lower, t.curve_lower, numIn, FULL),
+      others.length ? heading(t.other_settings, "mdi:cog", [], "subtitle") : null,
       ...others.map((x) => ctl(x, null, numIn)),
       e.clock_sync ? tile(e.clock_sync, t.clock_sync, { visibility: on }) : null,
     ]);
@@ -375,8 +364,8 @@ const BUILDERS = {
     const toggle = config.time_programs_toggle
       || (hass.states[DEFAULT_SCHEDULE_TOGGLE] ? DEFAULT_SCHEDULE_TOGGLE : null);
     const mode = config.time_programs || (toggle ? "collapsible" : "full");
-    const full = { type: "markdown", content: scheduleTemplate(sensor) };
-    const today = { type: "markdown", content: todayTemplate(sensor) };
+    const full = { type: "markdown", content: scheduleTemplate(sensor, t) };
+    const today = { type: "markdown", content: todayTemplate(sensor, t) };
     if (mode === "summary") return section([heading(t.schedule, "mdi:calendar-clock"), today]);
     if (mode === "collapsible" && toggle && hass.states[toggle]) {
       const domain = toggle.split(".")[0];
@@ -425,7 +414,7 @@ function collectEntities(obj, set) {
 const DEFAULT_SCHEDULE_TOGGLE = "input_boolean.htha_show_time_programs";
 
 // One row per program for today (name above the 24 h bar so it fits narrow columns); the current hour is red.
-function todayTemplate(sensor) {
+function todayTemplate(sensor, t = TEXT.en) {
   return `{% set sensor = '${sensor}' %}
 {% set d = now().weekday() %}
 {% set hnow = now().hour %}
@@ -436,23 +425,23 @@ function todayTemplate(sensor) {
 {% for program in progs -%}
 {% set day_entries = (program.entries[d] if program.entries | length > d else []) | reject('none') | list -%}
 | {{ program.name }}<br>{% for h in range(24) -%}
-{%- set ns = namespace(state=0) -%}
+{%- set ns = namespace(state=1 if program.index == 2 else 0) -%}
 {%- for entry in day_entries -%}
   {%- if (entry.start.split(':')[0] | int) <= h and h < (entry.end.split(':')[0] | int) -%}{%- set ns.state = entry.state -%}{%- endif -%}
 {%- endfor -%}
-{%- set color = '#f44336' if h == hnow else '#4caf50' if ns.state == 1 else '#2196f3' if ns.state == 2 else '#757575' -%}
+{%- set color = '#f44336' if h == hnow else '#4caf50' if ns.state == 1 else '#ff9800' if ns.state == 2 and program.index == 2 else '#2196f3' if program.index == 2 else '#757575' -%}
 <font color="{{ color }}">█</font>
 {%- endfor %} |
 {% endfor %}
 
-<font color="#4caf50">█</font> Comfort | <font color="#2196f3">█</font> Setback | <font color="#757575">█</font> Off | <font color="#f44336">█</font> Now
+${t.schedule_legend}
 {% else %}
 No time programs loaded from the heat pump yet.
 {% endif %}
 `;
 }
 
-function scheduleTemplate(sensor) {
+function scheduleTemplate(sensor, t = TEXT.en) {
   return `{% set sensor = '${sensor}' %}
 {% set current_day = now().weekday() %}
 {% set current_hour = now().hour %}
@@ -467,7 +456,7 @@ function scheduleTemplate(sensor) {
 {% set is_today = (day_num == current_day) -%}
 {% set day_entries = program.entries[day_num] | reject('none') | list -%}
 | {% if is_today %} **{{ days[day_num] }}**{% else %}{{ days[day_num] }}{% endif %} | {% for h in range(24) -%}
-{%- set ns = namespace(state=0) -%}
+{%- set ns = namespace(state=1 if program.index == 2 else 0) -%}
 {%- for entry in day_entries -%}
   {%- set start_h = entry.start.split(':')[0] | int -%}
   {%- set end_h = entry.end.split(':')[0] | int -%}
@@ -478,14 +467,14 @@ function scheduleTemplate(sensor) {
 {%- if is_today and h == current_hour -%}
   {%- set color = '#f44336' -%}
 {%- else -%}
-  {%- set color = '#4caf50' if ns.state == 1 else '#2196f3' if ns.state == 2 else '#757575' -%}
+  {%- set color = '#4caf50' if ns.state == 1 else '#ff9800' if ns.state == 2 and program.index == 2 else '#2196f3' if program.index == 2 else '#757575' -%}
 {%- endif -%}
 <font color="{{ color }}">█</font>
 {%- endfor %} |
 {% endfor %}
 {% endfor %}
 
-**Legend:** <font color="#4caf50">█</font> Comfort | <font color="#2196f3">█</font> Setback | <font color="#757575">█</font> Off | <font color="#f44336">▶</font> Now
+${t.schedule_legend}
 {% else %}
 No time programs loaded from the heat pump yet.
 {% endif %}
@@ -519,7 +508,7 @@ function buildView(hass, config) {
       if (s) sections.push(s);
     }
   }
-  return { type: "sections", max_columns: (config && config.max_columns) || 4, sections };
+  return { type: "sections", max_columns: (config && config.max_columns) || 3, sections };
 }
 
 class HthaSectionStrategy extends HTMLElement {

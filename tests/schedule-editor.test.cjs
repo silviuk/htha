@@ -192,9 +192,23 @@ test('renaming another saved profile does not relabel active draft',async()=>{
   await card.call('rename_time_program_profile',{});assert.equal(card.draftName(),'Active');
 });
 test('changing policy invalidates the check, but numeric dropdown alone does not',()=>{
-  const {card,nodes}=fixture();card.render();sendReady(card);nodes.get('normal').onchange({target:{value:'2'}});
-  assert.equal(card._dirty,true);assert.equal(card._validatedHash,undefined);assert.equal(card._policy.mapping_confirmed,false);
+  const {card,nodes}=fixture();card.render();sendReady(card);nodes.get('floor').onchange({target:{checked:false}});
+  assert.equal(card._dirty,true);assert.equal(card._validatedHash,undefined);assert.equal(card._policy.floor_heating,false);
 });
 test('stale comparison is explicitly labelled after editing',()=>{
   const {card}=fixture();card._model.diff={changed_minutes:0,days:[]};card._dirty=true;card.render();assert.match(card.shadowRoot.innerHTML,/Previous comparison — validate again/);
+});
+
+for(const [category,semantics] of [['heating',['setback','normal','boost']],['hot_water',['minimum','charging']]])test('verified defaults need no Normal checkbox: '+category,async()=>{
+ const {card,calls}=fixture();card._category=category;card._model.metadata={...meta,index:category==='heating'?2:0,nos:semantics.length};
+ card._model.mapping_valid=true;card._model.mode_catalog=semantics.map((semantic,state)=>({state,semantic,confirmed:true}));
+ card.render();const html=card.shadowRoot.innerHTML;assert.doesNotMatch(html,/normal-confirm|id="normal"|I verified this numeric/);
+ assert.match(html,category==='heating'?/Normal \[1\]/:/Off \[0\]/);
+ assert.match(html,/class="help" id="advice" ><summary aria-label="Help and recommendations"/);assert.doesNotMatch(html,/id="info-findings"/);
+ await card.validate();assert.equal(calls[0].service_data.policy.normal_state,1);assert.equal(calls[0].service_data.policy.mapping_confirmed,true);
+});
+
+test('optional mapping override drives Normal policy without translating draft',async()=>{
+ const {card,calls}=fixture();card._model.mapping_valid=true;card._model.mode_catalog=[{state:2,semantic:'normal',confirmed:true}];
+ await card.validate();assert.equal(calls[0].service_data.policy.normal_state,2);assert.deepEqual(calls[0].service_data.draft,draft());
 });
