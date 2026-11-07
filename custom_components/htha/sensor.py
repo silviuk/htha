@@ -147,6 +147,15 @@ async def async_setup_entry(
             )
         )
 
+    entities.append(HtHAScheduleValidationSensor(
+        coordinator, config_entry, SensorEntityDescription(
+            key="schedule_validation", translation_key="schedule_validation",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            device_class=SensorDeviceClass.ENUM,
+            options=["unvalidated", "critical", "warnings", "ready", "applying", "applied", "failed", "stale"],
+        )
+    ))
+
     # Create the special Time Programs sensor
     time_prog_description = SensorEntityDescription(
         key="time_programs",
@@ -322,3 +331,16 @@ class HtHATemperatureSpreadSensor(HtHAEntity, SensorEntity):
         if first is None or second is None:
             return None
         return round(float(first) - float(second), 2)
+
+
+class HtHAScheduleValidationSensor(HtHAEntity, SensorEntity):
+    """In-memory scratchpad/report; no restore of approvals after restart."""
+
+    @property
+    def native_value(self):
+        return self.coordinator.schedule_scratchpad.report["status"]
+
+    @property
+    def extra_state_attributes(self):
+        from .schedule_services import snapshot
+        return snapshot(self.coordinator.schedule_scratchpad)

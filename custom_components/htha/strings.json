@@ -213,6 +213,19 @@
             },
             "heat_source_spread": {
                 "name": "Heat source inlet/outlet spread"
+            },
+            "schedule_validation": {
+                "name": "Schedule draft validation",
+                "state": {
+                    "unvalidated": "Not checked",
+                    "critical": "Critical errors",
+                    "warnings": "Warnings — review required",
+                    "ready": "Ready",
+                    "applying": "Applying",
+                    "applied": "Applied and verified",
+                    "failed": "Failed — inspect controller",
+                    "stale": "Changed — check again"
+                }
             }
         },
         "binary_sensor": {
@@ -304,6 +317,80 @@
         "button": {
             "ht_datetime_sync": {
                 "name": "Sync heat pump clock"
+            }
+        }
+    },
+    "services": {
+        "load_time_program_draft": {
+            "name": "Load pump schedule into draft",
+            "description": "Read only. Replace the temporary draft with the controller week; clears validation and acknowledgements.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA entry ID",
+                    "description": "Loaded HTHA integration config entry ID."
+                },
+                "program_index": {
+                    "name": "Program index",
+                    "description": "0 = hot water; 2 = primary heating."
+                }
+            }
+        },
+        "validate_time_program": {
+            "name": "Check schedule draft",
+            "description": "Validate the full week and explicitly verified Normal code. No pump writes.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA entry ID",
+                    "description": "Loaded HTHA integration config entry ID."
+                },
+                "draft": {
+                    "name": "Complete weekly draft",
+                    "description": "entries: seven arrays of start/end (HH:MM) and integer state; explicitly cover 00:00–24:00."
+                },
+                "policy": {
+                    "name": "Check policy",
+                    "description": "kind: heating/hot_water; normal_state: verified code; mapping_confirmed: true only after verification; floor_heating: true/false."
+                }
+            }
+        },
+        "acknowledge_time_program_warnings": {
+            "name": "Acknowledge checked warnings",
+            "description": "Acknowledge exactly the latest warning IDs bound to this draft hash. Critical errors cannot be overridden.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA entry ID",
+                    "description": "Loaded HTHA integration config entry ID."
+                },
+                "draft_hash": {
+                    "name": "Checked hash",
+                    "description": "Exact draft_hash returned by the latest validation."
+                },
+                "warning_ids": {
+                    "name": "Warning IDs",
+                    "description": "Exactly all warning_ids from the latest check; read each before acknowledging."
+                }
+            }
+        },
+        "apply_time_program": {
+            "name": "Apply checked schedule",
+            "description": "Admin only. Requires Allow writes ON, checked unchanged draft, all warnings acknowledged and confirmation. Independent read-back; no automatic retry/rollback on partial failure.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA entry ID",
+                    "description": "Loaded HTHA integration config entry ID."
+                },
+                "draft": {
+                    "name": "Complete weekly draft",
+                    "description": "entries: seven arrays of start/end (HH:MM) and integer state; explicitly cover 00:00–24:00."
+                },
+                "draft_hash": {
+                    "name": "Checked hash",
+                    "description": "Exact draft_hash returned by the latest validation."
+                },
+                "confirm": {
+                    "name": "Confirm physical change",
+                    "description": "Must be true. Only this service writes to the heat pump."
+                }
             }
         }
     }

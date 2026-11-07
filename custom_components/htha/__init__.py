@@ -142,6 +142,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: HtHAConfigEntry) -> bool
         "write_enabled": write_enabled,
     }
 
+    from .schedule_services import setup_scratchpad
+
+    setup_scratchpad(hass, entry, coordinator)
+
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 

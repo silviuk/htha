@@ -209,6 +209,19 @@
             },
             "heat_source_spread": {
                 "name": "Wärmequelle Spreizung (Eintritt − Austritt)"
+            },
+            "schedule_validation": {
+                "name": "Zeitprogramm-Entwurfsprüfung",
+                "state": {
+                    "unvalidated": "Nicht geprüft",
+                    "critical": "Kritische Fehler",
+                    "warnings": "Warnungen — Prüfung nötig",
+                    "ready": "Bereit",
+                    "applying": "Übertragung läuft",
+                    "applied": "Übertragen und geprüft",
+                    "failed": "Fehler — Regler prüfen",
+                    "stale": "Geändert — erneut prüfen"
+                }
             }
         },
         "binary_sensor": {
@@ -300,6 +313,80 @@
         "button": {
             "ht_datetime_sync": {
                 "name": "Uhrzeit der Wärmepumpe synchronisieren"
+            }
+        }
+    },
+    "services": {
+        "load_time_program_draft": {
+            "name": "Zeitprogramm als Entwurf laden",
+            "description": "Nur lesen. Reglerwoche als temporären Entwurf laden; verwirft Prüfungen und Bestätigungen.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA-Konfigurationseintrag-ID",
+                    "description": "ID des geladenen HTHA-Konfigurationseintrags."
+                },
+                "program_index": {
+                    "name": "Programmindex",
+                    "description": "0 = Warmwasser; 2 = Hauptheizkreis."
+                }
+            }
+        },
+        "validate_time_program": {
+            "name": "Zeitprogramm-Entwurf prüfen",
+            "description": "Gesamte Woche und ausdrücklich geprüften Normal-Code prüfen. Keine Schreibbefehle an die Wärmepumpe.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA-Konfigurationseintrag-ID",
+                    "description": "ID des geladenen HTHA-Konfigurationseintrags."
+                },
+                "draft": {
+                    "name": "Vollständiger Wochenentwurf",
+                    "description": "entries: sieben Listen aus start/end (HH:MM) und ganzzahligem state; 00:00–24:00 explizit abdecken."
+                },
+                "policy": {
+                    "name": "Prüfregeln",
+                    "description": "kind: heating/hot_water; normal_state: geprüfter Code; mapping_confirmed erst nach Prüfung true; floor_heating: true/false."
+                }
+            }
+        },
+        "acknowledge_time_program_warnings": {
+            "name": "Geprüfte Warnungen bestätigen",
+            "description": "Genau die letzten Warnungs-IDs für diesen Entwurfs-Hash bestätigen. Kritische Fehler sind nicht übersteuerbar.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA-Konfigurationseintrag-ID",
+                    "description": "ID des geladenen HTHA-Konfigurationseintrags."
+                },
+                "draft_hash": {
+                    "name": "Geprüfter Hash",
+                    "description": "Exakter draft_hash der letzten Prüfung."
+                },
+                "warning_ids": {
+                    "name": "Warnungs-IDs",
+                    "description": "Genau alle warning_ids der letzten Prüfung; vor dem Bestätigen jeden Hinweis lesen."
+                }
+            }
+        },
+        "apply_time_program": {
+            "name": "Geprüftes Zeitprogramm übertragen",
+            "description": "Nur Administratoren. Schreibzugriff EIN, unveränderter geprüfter Entwurf, bestätigte Warnungen und Freigabe nötig. Unabhängiges Rücklesen; kein automatischer Wiederholungsversuch/Rollback bei Teilfehlern.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA-Konfigurationseintrag-ID",
+                    "description": "ID des geladenen HTHA-Konfigurationseintrags."
+                },
+                "draft": {
+                    "name": "Vollständiger Wochenentwurf",
+                    "description": "entries: sieben Listen aus start/end (HH:MM) und ganzzahligem state; 00:00–24:00 explizit abdecken."
+                },
+                "draft_hash": {
+                    "name": "Geprüfter Hash",
+                    "description": "Exakter draft_hash der letzten Prüfung."
+                },
+                "confirm": {
+                    "name": "Reale Änderung bestätigen",
+                    "description": "Muss true sein. Nur dieser Dienst schreibt an die Wärmepumpe."
+                }
             }
         }
     }
