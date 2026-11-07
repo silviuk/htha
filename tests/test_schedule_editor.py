@@ -153,8 +153,11 @@ async def test_crud_names_revisions_casefold_and_deep_copy(editor):
     assert p['name'] == '<b>Winter & friends</b>' and p['revision'] == 1 and saved
     p['draft']['entries'][0][0]['state'] = 2
     assert m.library.get(p['id'])['draft'] == DRAFT
+    duplicate = await save(m, '  <B>WINTER & FRIENDS</B>  ')
+    assert duplicate['name'] == '<B>WINTER & FRIENDS</B> (2)'
     with pytest.raises(ValueError, match='profile_duplicate'):
-        await save(m, '<B>WINTER & FRIENDS</B>')
+        await m.library.rename(duplicate['id'], ' <B>WINTER & FRIENDS</B> ', 1)
+    await m.library.delete(duplicate['id'], 1, True)
     with pytest.raises(ValueError, match='profile_conflict'):
         await m.library.rename(p['id'], 'New', 0)
     renamed = await m.library.rename(p['id'], 'New', 1)
@@ -163,6 +166,44 @@ async def test_crud_names_revisions_casefold_and_deep_copy(editor):
         await m.library.delete(p['id'], 2, False)
     await m.library.delete(p['id'], 2, True)
     assert not m.library.listing('heating')['profiles'] and not c.writes
+
+
+@pytest.mark.parametrize('name', safety.ProfileLibrary.BUILTIN_NAMES)
+async def test_builtin_names_reserved_for_saves_and_renames(editor, name):
+    m, c, saved = editor
+    first = await save(m, '  ' + name.upper() + '  ')
+    second = await save(m, name.upper())
+    assert first['name'] == name.upper() + ' (2)'
+    assert second['name'] == name.upper() + ' (3)'
+    before = deepcopy(m.library.data)
+    for target in (name, '  ' + first['name'].lower() + '  '):
+        with pytest.raises(ValueError, match='profile_duplicate'):
+            await m.library.rename(second['id'], target, 1)
+        assert m.library.data == before
+    # Old factory-named copies remain loadable and may still be overwritten.
+    legacy = deepcopy(saved[-1])
+    legacy['profiles'][0]['name'] = name
+    restarted = safety.ProfileLibrary(AsyncMock())
+    restarted.load(legacy)
+    assert restarted.error is None
+    p = restarted.get(first['id'])
+    updated = await restarted.save_profile('heating', name, DRAFT, m.metadata, {}, {}, p['id'], 1)
+    assert updated['name'] == name and updated['revision'] == 2
+    assert (await restarted.rename(p['id'], 'Unique', 2))['name'] == 'Unique'
+    assert not c.writes
+
+
+async def test_duplicate_suffix_stays_bounded_and_category_local(editor):
+    m, c, _ = editor
+    name = 'x' * 80
+    await save(m, name)
+    await save(m, 'x' * 76 + ' (2)')
+    third = await save(m, name.upper())
+    assert third['name'] == 'X' * 76 + ' (3)' and len(third['name']) == 80
+    hot = {**META, 'index': 0, 'name': 'Warmwasser', 'nos': 2}
+    other = await m.library.save_profile('hot_water', name, DRAFT, hot, {}, {})
+    assert other['name'] == name
+    assert not c.writes
 
 
 @pytest.mark.parametrize('name', ['', ' '*3, 'a'*81, 42, 'line\nbreak'])

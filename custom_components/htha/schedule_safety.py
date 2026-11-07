@@ -289,6 +289,7 @@ class ProfileLibrary:
 
     LIMIT = 50  # per category
     STORE_LIMIT = 8_000_000  # accommodates 100 maximum-size bounded profiles
+    BUILTIN_NAMES = ("Factory default (Heliotherm)", "Werkseinstellung (Heliotherm)")
 
     def __init__(self, save):
         self.save = save
@@ -393,8 +394,18 @@ class ProfileLibrary:
             raise ValueError("profile_conflict")
         if not old and expected is not None:
             raise ValueError("profile_conflict")
-        if any(p["category"] == category and p["name"].casefold() == name.casefold() and p["id"] != profile_id for p in self.data["profiles"]):
+        names = {p["name"].strip().casefold() for p in self.data["profiles"]
+                 if p["category"] == category and p["id"] != profile_id}
+        # Existing copies with a factory name remain editable without migration.
+        if not old or old["name"].casefold() != name.casefold():
+            names.update(n.casefold() for n in self.BUILTIN_NAMES)
+        if old and name.casefold() in names:
             raise ValueError("profile_duplicate")
+        base, number = name, 2
+        while name.casefold() in names:
+            suffix = f" ({number})"
+            name = base[:80 - len(suffix)].rstrip() + suffix
+            number += 1
         if not old and sum(p["category"] == category for p in self.data["profiles"]) >= self.LIMIT:
             raise ValueError("profile_limit")
         now = utcnow()

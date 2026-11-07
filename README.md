@@ -123,9 +123,9 @@ config_entry_id: YOUR_HTHA_CONFIG_ENTRY_ID
 No manual resource is normally needed. Both scripts are served under `/htha_frontend/`, loaded through the frontend and registered as versioned JavaScript modules in storage-mode resources. Existing matching resources are updated; only resources created by htha are removed when its last entry is deleted. YAML resource lists are not edited; if explicit resources are needed, add these with `type: module`:
 
 ```yaml
-- url: /htha_frontend/htha-heatpump-strategy.js?v=1.3.1
+- url: /htha_frontend/htha-heatpump-strategy.js?v=1.3.2
   type: module
-- url: /htha_frontend/htha-schedule-scratchpad-card.js?v=1.3.1
+- url: /htha_frontend/htha-schedule-scratchpad-card.js?v=1.3.2
   type: module
 ```
 

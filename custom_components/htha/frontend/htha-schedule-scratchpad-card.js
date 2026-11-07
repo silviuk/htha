@@ -127,6 +127,7 @@ const GATES={writes_off:'Allow writes is OFF',baseline_unavailable:'Baseline una
 Object.assign(DE, {
   'Factory default (Heliotherm)':'Werkseinstellung (Heliotherm)',
   'Built-in, read-only':'Integriert, schreibgeschützt',
+  'Saved':'Gespeichert','version':'Version','copy':'Kopie',
   'Factory preset mapping must be verified; reload after confirmation':'Zuordnung der Werkseinstellung prüfen; nach Bestätigung erneut laden',
   'Factory default: Monday–Sunday 00:00–24:00 Normal. Unspecified heating periods remain Normal.':'Werkseinstellung: Montag–Sonntag 00:00–24:00 Normalbetrieb. Nicht belegte Heizzeiten bleiben Normalbetrieb.',
   'Factory default: Monday–Sunday 00:00–24:00 On. Unspecified hot-water periods are Off (minimum maintenance at WW_min, +5 K).':'Werkseinstellung: Montag–Sonntag 00:00–24:00 Ein. Nicht belegte Warmwasserzeiten zählen als Aus (Mindesttemperaturhaltung bei WW_min, +5 K).',
@@ -278,17 +279,29 @@ class HthaScheduleScratchpadCard extends HTMLElement {
     }
     return response;
   }
+  uniqueProfileName(name,excludeId=null) {
+    const names=new Set(['Factory default (Heliotherm)',DE['Factory default (Heliotherm)']].map(n=>n.toLowerCase()));
+    for(const p of this._profiles)if(p.id!==excludeId && (!p.category || p.category===this._category))names.add(p.name.trim().toLowerCase());
+    const base=name.trim();let candidate=base;
+    for(let n=2;names.has(candidate.toLowerCase());n++) {
+      const suffix=` (${n})`;
+      candidate=Array.from(base).slice(0,80-suffix.length).join('').trimEnd()+suffix;
+    }
+    return candidate;
+  }
   async saveProfile(update=false) {
     if(!this._draft)return;
     if(update && this._profile?.read_only)return;
     if(this._local?.week.some(day=>day.includes(null))){this._error=this.t('Resolve unknown cells explicitly before saving or sending.');this.render();return;}
-    const name=window.prompt(this.t('Profile name'),this._profile?.name||'');if(name===null)return;
+    const source=this._profile;
+    const base=source?.read_only?`${this.t(source.name)} (${this.t('copy')})`:source?.name||'';
+    const name=window.prompt(this.t('Profile name'),update?source?.name:this.uniqueProfileName(base));if(name===null)return;
     if(update && (!this._profile || !window.confirm(this.t('Confirm overwriting saved profile?'))))return;
     return this.call('save_time_program_profile',{category:this._category,name,draft:clone(this._draft),...this.revisionData(),...(update?{profile_id:this._profile.id,expected_profile_revision:this._profile.revision}:{})});
   }
   async renameProfile() {
     const profile=this._profiles.find(p=>p.id===this._profileId);if(!profile || profile.read_only)return;
-    const name=window.prompt(this.t('New profile name'),profile.name);if(name===null)return;
+    const name=window.prompt(this.t('New profile name'),this.uniqueProfileName(profile.name,profile.id));if(name===null)return;
     return this.call('rename_time_program_profile',{profile_id:profile.id,name,expected_profile_revision:profile.revision});
   }
   async deleteProfile() {
@@ -440,7 +453,7 @@ class HthaScheduleScratchpadCard extends HTMLElement {
       @media(prefers-contrast:more){.replaced{background:color-mix(in srgb,var(--old-color) 60%,var(--card-background-color,#fff))}.replaced svg,.changed-key svg{stroke-width:1.4}.bar{border:1px solid currentColor}.cell.selected{outline-width:3px}}
     </style><ha-card><h2>${t('Schedule editor')}</h2><div class="tabs" role="tablist"><div>${['heating','hot_water'].map(c=>`<button role="tab" data-category="${c}" aria-selected="${c===this._category}" ${busy}>${t(c==='heating'?'Heating':'Hot water')}</button>`).join('')}</div><span class="status">${t('Allow writes')}: <b>${t(m.writes_enabled?'ON':'OFF')}</b></span></div>
       <div class="controls"><button id="load" ${busy}>${t('Load from pump')}</button><button id="refresh" ${busy} ${!metadata?'disabled':''}>${t('Refresh baseline')}</button><button id="catalog" ${busy}>${t('Profiles')}</button></div>
-      <div class="controls"><select id="profiles" aria-label="${t('Profiles')}" ${busy}><option value="">${t('Profiles')}</option>${this._profiles.map(p=>`<option value="${esc(p.id)}" ${p.id===this._profileId?'selected':''}>${p.read_only?t(p.name):esc(p.name)} · ${p.read_only?t('Built-in, read-only'):`r${p.revision}`}</option>`).join('')}</select><button id="profile-load" ${busy} ${!chosen?'disabled':''}>${t('Use as starting point')}</button><button id="profile-apply" ${busy} ${!chosen?'disabled':''}>${t('Apply profile…')}</button><button id="rename" ${busy} ${!chosen || chosen.read_only?'disabled':''}>${t('Rename')}</button><button id="delete" ${busy} ${!chosen || chosen.read_only?'disabled':''}>${t('Delete')}</button></div>
+      <div class="controls"><select id="profiles" aria-label="${t('Profiles')}" ${busy}><option value="">${t('Profiles')}</option>${this._profiles.map(p=>`<option value="${esc(p.id)}" ${p.id===this._profileId?'selected':''}>${p.read_only?t(p.name):esc(p.name)} · ${p.read_only?t('Built-in, read-only'):`${t('Saved')} · ${t('version')} ${esc(p.revision)}`}</option>`).join('')}</select><button id="profile-load" ${busy} ${!chosen?'disabled':''}>${t('Use as starting point')}</button><button id="profile-apply" ${busy} ${!chosen?'disabled':''}>${t('Apply profile…')}</button><button id="rename" ${busy} ${!chosen || chosen.read_only?'disabled':''}>${t('Rename')}</button><button id="delete" ${busy} ${!chosen || chosen.read_only?'disabled':''}>${t('Delete')}</button></div>
       ${chosen?.read_only || this._profile?.read_only?`<small>${t(this.index===2?'Factory default: Monday–Sunday 00:00–24:00 Normal. Unspecified heating periods remain Normal.':'Factory default: Monday–Sunday 00:00–24:00 On. Unspecified hot-water periods are Off (minimum maintenance at WW_min, +5 K).')} ${t('web control 321 manual, pp.10–11. Save as creates an editable copy.')}</small>`:''}
       ${m.library_error?`<p class="error">${t('This library is damaged or has an unsupported version. Repair the HA Store from a backup; no approval was restored.')}</p>`:''}
       <section class="schedule"><h3>${t('Current heat-pump schedule')}</h3><small class="profile-name">${esc(loaded && m.current_state==='read'?(m.current_profile_names?.join(', ')||this.t('Custom / no matching saved profile')):this.t('Current state unavailable'))}</small>${this.grid(current)}<small>${t('Last successful read')}: ${esc(this.stamp(loaded?m.baseline_read_at:null))} · ${esc(metadata?`#${metadata.index} ${metadata.name} · ead=${metadata.ead}, nos=${metadata.nos}, ste=${metadata.ste}, nod=${metadata.nod}`:this.t('Unknown'))}</small></section>
