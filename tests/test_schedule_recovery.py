@@ -3,7 +3,7 @@ import asyncio
 from copy import deepcopy
 import pytest
 
-from test_schedule_safety import Coordinator, DRAFT, POLICY, JsonProgram, safety
+from test_schedule_safety import Coordinator, DRAFT, POLICY, JsonProgram, safety, confirm_mapping
 
 
 class SlotCoordinator(Coordinator):
@@ -36,6 +36,7 @@ async def prepared(coordinator):
         records.append(deepcopy(record))
     manager = safety.Scratchpad(coordinator, lambda: True, JsonProgram, recovery=save)
     await manager.load(2)
+    await confirm_mapping(manager)
     draft = deepcopy(DRAFT)
     for day in draft['entries']:
         day[0]['state'] = 2

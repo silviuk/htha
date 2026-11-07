@@ -10,3 +10,6 @@ venv/
 .vscode/
 .idea/
 .DS_Store
+
+# Offline screenshot runner's temporary browser profile
+.schedule-chrome/

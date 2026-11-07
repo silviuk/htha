@@ -1,0 +1,12 @@
+✔ repeated setConfig creates one shadow root (3.3487ms)
+✔ session/revision reset consumes local validation {"session_id":"new","revision":0} (1.1602ms)
+✔ session/revision reset consumes local validation {"session_id":"old","revision":1} (0.9026ms)
+✔ render exposes required controls and named, unverified modes (23.6267ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 102.8949

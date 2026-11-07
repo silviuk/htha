@@ -14,6 +14,13 @@ POLICY = dict(kind='heating', normal_state=1, mapping_confirmed=True, floor_heat
 DRAFT = dict(entries=[[dict(start='00:00', end='24:00', state=1)] for _ in range(7)])
 
 
+async def confirm_mapping(manager):
+    """Explicit fake-controller attestation; never infer production mode order."""
+    if manager.library is None:
+        manager.library = safety.ProfileLibrary(AsyncMock())
+    await manager.set_mapping({'0': 'setback', '1': 'normal', '2': 'boost'}, manager.mapping.get('revision', 0), True)
+
+
 class ValidatorTests(unittest.TestCase):
     def check(self, draft=None, meta=None, policy=None):
         return safety.validate(deepcopy(DRAFT if draft is None else draft), META if meta is None else meta, POLICY if policy is None else policy)
@@ -113,6 +120,7 @@ class TransactionTests(unittest.IsolatedAsyncioTestCase):
         self.c=Coordinator();self.enabled=False
         self.manager=safety.Scratchpad(self.c,lambda:self.enabled,JsonProgram)
         await self.manager.load(2)
+        await confirm_mapping(self.manager)
     async def ready(self):
         report=await self.manager.check(DRAFT,POLICY)
         await self.manager.acknowledge(report['draft_hash'],report['warning_ids'])

@@ -189,6 +189,16 @@ async def async_remove_entry(hass: HomeAssistant, entry: HtHAConfigEntry) -> Non
     The dashboard resource is removed together with the last entry, and only
     if Ht HA added it.
     """
+    # Reload keeps the manager/library; permanent removal deletes only the
+    # profile Store. Recovery evidence is retained for manual inspection.
+    from homeassistant.helpers.storage import Store
+    manager = hass.data.get(DOMAIN, {}).get("scratchpads", {}).get(entry.entry_id)
+    if manager:
+        async with manager.lock:
+            await Store(hass, 1, f"{DOMAIN}_schedule_profiles_{entry.entry_id}").async_remove()
+            hass.data[DOMAIN]["scratchpads"].pop(entry.entry_id, None)
+    else:
+        await Store(hass, 1, f"{DOMAIN}_schedule_profiles_{entry.entry_id}").async_remove()
     remaining = [e for e in hass.config_entries.async_entries(DOMAIN) if e.entry_id != entry.entry_id]
     if remaining:
         return

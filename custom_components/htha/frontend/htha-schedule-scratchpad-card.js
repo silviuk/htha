@@ -1,136 +1,481 @@
-/* Explicit draft -> check -> acknowledgement -> confirmed apply. No write on edit. */
+/* Offline-first weekly editor. Only explicit service actions use HA; edits never do. */
 const clone = value => JSON.parse(JSON.stringify(value));
-const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const time = i => `${String(Math.floor(i / 4)).padStart(2,'0')}:${String(i % 4 * 15).padStart(2,'0')}`;
+const slot = s => /^([01]\d|2[0-3]):(00|15|30|45)$/.test(s) ? Number(s.slice(0,2))*4+Number(s.slice(3))/15 : s === '24:00' ? 96 : NaN;
+function toCells(draft, nos=256) {
+  const week = Array.from({length:7},()=>Array(96).fill(null));
+  if (!Array.isArray(draft?.entries) || draft.entries.length !== 7) return week;
+  draft.entries.forEach((day,d) => {
+    const used = new Set();
+    if (!Array.isArray(day)) return;
+    for (const e of day) {
+      if (e?.start === '24:00' && e.end === '24:00') continue;
+      const a=slot(e?.start || ''), b=slot(e?.end || '');
+      if (!Number.isInteger(a) || !Number.isInteger(b) || a>=b || !Number.isInteger(e?.state) || e.state<0 || e.state>=nos) {
+        week[d].fill(null); return;
+      }
+      for (let i=a;i<b;i++) {week[d][i]=used.has(i)?null:e.state;used.add(i);}
+    }
+  });
+  return week;
+}
+function toDraft(week) {
+  return {entries:week.map(day => {
+    const result=[];
+    day.forEach((state,i)=>{
+      if (result.length && result.at(-1).state === state) result.at(-1).end=time(i+1);
+      else result.push({start:time(i),end:time(i+1),state});
+    });
+    return result;
+  })};
+}
+class Selection {
+  constructor() {this.clear();}
+  clear() {this.cells=new Set();this.anchor=null;}
+  range(day,a,b,add=false) {
+    if (!add) this.cells.clear();
+    for(let i=Math.min(a,b);i<=Math.max(a,b);i++) this.cells.add(`${day}:${i}`);
+  }
+  choose(day,i,{shiftKey=false,ctrlKey=false,metaKey=false}={}) {
+    const add=ctrlKey || metaKey;
+    if (shiftKey && this.anchor?.day===day) this.range(day,this.anchor.i,i,add);
+    else {
+      if (!add) this.cells.clear();
+      const key=`${day}:${i}`;
+      if (add && this.cells.has(key)) this.cells.delete(key); else this.cells.add(key);
+      this.anchor={day,i};
+    }
+  }
+  ranges() {
+    const result=[];
+    for(let d=0;d<7;d++) for(let i=0;i<96;i++) if(this.cells.has(`${d}:${i}`)) {
+      const last=result.at(-1);
+      if(last?.day===d && last.end===i) last.end=i+1; else result.push({day:d,start:i,end:i+1});
+    }
+    return result;
+  }
+}
+class LocalWeek {
+  constructor(draft) {this.week=toCells(draft);this.undo=[];this.redo=[];}
+  change(edit) {
+    const before=clone(this.week); edit(this.week);
+    if(JSON.stringify(before)===JSON.stringify(this.week)) return false;
+    this.undo.push(before);if(this.undo.length>100)this.undo.shift();this.redo=[];return true;
+  }
+  paint(selection,mode) {return this.change(week=>{for(const key of selection.cells){const [d,i]=key.split(':').map(Number);week[d][i]=mode;}});}
+  copy(day,targets) {return this.change(week=>{for(const d of targets)week[d]=clone(week[day]);});}
+  history(redo=false) {
+    const source=redo?this.redo:this.undo,target=redo?this.undo:this.redo;
+    if(!source.length)return false;target.push(clone(this.week));this.week=source.pop();return true;
+  }
+}
 const DE = {
-  'Schedule scratchpad':'Zeitprogramm-Entwurf', 'Load from pump':'Von Wärmepumpe laden',
-  'Check':'Prüfen', 'Acknowledge warnings':'Warnungen bestätigen', 'Save to heat pump':'An Wärmepumpe senden',
-  'Heating':'Heizung', 'Hot water':'Warmwasser', 'Normal code':'Normal-Code',
+  'Schedule editor':'Zeitprogramm-Editor','Heating':'Heizung','Hot water':'Warmwasser','Profiles':'Profile',
+  'Unsaved draft':'Ungespeicherter Entwurf','Custom / no matching saved profile':'Individuell / kein passendes Profil',
+  'Load from pump':'Von Wärmepumpe laden','Refresh baseline':'Vergleichsbasis aktualisieren','Current heat-pump schedule':'Aktuelles Wärmepumpenprogramm',
+  'Draft schedule':'Zeitprogramm-Entwurf','Validate':'Prüfen','Save profile':'Profil speichern','Save as':'Speichern unter',
+  'Update profile':'Profil überschreiben','Rename':'Umbenennen','Delete':'Löschen','Use as starting point':'Als Vorlage verwenden',
+  'Apply profile…':'Profil anwenden…','Saved in HA':'In HA gespeichert','Sent to heat pump':'An Wärmepumpe gesendet',
+  'Send to heat pump':'An Wärmepumpe senden','Send schedule':'Zeitprogramm senden','Cancel':'Abbrechen',
+  'Set mode for selection':'Modus für Auswahl setzen','Clear selection':'Auswahl aufheben','Selected cells':'Ausgewählte Viertelstunden',
+  'Select range':'Zeitraum auswählen','Add selection':'Zur Auswahl hinzufügen','Start':'Beginn','End':'Ende','Day':'Tag',
+  'Copy this day to…':'Diesen Tag kopieren auf…','All days':'Alle Tage','Weekdays':'Werktage','Weekend':'Wochenende',
+  'Selected days':'Ausgewählte Tage','Copy day':'Tag kopieren','Undo':'Rückgängig','Redo':'Wiederholen',
+  'Setback':'Absenken','Normal':'Normalbetrieb','Boost':'Aufheizen','Minimum maintenance':'Mindesttemperatur halten',
+  'Normal charging':'Normal laden','Unknown':'Unbekannt','Unverified':'Nicht bestätigt','Mode':'Modus',
+  'Confirm mode mapping':'Moduszuordnung bestätigen','Unverified mode mapping':'Nicht bestätigte Moduszuordnung',
+  'Verify each numeric code on this controller before assigning a name. Labels never translate numeric payloads.':'Jeden Zahlencode am Regler prüfen, bevor ein Name zugeordnet wird. Namen ändern niemals die gesendeten Zahlencodes.',
   'I verified this numeric Normal code on my controller':'Ich habe diesen numerischen Normal-Code an meinem Regler geprüft',
-  'Floor heating':'Fußbodenheizung', 'Unsaved local edits — check again':'Lokale Änderungen — erneut prüfen',
-  'Draft only; no pump change until confirmed Save. Allow writes must be ON separately.':'Nur Entwurf; keine Änderung an der Wärmepumpe vor bestätigtem Speichern. Schreibzugriff muss separat eingeschaltet sein.',
-  'Load discards this draft. Continue?':'Laden verwirft diesen Entwurf. Fortfahren?',
-  'Send the checked weekly schedule to the heat pump? Multiple writes can partially fail.':'Geprüftes Wochenprogramm an die Wärmepumpe senden? Mehrere Schreibvorgänge können teilweise fehlschlagen.',
-  'Add interval':'Intervall hinzufügen', 'Remove':'Entfernen', 'Apply unavailable: validate, acknowledge, and separately enable Allow writes.':'Speichern gesperrt: prüfen, bestätigen und Schreibzugriff separat aktivieren.',
+  'Normal code':'Normal-Code','Floor heating':'Fußbodenheizung','Advice / Why':'Hinweise / Warum',
+  'Click selects; Ctrl/Cmd toggles; Shift extends within one day. Drag selects only. Arrows move, Shift+arrows extend, Space toggles, Escape clears. On phones use the large range controls or scroll the focused day.':'Klick wählt; Strg/Cmd schaltet um; Umschalt erweitert im selben Tag. Ziehen wählt nur aus. Pfeile bewegen, Umschalt+Pfeile erweitern, Leertaste schaltet um, Escape hebt auf. Am Handy große Zeitraumfelder oder den vergrößerten Tag nutzen.',
+  'Selection alone makes no changes. Choose a mode, then Set mode.':'Die Auswahl allein ändert nichts. Modus wählen und danach setzen.',
+  'Load discards local edits. Continue?':'Laden verwirft lokale Änderungen. Fortfahren?',
+  'Overwrite the local draft on these days?':'Lokalen Entwurf an diesen Tagen überschreiben?',
+  'Delete this saved profile? The pump schedule is unchanged.':'Dieses gespeicherte Profil löschen? Das Pumpenprogramm bleibt unverändert.',
+  'Profile name':'Profilname','New profile name':'Neuer Profilname','Confirm overwriting saved profile?':'Gespeichertes Profil überschreiben?',
+  'Changes compared with pump':'Änderungen gegenüber Wärmepumpe','No changes':'Keine Änderungen','Entries':'Einträge',
+  'Compared with pump read at':'Verglichen mit Pumpenstand vom','Last successful read':'Letzter erfolgreicher Abruf',
+  'Current state unavailable':'Aktueller Zustand nicht verfügbar','Needs validation / not sendable':'Prüfung erforderlich / nicht sendebereit',
+  'Validate the current draft':'Aktuellen Entwurf prüfen','Fix critical findings':'Kritische Befunde beheben',
+  'Acknowledge every warning':'Jede Warnung bestätigen','Allow writes is OFF':'Schreibzugriff ist AUS',
+  'Confirm all used mode mappings':'Alle verwendeten Moduszuordnungen bestätigen','Baseline unavailable':'Vergleichsbasis nicht verfügbar',
+  'Review again after another session changed the editor':'Nach Änderung in einer anderen Sitzung erneut prüfen',
+  'Acknowledge selected warnings':'Ausgewählte Warnungen bestätigen','I have reviewed this warning':'Ich habe diese Warnung gelesen',
+  'Multiple slot writes can partially fail. No automatic retry or rollback.':'Mehrere Schreibvorgänge können teilweise fehlschlagen. Kein automatischer Wiederholungsversuch und kein automatisches Zurücksetzen.',
+  'Current time; not compressor activity. Global mode and overrides can supersede the time program.':'Aktuelle Zeit, keine Kompressoraktivität. Globale Betriebsart und Übersteuerungen können das Zeitprogramm überlagern.',
+  'Full 00:00–24:00 draft coverage is integration policy, stricter than manual fallback. DHW Minimum maintains the minimum target; it is not hard-Off. Heating Normal follows the existing curve, not continuous compressor operation.':'Vollständige Entwurfsabdeckung von 00:00–24:00 ist eine strengere Integrationsregel als der Rückfallbetrieb im Handbuch. Warmwasser-Minimum hält die Mindesttemperatur; es schaltet nicht vollständig ab. Heizung Normal folgt der vorhandenen Heizkurve und bedeutet keinen Kompressordauerlauf.',
+  'For slow floor heating, review comfort and recovery after setback. For a buffer-fed fresh-water station, plan charging before demand and verify plumbing separately. No temperature, curve, hysteresis or global mode is changed here.':'Bei träger Fußbodenheizung Komfort und Erholung nach Absenkung prüfen. Bei pufferbetriebener Frischwasserstation vor dem Bedarf laden und Hydraulik separat prüfen. Hier werden keine Temperaturen, Heizkurven, Hysteresen oder globalen Betriebsarten geändert.',
+  'Use previous program as draft':'Vorheriges Programm als Entwurf verwenden','Restore previous program':'Vorheriges Programm wiederherstellen',
+  'Recovery evidence':'Wiederherstellungsdaten','Read-only preview':'Schreibgeschützte Vorschau','Keep edits and refresh':'Entwurf behalten und aktualisieren',
+  'This library is damaged or has an unsupported version. Repair the HA Store from a backup; no approval was restored.':'Profilbibliothek beschädigt oder Version nicht unterstützt. HA Store aus Sicherung reparieren; keine Freigabe wurde wiederhergestellt.',
+  'Resolve unknown cells explicitly before saving or sending.':'Unbekannte Viertelstunden vor Speichern oder Senden ausdrücklich setzen.',
+  'No service response':'Keine Dienstantwort','Sending…':'Wird gesendet…','minutes':'Minuten','cells':'Viertelstunden',
+  'Controller':'Regler','Category':'Kategorie','Profile':'Profil','Changed days':'Geänderte Tage','Numeric modes':'Zahlencodes',
+  'Allow writes':'Schreibzugriff','ON':'EIN','OFF':'AUS',
+  'Confirm the Normal-code attestation':'Normal-Code ausdrücklich bestätigen',
+  'Normal code conflicts with the semantic mapping':'Normal-Code widerspricht der Moduszuordnung',
+  'Profile compatibility must be reviewed':'Profilkompatibilität prüfen',
+  'Previous comparison — validate again':'Vorheriger Vergleich — erneut prüfen',
+  'Native protocol':'Natives Protokoll',
+};
+const SEMANTIC_LABELS={setback:'Setback',normal:'Normal',boost:'Boost',minimum:'Minimum maintenance',charging:'Normal charging'};
+const GATES={writes_off:'Allow writes is OFF',baseline_unavailable:'Baseline unavailable',validation_required:'Validate the current draft',critical_findings:'Fix critical findings',complete_mapping:'Confirm all used mode mappings',warnings_required:'Acknowledge every warning',mode_mapping:'Confirm the Normal-code attestation',normal_mapping_conflict:'Normal code conflicts with the semantic mapping',profile_incompatible:'Profile compatibility must be reviewed'};
+Object.assign(DE, {
+  'Factory default (Heliotherm)':'Werkseinstellung (Heliotherm)',
+  'Built-in, read-only':'Integriert, schreibgeschützt',
+  'Factory preset mapping must be verified; reload after confirmation':'Zuordnung der Werkseinstellung prüfen; nach Bestätigung erneut laden',
+  'Factory default: Monday–Sunday 00:00–24:00 Normal. Unspecified heating periods remain Normal.':'Werkseinstellung: Montag–Sonntag 00:00–24:00 Normalbetrieb. Nicht belegte Heizzeiten bleiben Normalbetrieb.',
+  'Factory default: Monday–Sunday 00:00–24:00 On. Unspecified hot-water periods are Off (minimum maintenance at WW_min, +5 K).':'Werkseinstellung: Montag–Sonntag 00:00–24:00 Ein. Nicht belegte Warmwasserzeiten zählen als Aus (Mindesttemperaturhaltung bei WW_min, +5 K).',
+  'web control 321 manual, pp.10–11. Save as creates an editable copy.':'Handbuch web control 321, S.10–11. Speichern unter erstellt eine bearbeitbare Kopie.',
+});
+GATES.factory_mapping='Factory preset mapping must be verified; reload after confirmation';
+const FINDINGS_DE={
+  metadata:'Zuerst gültige Programmdaten dieses Reglers laden.',unsupported_controller:'Nicht unterstütztes Reglerformat. Verhalten neuerer RCG-Regler darf nicht vorausgesetzt werden.',
+  program_kind:'Heizung oder Warmwasser ausdrücklich passend zum Programm wählen.',program_name:'Der Programmname identifiziert kein unterstütztes Heizungs-/Warmwasserprogramm.',
+  mode_mapping:'Normal-Code an diesem Regler und dieser Firmware prüfen. Modbus-Betriebsarten sind keine Zeitprogramm-Codes.',
+  normal_mapping_conflict:'Der bestätigte Normal-Code muss zur gespeicherten Moduszuordnung Normalbetrieb bzw. Normal laden passen.',
+  complete_mapping:'Alle im Entwurf verwendeten Zahlencodes am Regler prüfen und die Moduszuordnung bestätigen.',profile_incompatible:'Profil, Metadaten, Regler/Firmware oder Zuordnung passen nicht zusammen. Nach Prüfung ausdrücklich neu speichern oder aktuellen Pumpenstand laden.',
+  slots:'Ein Tag benötigt 1 bis 96 begrenzte Intervalle.',format:'Ungültiges Intervall: Zahlencodes, Viertelstunden, Reihenfolge und lückenlose Abdeckung prüfen.',coverage:'Tag muss bei 24:00 enden. Impliziter Rückfallbetrieb wird im Entwurf nicht akzeptiert.',
+  short_window:'Ein Normal-Zeitfenster ist kürzer als 30 Minuten. Komfort und Erholung prüfen. Dies ist keine Mindestlaufzeit des Kompressors.',
+  many_windows:'Mehr als zwei Normal-Zeitfenster pro Tag: wiederholtes Nachladen prüfen. Zeitfenster sind keine Kompressorstarts.',
+  floor_non_normal:'Nicht-Normal-Zeiten bei Fußbodenheizung: Absenkung/Aufheizen sowie Erholung und Komfort prüfen. Keine allgemeine Absenkdauer ist belegt.',
+  precharge:'Bei pufferbetriebener Frischwasserstation vor dem Bedarf normal laden. Keine festen Haushaltszeiten werden erzwungen.',
+  mapping_attestation:'Native Metadaten nennen die Anzahl der Zustände, keine Namen. Die Normal-Code-Bestätigung dient den Hinweisen; zusätzlich müssen alle verwendeten Moduszuordnungen bestätigt sein.',
+  non_atomic:'Mehrere unabhängige Schreibvorgänge können teilweise fehlschlagen. Wiederherstellungsdaten prüfen und Vergleichsbasis mit erhaltenem Entwurf aktualisieren. Kein automatischer Wiederholungsversuch oder Rücksetzen.',
+  pv:'Optionale PV-Ausrichtung betrifft Eigenverbrauch, nicht wärmere Außenluft bei Grundwasseranlagen. Keine feste PV-Zeit wird erzwungen.',
+  hygiene:'Die Zeitprogrammprüfung bewertet keine Trinkwasserhygiene. Puffer, Frischwasserstation, Verteilung und Zirkulation separat prüfen.',
+  cycling:'Keine belegten exakten Starts/Stunde/Tag oder Mindest-Ein-/Auszeiten für dieses Modell: keine erfundenen Gerätegrenzen.',
 };
 class HthaScheduleScratchpadCard extends HTMLElement {
   setConfig(config) {
-    if (!config.entity || !config.config_entry_id) throw new Error('entity and config_entry_id required');
-    this.config = config;
-    if (!this.shadowRoot) this.attachShadow({mode:'open'});
-    this._dirty = true;
-    this._policy = {kind:'heating', normal_state:1, mapping_confirmed:false, floor_heating:true};
+    if(!config.entity || !config.config_entry_id)throw new Error('entity and config_entry_id required');
+    const changed=this.config && (this.config.entity!==config.entity || this.config.config_entry_id!==config.config_entry_id);
+    this.config={...config};
+    if(!this.shadowRoot)this.attachShadow({mode:'open'});
+    this.shadowRoot.onfocusout=()=>Promise.resolve().then(()=>{if(this._deferredRender && !this.shadowRoot.activeElement && !this._gesture){this._deferredRender=false;this.render();}});
+    if(!this._selection || changed) {
+      this._selection=new Selection();this._dirty=true;this._category='heating';this._day=0;
+      this._policy={kind:'heating',normal_state:0,mapping_confirmed:false,floor_heating:true};
+      this._profiles=[];this._warningChecks=new Set();this._mode=0;this._add=false;
+      this._draft=null;this._local=null;this._model=null;this._validatedHash=undefined;
+    }
+  }
+  connectedCallback() {
+    if(!this._timer && typeof setInterval==='function')this._timer=setInterval(()=>this.updateNow(),60000);
+  }
+  disconnectedCallback() {
+    if(this._timer)clearInterval(this._timer);this._timer=null;this._gesture=null;
+    // No subscriptions or document/window event listeners are installed.
   }
   set hass(hass) {
-    this._hass = hass;
-    const attributes = hass.states[this.config.entity]?.attributes;
-    if (attributes && (!this._model || (attributes.session_id !== this._model.session_id || attributes.revision !== this._model.revision || (attributes.revision === this._model.revision && attributes.can_apply !== this._model.can_apply)))) {
-      if (this._model && (attributes.session_id !== this._model.session_id || attributes.revision < this._model.revision)) {
-        this._dirty = true; this._validatedHash = undefined;
-      }
-      if (this._validatedHash && attributes.draft_hash !== this._validatedHash) this._dirty = true;
-      this._model = clone(attributes);
-      if (!this._draft && attributes.draft) this._draft = clone(attributes.draft);
-      this.render();
-    } else if (!this.shadowRoot.innerHTML) this.render();
+    this._hass=hass;
+    if(!this.config)return;
+    const attr=hass.states[this.config.entity]?.attributes;
+    if(attr) {
+      const previous=this._model;
+      if(previous && (attr.session_id!==previous.session_id || attr.revision<previous.revision || (this._validatedHash && attr.draft_hash!==this._validatedHash)))this.invalidate(false);
+      this._model={...previous,...clone(attr)};
+      if(!this._draft && attr.draft && attr.metadata?.index===this.index)this.adoptDraft(attr.draft);
+      const changed=!previous || previous.revision!==attr.revision || previous.session_id!==attr.session_id || previous.writes_enabled!==attr.writes_enabled;
+      if(changed && !this._gesture && !this.shadowRoot.activeElement)this.render();else {if(changed)this._deferredRender=true;this.updateGates();}
+    } else if(!this.shadowRoot.innerHTML)this.render();
   }
-  t(text) { return this._hass?.language?.startsWith('de') ? (DE[text] || text) : text; }
-  getCardSize() { return 10; }
-  edit() { this._dirty = true; this._validatedHash = undefined; this.render(); }
-  async call(service, data) {
-    this._busy = true; this._error = ''; this.render();
+  get index(){return this._category==='hot_water'?0:2;}
+  get days(){return this._hass?.language?.startsWith('de')?['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag']:['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];}
+  t(s){return this._hass?.language?.startsWith('de')?(DE[s]||s):s;}
+  getCardSize(){return 18;}
+  adoptDraft(draft) {
+    this._local=new LocalWeek(draft);this._draft=toDraft(this._local.week);this._selection.clear();
+    this._restoring=false;this.invalidate(false);
+  }
+  invalidate(render=true) {this._dirty=true;this._validatedHash=undefined;this._warningChecks?.clear();if(render)this.render();}
+  edit() {if(this._local)this._draft=toDraft(this._local.week);this._restoring=false;this.invalidate();}
+  draftName(){return this._profile && this._profileDraft && JSON.stringify(this._profileDraft)===JSON.stringify(this._draft)?(this._profile.read_only?this.t(this._profile.name):this._profile.name):this.t('Unsaved draft');}
+  revisionData(){return {expected_draft_revision:this._model?.revision,session_id:this._model?.session_id};}
+  label(mode) {
+    if(mode===null || mode===undefined)return this.t('Unknown');
+    const c=this._model?.mode_catalog?.find(x=>x.state===mode);
+    return c?.confirmed && SEMANTIC_LABELS[c.semantic]?`${this.t(SEMANTIC_LABELS[c.semantic])} [${mode}]`:`${this.t('Mode')} ${mode} (${this.t('Unverified').toLowerCase()})`;
+  }
+  styleMode(mode) {
+    const c=this._model?.mode_catalog?.find(x=>x.state===mode);
+    return c?.confirmed && SEMANTIC_LABELS[c.semantic]?c.semantic:'unknown';
+  }
+  stamp(value) {
+    if(!value)return this.t('Unknown');
+    try{return new Intl.DateTimeFormat(this._hass?.locale?.language || this._hass?.language || 'en',{dateStyle:'medium',timeStyle:'short',timeZone:this._hass?.config?.time_zone || 'Europe/Berlin'}).format(new Date(value));}catch{return this.t('Unknown');}
+  }
+  now() {
     try {
-      const result = await this._hass.callWS({type:'call_service', domain:'htha', service,
-        service_data:{config_entry_id:this.config.config_entry_id, ...data}, return_response:true});
-      const model = result.response;
-      if (!model) throw new Error('No service response; refresh and check integration version');
-      this._model = model;
-      if (service === 'load_time_program_draft') {
-        this._draft = clone(model.draft); this._dirty = true; this._validatedHash = undefined;
-        this._restoring = false; this._policy.mapping_confirmed = false;
-      } else if (service === 'validate_time_program') {
-        this._dirty = false; this._validatedHash = model.draft_hash;
-      } else if (['apply_time_program','restore_previous_time_program','refresh_time_program_baseline'].includes(service)) {
-        this._dirty = true; this._validatedHash = undefined;
+      const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:this._hass?.config?.time_zone || 'Europe/Berlin',weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+      return {day:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].indexOf(p.weekday),percent:(Number(p.hour)*60+Number(p.minute))/1440*100};
+    }catch{return {day:-1,percent:0};}
+  }
+  updateNow(){const n=this.now();this.shadowRoot?.querySelectorAll('[data-now]').forEach(e=>{e.hidden=Number(e.dataset.now)!==n.day;e.style.left=`${n.percent}%`;});}
+  missing() {
+    const model=this._model||{},reasons=new Set((model.missing_gates||[]).map(s=>this.t(GATES[s]||s)));
+    if(this._dirty || this._validatedHash!==model.draft_hash)reasons.add(this.t('Validate the current draft'));
+    if(!model.writes_enabled)reasons.add(this.t('Allow writes is OFF'));
+    if(model.critical_count)reasons.add(this.t('Fix critical findings'));
+    if(!model.mapping_valid || model.metadata?.index!==this.index)reasons.add(this.t('Confirm all used mode mappings'));
+    if(model.warning_ids?.length && !model.warnings_acknowledged)reasons.add(this.t('Acknowledge every warning'));
+    if(model.current_state!=='read' || model.metadata?.index!==this.index)reasons.add(this.t('Baseline unavailable'));
+    return [...reasons];
+  }
+  updateGates() {
+    const root=this.shadowRoot,send=root?.getElementById?.('save');
+    if(send)send.disabled=!!this._busy || this.missing().length>0 || !this._model?.can_apply;
+    const reasons=root?.getElementById?.('gate-reasons');if(reasons)reasons.textContent=this.missing().join(' · ');
+  }
+  async call(service,data={}) {
+    if(this._busy)return null;
+    this._busy=true;this._error='';this.render();
+    try {
+      const result=await this._hass.callWS({type:'call_service',domain:'htha',service,service_data:{config_entry_id:this.config.config_entry_id,...data},return_response:true});
+      const model=result.response;if(!model)throw new Error(this.t('No service response'));
+      if(model.session_id){if(service!=='validate_time_program' && this._validatedHash && model.draft_hash!==this._validatedHash)this.invalidate(false);this._model=model;}
+      if(model.profiles)this._profiles=clone([...(model.builtin_profiles||[]),...model.profiles]);
+      if(['load_time_program_draft','load_time_program_profile'].includes(service)) {
+        this.adoptDraft(model.draft);this._profile=model.profile_context||null;this._profileDraft=this._profile?clone(model.draft):null;
+        this._mappingEdits=null;
+        this._policy={kind:this._category,normal_state:0,mapping_confirmed:false,floor_heating:true};
+      } else if(service==='validate_time_program') {
+        this._dirty=false;this._validatedHash=model.draft_hash;this._warningChecks.clear();
+      } else if(['apply_time_program','restore_previous_time_program','refresh_time_program_baseline','set_time_program_mode_mapping'].includes(service))this.invalidate(false);
+      if(service==='set_time_program_mode_mapping')this._mappingEdits=null;
+      if(model.saved_profile){if(service!=='rename_time_program_profile' || this._profile?.id===model.saved_profile.id){this._profile=clone(model.saved_profile);this._profileDraft=clone(model.saved_profile.draft||this._profileDraft);}this._notice=this.t('Saved in HA');}
+      if(['apply_time_program','restore_previous_time_program'].includes(service))this._notice=this.t('Sent to heat pump');
+      return model;
+    }catch(e) {
+      this._error=e.message||String(e);this.invalidate(false);
+      // Fresh-read failure and interrupted sends must not show stale verified truth.
+      if(service==='validate_time_program' || ['apply_time_program','restore_previous_time_program','refresh_time_program_baseline'].includes(service)) {
+        this._model={...this._model,current_program:null,current_state:'unavailable',can_apply:false};
       }
-    } catch(error) { this._error = error.message || String(error); this._dirty = true; }
-    finally { this._busy = false; this.render(); }
+      return null;
+    }finally{this._busy=false;this.render();}
+  }
+  discardOK(){return !this._draft || !this._dirty || window.confirm(this.t('Load discards local edits. Continue?'));}
+  async loadPump(){if(!this.discardOK())return;const response=await this.call('load_time_program_draft',{program_index:this.index,...this.revisionData()});if(response)await this.listProfiles();}
+  async listProfiles(){return this.call('list_time_program_profiles',{category:this._category});}
+  async changeCategory(category) {
+    if(category===this._category || !this.discardOK())return;
+    this._category=category;this._draft=null;this._local=null;this._profile=null;this._profileId='';this._mappingEdits=null;
+    this._selection.clear();this._policy={kind:category,normal_state:0,mapping_confirmed:false,floor_heating:true};this.invalidate(false);
+    await this.call('get_time_program_editor',{program_index:this.index});
+    // A category switch only opens its catalog. Reading/loading is explicit.
+    this.render();
+  }
+  async loadProfile(shortcut=false) {
+    if(!this._profileId || !this.discardOK())return null;
+    const response=await this.call('load_time_program_profile',{profile_id:this._profileId,...this.revisionData(),read_only:true});
+    if(response && shortcut) {
+      // Always stops at the review: no automatic acknowledgement or apply.
+      await this.validate();
+    }
+    return response;
+  }
+  async saveProfile(update=false) {
+    if(!this._draft)return;
+    if(update && this._profile?.read_only)return;
+    if(this._local?.week.some(day=>day.includes(null))){this._error=this.t('Resolve unknown cells explicitly before saving or sending.');this.render();return;}
+    const name=window.prompt(this.t('Profile name'),this._profile?.name||'');if(name===null)return;
+    if(update && (!this._profile || !window.confirm(this.t('Confirm overwriting saved profile?'))))return;
+    return this.call('save_time_program_profile',{category:this._category,name,draft:clone(this._draft),...this.revisionData(),...(update?{profile_id:this._profile.id,expected_profile_revision:this._profile.revision}:{})});
+  }
+  async renameProfile() {
+    const profile=this._profiles.find(p=>p.id===this._profileId);if(!profile || profile.read_only)return;
+    const name=window.prompt(this.t('New profile name'),profile.name);if(name===null)return;
+    return this.call('rename_time_program_profile',{profile_id:profile.id,name,expected_profile_revision:profile.revision});
+  }
+  async deleteProfile() {
+    const profile=this._profiles.find(p=>p.id===this._profileId);if(!profile || profile.read_only || !window.confirm(this.t('Delete this saved profile? The pump schedule is unchanged.')))return;
+    return this.call('delete_time_program_profile',{profile_id:profile.id,expected_profile_revision:profile.revision,confirm:true});
+  }
+  async validate() {
+    if(!this._draft)return;
+    return this.call('validate_time_program',{draft:clone(this._draft),policy:clone(this._policy),fresh_read:true,expected_mapping_revision:this._model?.mapping_revision||0,...this.revisionData()});
+  }
+  async acknowledge() {
+    const model=this._model;
+    if(this._dirty || !model?.warning_ids?.every(id=>this._warningChecks.has(id)))return;
+    return this.call('acknowledge_time_program_warnings',{draft_hash:this._validatedHash,warning_ids:[...this._warningChecks],...this.revisionData()});
+  }
+  requestSend() {
+    if(this._busy || this.missing().length || !this._model?.can_apply)return;
+    this._sendDialog=true;this.render();
+  }
+  async confirmSend(confirm) {
+    if(!this._sendDialog)return;this._sendDialog=false;
+    if(!confirm){this.render();return;}
+    if(this._busy || this.missing().length || !this._model?.can_apply)return;
+    return this.call(this._restoring?'restore_previous_time_program':'apply_time_program',{...(this._restoring?{}:{draft:clone(this._draft)}),draft_hash:this._validatedHash,confirm:true,...this.revisionData()});
+  }
+  paint() {
+    if(!this._local || !Number.isInteger(this._mode) || this._mode<0 || this._mode>=(this._model?.metadata?.nos||0))return;
+    if(this._local.paint(this._selection,this._mode))this.edit();
+  }
+  copyDay(targets) {
+    if(!this._local || !targets.length)return;
+    if(!window.confirm(`${this.t('Overwrite the local draft on these days?')}\n${targets.map(d=>this.days[d]).join(', ')}`))return;
+    if(this._local.copy(this._day,targets))this.edit();
+  }
+  selectRange(day,start,end,add=this._add) {
+    if(!Number.isInteger(start) || !Number.isInteger(end) || start<0 || end>96 || start>=end)return;
+    this._selection.range(day,start,end-1,add);this._selection.anchor={day,i:start};this.updateSelection();
+  }
+  key(day,i,event) {
+    let d=day,n=i;
+    if(event.key==='Escape'){event.preventDefault();this._selection.clear();this.updateSelection();return;}
+    if(event.key===' '){event.preventDefault();this._selection.choose(day,i,{ctrlKey:true});this.updateSelection();return;}
+    if(event.key==='ArrowLeft')n=Math.max(0,i-1);else if(event.key==='ArrowRight')n=Math.min(95,i+1);
+    else if(event.key==='ArrowUp')d=Math.max(0,day-1);else if(event.key==='ArrowDown')d=Math.min(6,day+1);else return;
+    event.preventDefault();
+    if(event.shiftKey){if(!this._selection.anchor)this._selection.anchor={day,i};this._selection.choose(d,n,event);this.updateSelection();}
+    this._focus={day:d,i:n};
+    const scope=event.currentTarget?.closest('.day-scroll') || this.shadowRoot;
+    scope.querySelector(`[data-cell="${d}:${n}"]`)?.focus();
+  }
+  pointerDown(day,i,event) {
+    if(event.button!==0 || event.pointerType==='touch')return;
+    this._gesture={day,start:i,end:i,add:event.ctrlKey||event.metaKey,shift:event.shiftKey,before:new Set(this._selection.cells),pointerId:event.pointerId};
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+  pointerMove(event) {
+    if(!this._gesture)return;
+    const row=event.currentTarget.closest('[data-row]');if(!row)return;
+    const rect=row.getBoundingClientRect();
+    const i=Math.max(0,Math.min(95,Math.floor((event.clientX-rect.left)/rect.width*96)));
+    this._gesture.end=i;
+    this._selection.cells=new Set(this._gesture.before);
+    this._selection.range(this._gesture.day,this._gesture.shift && this._selection.anchor?.day===this._gesture.day?this._selection.anchor.i:this._gesture.start,i,this._gesture.add);
+    this.updateSelection();
+  }
+  pointerEnd(cancel=false) {
+    const g=this._gesture;if(!g)return;
+    this._selection.cells=new Set(g.before);
+    if(!cancel) {
+      if(g.start===g.end)this._selection.choose(g.day,g.end,{shiftKey:g.shift,ctrlKey:g.add});
+      else {this._selection.range(g.day,g.shift && this._selection.anchor?.day===g.day?this._selection.anchor.i:g.start,g.end,g.add);if(!g.shift)this._selection.anchor={day:g.day,i:g.start};}
+      this._ignoreClick=true;
+    }
+    this._gesture=null;this.updateSelection();
+    if(this._deferredRender)Promise.resolve().then(()=>{if(!this._gesture){this._deferredRender=false;this.render();}});
+  }
+  clickCell(day,i,event) {
+    if(this._ignoreClick && event.detail!==0){this._ignoreClick=false;return;}
+    this._ignoreClick=false;this._day=day;this._focus={day,i};this._selection.choose(day,i,event);this.updateSelection();
+  }
+  selectionText(){return `${this.t('Selected cells')}: ${this._selection.cells.size} · `+this._selection.ranges().map(r=>`${this.days[r.day]} ${time(r.start)}–${time(r.end)}`).join(' · ');}
+  updateSelection() {
+    this.shadowRoot?.querySelectorAll('[data-cell]').forEach(e=>{const selected=this._selection.cells.has(e.dataset.cell);e.classList.toggle('selected',selected);e.setAttribute('aria-selected',String(selected));});
+    const text=this.shadowRoot?.getElementById?.('selection-status');if(text)text.textContent=this.selectionText();
+    const paint=this.shadowRoot?.getElementById?.('paint');if(paint)paint.disabled=!this._selection.cells.size || !!this._busy || !this._local;
+  }
+  grid(week,editable=false,detail=false) {
+    const n=this.now(),days=detail?[this._day]:[0,1,2,3,4,5,6];
+    const ruler=`<div class="ruler"><span class="day-label"></span><div>${Array.from({length:25},(_,h)=>`<span class="hour ${h%6?'minor':''}" style="left:${h/24*100}%">${h===24?'24':String(h).padStart(2,'0')}</span>`).join('')}</div></div>`;
+    return `<div class="${detail?'day-scroll':'week-grid'}" ${editable?'role="grid" aria-label="'+esc(this.t('Draft schedule'))+'"':''}>${ruler}${days.map(d=>{
+      const row=week[d],bars=toDraft([row]).entries[0];
+      return `<div class="week-row" role="row"><button class="day-label" data-day="${d}" title="${esc(this.days[d])}" ${this._busy?'disabled':''}>${esc(this.days[d].slice(0,3))}</button><div class="timeline" data-row="${d}">
+      ${bars.map(e=>`<span class="bar ${this.styleMode(e.state)}" style="left:${slot(e.start)/96*100}%;width:${(slot(e.end)-slot(e.start))/96*100}%" title="${esc(`${this.days[d]} ${e.start}–${e.end}: ${this.label(e.state)}`)}"></span>`).join('')}
+      ${editable?row.map((mode,i)=>`<button role="gridcell" tabindex="${(this._focus?.day??this._day)===d && (this._focus?.i??0)===i?'0':'-1'}" class="cell ${this._selection.cells.has(`${d}:${i}`)?'selected':''}" data-cell="${d}:${i}" aria-selected="${this._selection.cells.has(`${d}:${i}`)}" aria-label="${esc(`${this.days[d]} ${time(i)}–${time(i+1)} ${this.label(mode)}`)}" title="${esc(`${time(i)}–${time(i+1)} ${this.label(mode)}`)}" ${this._busy?'disabled':''}></button>`).join(''):''}
+      <div class="ticks"></div><span class="now" data-now="${d}" style="left:${n.percent}%" ${n.day!==d?'hidden':''} title="${esc(this.t('Current time; not compressor activity. Global mode and overrides can supersede the time program.'))}"></span></div></div>`;
+    }).join('')}</div>`;
+  }
+  diffHTML() {
+    const diff=this._model?.diff;if(!diff)return '';
+    return `<section class="diff"><h3>${esc(this.t('Changes compared with pump'))}</h3>${this._dirty?`<p>${esc(this.t('Previous comparison — validate again'))}</p>`:''}<p>${esc(this.t('Compared with pump read at'))} ${esc(this.stamp(diff.baseline_read_at||this._model.baseline_read_at))} · ${diff.changed_minutes} ${esc(this.t('minutes'))}</p>${diff.days.map(day=>`<details ${day.ranges.length?'open':''}><summary>${esc(this.days[day.day])}: ${day.changed_minutes} ${esc(this.t('minutes'))} · ${esc(this.t('Entries'))} ${day.old_entries??'?'} → ${day.new_entries??'?'} / ${day.capacity}</summary>${day.baseline_unknown?`<p>${esc(this.t('Baseline unavailable'))}</p>`:''}${day.ranges.length?`<ul>${day.ranges.map(r=>`<li>${esc(r.start)}–${esc(r.end)}: ${esc(this.label(r.from_state))} → ${esc(this.label(r.to_state))}</li>`).join('')}</ul>`:`<p>${esc(this.t('No changes'))}</p>`}</details>`).join('')}</section>`;
+  }
+  finding(f) {
+    const code=f.id.split(':')[0];
+    if(code==='complete_mapping')return this.t('Confirm all used mode mappings');
+    if(this._hass?.language?.startsWith('de')) {
+      if(f.message_de)return f.message_de;
+      if(code==='capacity') {const day=this._model?.diff?.days?.[f.day];return `${this.days[f.day]} benötigt ${day?.new_entries??'?'} Einträge; Regler unterstützt ${day?.capacity??7}. Einen Wechsel zusammenführen oder entfernen.`;}
+      return FINDINGS_DE[code]||f.message;
+    }
+    if(code==='profile_incompatible')return 'Profile metadata, controller/firmware or mapping differs. Review and explicitly update the profile, or load the current pump program.';
+    if(code==='normal_mapping_conflict')return this.t('Normal code conflicts with the semantic mapping');
+    return f.message;
+  }
+  findingList(findings) {
+    return (findings||[]).map(f=>`<li class="${esc(f.severity)}">${f.day!=null?'<b>'+esc(this.days[f.day])+': </b>':''}${esc(this.finding(f))}${f.severity==='warning'?`<label><input type="checkbox" data-warning="${esc(f.id)}" ${this._warningChecks.has(f.id)?'checked':''} ${this._dirty || this._busy?'disabled':''}>${esc(this.t('I have reviewed this warning'))}</label>`:''}<small>${esc(this._hass?.language?.startsWith('de')?(f.source_de||this.t(f.source)):f.source)}</small></li>`).join('');
   }
   render() {
-    if (!this.shadowRoot || !this.config) return;
-    const openDays = new Set(Array.from(this.shadowRoot.querySelectorAll('details[open]')).map(x => Number(x.dataset.day)));
-    const t = text => esc(this.t(text));
-    const model = this._model || {};
-    const canApply = !this._dirty && model.can_apply && this._validatedHash === model.draft_hash;
-    const busy = this._busy ? 'disabled' : '';
-    const names = this._hass?.language?.startsWith('de') ? ['Mo','Di','Mi','Do','Fr','Sa','So'] : ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-    const modeName = mode => this._policy.mapping_confirmed && mode === this._policy.normal_state ? 'Normal (user verified)' : 'Mode '+mode+' (label unverified)';
-    const timePicker = (entry, field, d, n) => '<select aria-label="'+names[d]+' '+field+'" data-day="'+d+'" data-row="'+n+'" data-field="'+field+'" '+busy+'>'+Array.from({length:field==='end'?97:96},(_,i)=>{const value=String(Math.floor(i/4)).padStart(2,'0')+':'+String(i%4*15).padStart(2,'0');return '<option '+(entry[field]===value?'selected':'')+'>'+value+'</option>';}).join('')+'</select>';
-    const missing = [this._dirty ? 'Check the current draft' : '', model.critical_count ? 'Fix critical findings' : '', !model.warnings_acknowledged ? 'Acknowledge all warnings' : '', !model.writes_enabled ? 'Enable Allow writes separately' : ''].filter(Boolean);
-    const rows = (this._draft?.entries || []).map((day, d) => `<details data-day="${d}" ${openDays.has(d)?'open':''}><summary><b>${names[d]}</b> <small>${esc(day.map(e => `${e.start}–${e.end} [${e.state}]`).join(' · '))}</small></summary><div>${day.map((entry, n) => `<div class="interval">
-      ${timePicker(entry,"start",d,n)}<span>-</span>${timePicker(entry,"end",d,n)}
-      <select aria-label="${names[d]} mode" data-day="${d}" data-row="${n}" data-field="state" ${busy}>${Array.from({length:model.metadata?.nos || 3}, (_, mode) => `<option value="${mode}" ${entry.state===mode?'selected':''}>${esc(modeName(mode))}</option>`).join('')}</select>
-      <button data-remove="${d}:${n}" title="${t('Remove')}" ${busy}>×</button></div>`).join('')}
-      <button data-copy="${d}" ${busy}>Copy day to all other days</button><button data-add="${d}" ${busy} ${day.length >= (model.metadata?.ead || 7) ? 'disabled' : ''}>+ ${t('Add interval')}</button></div></details>`).join('');
-    this.shadowRoot.innerHTML = `<style>
-      ha-card{padding:16px}h2{font-size:1.15em;margin:0 0 10px}p{font-size:.9em;color:var(--secondary-text-color)}
-      .controls{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}button,input,select{font:inherit;border:1px solid var(--divider-color);border-radius:6px;padding:7px;background:var(--card-background-color);color:var(--primary-text-color)}button{cursor:pointer}button:disabled{opacity:.45;cursor:default}input:not([type=checkbox]){width:5ch}input[type=number]{width:3ch}label{display:block;margin:8px 0;font-size:.9em}details{border-top:1px solid var(--divider-color);padding:8px 0}summary{cursor:pointer}summary small{display:inline}details[open] summary{margin-bottom:10px}.interval{display:flex;align-items:center;gap:4px;margin-bottom:4px;flex-wrap:wrap}.critical,.error{color:var(--error-color)}.warning{color:var(--warning-color)}.ready{color:var(--success-color)}li{margin:6px 0}small{display:block;color:var(--secondary-text-color)}
-    </style><ha-card><h2>${t('Schedule scratchpad')}</h2><p>${t('Draft only; no pump change until confirmed Save. Allow writes must be ON separately.')}</p>
-    <div class="controls"><select id="program" ${busy}><option value="2" ${this._policy.kind==='heating'?'selected':''}>${t('Heating')}</option><option value="0" ${this._policy.kind==='hot_water'?'selected':''}>${t('Hot water')}</option></select><button id="load" ${busy}>${t('Load from pump')}</button><button id="refresh" ${busy} ${!model.metadata?'disabled':''}>Refresh pump baseline, keep my draft</button><button id="previous" ${busy} ${!model.previous_program?'disabled':''}>Use previous program as draft</button></div>
-    <p>Normal code is a user attestation for advice only. It does not translate or protect the numeric modes written. Other mode labels remain unverified.</p>
-    <label>${t('Normal code')} <input id="normal" type="number" min="0" max="${(model.metadata?.nos || 3)-1}" value="${this._policy.normal_state}" ${busy}></label>
-    <label><input id="mapping" type="checkbox" ${this._policy.mapping_confirmed?'checked':''} ${busy}>${t('I verified this numeric Normal code on my controller')}</label>
-    <label><input id="floor" type="checkbox" ${this._policy.floor_heating?'checked':''} ${busy}>${t('Floor heating')}</label>
-    ${rows}<p id="draft-status">${this._dirty ? t('Unsaved local edits — check again') : esc(model.status)}</p>
-    <div class="controls"><button id="check" ${busy} ${!this._draft?'disabled':''}>${t('Check')}</button>
-    <button id="ack" ${busy} ${this._dirty || model.critical_count || !model.warning_ids?.length ? 'disabled':''}>${t('Acknowledge warnings')}</button>
-    <button id="save" ${busy} ${!canApply?'disabled':''}>${this._restoring?'Restore previous program':t('Save to heat pump')}</button></div>
-    ${!canApply ? `<small>${esc(missing.join('; ') || 'Check and acknowledge again')}</small>` : ''}
-    <p class="error">${esc(this._error)}</p><ul>${(model.findings || []).map(f => `<li class="${esc(f.severity)}"><b>${esc(f.severity.toUpperCase())}</b>${f.day!==null && f.day!==undefined ? ' '+names[f.day] : ''}: ${esc(f.message)}<small>${esc(f.source)}</small></li>`).join('')}</ul></ha-card>`;
-    const byId = id => this.shadowRoot.getElementById(id);
-    byId('program').onchange = event => {
-      if (this._draft && !window.confirm(this.t('Load discards this draft. Continue?'))) { this.render(); return; }
-      this._policy.kind = event.target.value==='0' ? 'hot_water' : 'heating';
-      this._policy.mapping_confirmed = false; this._draft = null; this.edit();
-    };
-    byId('normal').onchange = event => {this._policy.normal_state=Number(event.target.value);this._policy.mapping_confirmed=false;this.edit();};
-    byId('mapping').onchange = event => {this._policy.mapping_confirmed=event.target.checked;this.edit();};
-    byId('floor').onchange = event => {this._policy.floor_heating=event.target.checked;this.edit();};
-    byId('load').onclick = () => {
-      if (this._draft && !window.confirm(this.t('Load discards this draft. Continue?'))) return;
-      this.call('load_time_program_draft', {program_index:this._policy.kind==='hot_water'?0:2});
-    };
-    this.shadowRoot.querySelectorAll('[data-field]').forEach(input => { input.oninput = event => {
-      const x = event.target, day = this._draft.entries[Number(x.dataset.day)];
-      day[Number(x.dataset.row)][x.dataset.field] = x.dataset.field==='state' ? Number(x.value) : x.value;
-      // Invalidate immediately while typing, without replacing the focused input.
-      this._dirty = true; this._validatedHash = undefined;
-      byId('save').disabled = true; byId('ack').disabled = true;
-      byId('draft-status').textContent = this.t('Unsaved local edits — check again');
-      x.closest('details').querySelector('summary small').textContent = day.map(e => `${e.start}–${e.end} [${e.state}]`).join(' · ');
-    }; });
-    byId('refresh').onclick = () => this.call('refresh_time_program_baseline', {});
-    byId('previous').onclick = () => {
-      if (!window.confirm('Replace local edits with the previous program for review?')) return;
-      this._draft = {entries:clone(model.previous_program.entries).map(day=>day.filter(e=>e && !(e.start==='24:00' && e.end==='24:00')))};
-      this._restoring = true; this.edit();
-    };
-    this.shadowRoot.querySelectorAll('[data-copy]').forEach(button => {button.onclick = () => {
-      if (!window.confirm('Copy this day to all other days?')) return;
-      const day=clone(this._draft.entries[Number(button.dataset.copy)]);
-      this._draft.entries=this._draft.entries.map(()=>clone(day)); this.edit();
-    };});
-    this.shadowRoot.querySelectorAll('[data-remove]').forEach(button => { button.onclick = () => {const [d,n]=button.dataset.remove.split(':').map(Number);this._draft.entries[d].splice(n,1);this.edit();}; });
-    this.shadowRoot.querySelectorAll('[data-add]').forEach(button => { button.onclick = () => {
-      const day=this._draft.entries[Number(button.dataset.add)];
-      day.push({start:day.at(-1)?.end || '00:00', end:'24:00', state:this._policy.normal_state});this.edit();
-    }; });
-    byId('check').onclick = () => this.call('validate_time_program', {draft:clone(this._draft),policy:clone(this._policy)});
-    byId('ack').onclick = () => this.call('acknowledge_time_program_warnings', {draft_hash:model.draft_hash,warning_ids:model.warning_ids});
-    if (byId('save')) byId('save').onclick = () => {
-      if (window.confirm(this.t('Send the checked weekly schedule to the heat pump? Multiple writes can partially fail.'))) this.call(this._restoring?'restore_previous_time_program':'apply_time_program', {...(this._restoring?{}:{draft:clone(this._draft)}),draft_hash:model.draft_hash,confirm:true});
-    };
+    if(!this.shadowRoot || !this.config || !this.shadowRoot.getElementById)return;
+    const root=this.shadowRoot,active=root.activeElement,focusId=active?.id,focusCell=active?.dataset?.cell;
+    const scrolls=[...root.querySelectorAll('[data-scroll]')].map(e=>[e.dataset.scroll,e.scrollLeft,e.scrollTop]);
+    const opens=new Set([...root.querySelectorAll('details[id][open]')].map(e=>e.id));
+    const t=s=>esc(this.t(s)),m=this._model||{},busy=this._busy?'disabled':'',loaded=m.metadata?.index===this.index;
+    const metadata=loaded?m.metadata:null,nos=metadata?.nos||0,current=loaded && m.current_state==='read'?toCells(m.current_program,nos):toCells(null);
+    const draft=this._local?.week||toCells(this._draft,nos),unknown=draft.some(day=>day.includes(null));
+    const options=(end=false,value=0)=>Array.from({length:end?97:96},(_,i)=>`<option value="${i}" ${i===value?'selected':''}>${time(i)}</option>`).join('');
+    const mapping=this._mappingEdits||(m.mapping_valid?m.mode_mapping?.mapping:{});
+    const semanticChoices=this.index===2?['setback','normal','boost']:['minimum','charging'];
+    const chosen=this._profiles.find(p=>p.id===this._profileId);
+    root.innerHTML=`<style>
+      :host{display:block;color:var(--primary-text-color,#202937);font:14px/1.5 system-ui,sans-serif}*{box-sizing:border-box}ha-card{display:block;background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#dce1e7);border-radius:16px;padding:20px;overflow:hidden}h2{font-size:1.35rem;margin:0}h3{font-size:1rem;margin:8px 0}p{margin:8px 0}.muted,small{color:var(--secondary-text-color,#657080)}small{display:block}button,select,input{font:inherit;color:inherit;background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#b6c0cc);border-radius:7px;min-height:38px;padding:7px 10px;max-width:100%}button{cursor:pointer}button:disabled{opacity:.5;cursor:default}button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--primary-color,#007f91);outline-offset:2px}button.primary{background:var(--primary-color,#087f8c);color:white;border-color:transparent}.controls,.tabs,.legend{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}.tabs button[aria-selected=true]{border-color:var(--primary-color,#087f8c);box-shadow:inset 0 -3px var(--primary-color,#087f8c)}.tabs{justify-content:space-between}.status{font-size:.8rem;border:1px solid var(--divider-color,#dce1e7);padding:5px 9px;border-radius:20px}.controls label{display:flex;gap:6px;align-items:center}.controls select{max-width:280px}section{margin:18px 0}.schedule{padding:12px;border:1px solid var(--divider-color,#dce1e7);border-radius:10px}.week-row,.ruler{display:grid;grid-template-columns:42px minmax(0,1fr);align-items:center;margin:5px 0;gap:8px}.day-label{font-weight:600;font-size:.75rem;padding:0;border:0;background:transparent}.ruler{height:20px;margin-top:22px;font-size:.68rem;color:var(--secondary-text-color,#657080)}.ruler>div{position:relative;height:100%}.hour{position:absolute;transform:translateX(-50%)}.hour.minor:nth-child(even){visibility:hidden}.timeline{height:30px;position:relative;display:grid;grid-template-columns:repeat(96,minmax(0,1fr));border:1px solid var(--divider-color,#b6c0cc);border-radius:3px}.bar{position:absolute;top:0;bottom:0;pointer-events:none}.setback,.swatch.setback{background:#1689c6}.normal,.swatch.normal{background:#9465c9}.boost,.swatch.boost{background:#db4a46}.minimum,.swatch.minimum{background:#91999f}.charging,.swatch.charging{background:#37965c}.unknown,.swatch.unknown{background:repeating-linear-gradient(135deg,#858c9340 0 3px,#858c9380 3px 5px)}.cell{z-index:2;position:relative;min-width:0;min-height:0;width:100%;height:100%;padding:0;border:0;border-radius:0;background:transparent;touch-action:pan-y}.cell.selected{outline:2px solid var(--primary-text-color,#152331);outline-offset:-2px;background:repeating-linear-gradient(45deg,transparent 0 3px,#ffffff80 3px 5px);z-index:3}.cell:focus{outline:3px solid #ffce31;outline-offset:0;z-index:4}.ticks{position:absolute;inset:0;pointer-events:none;z-index:1;background-image:linear-gradient(to right,#20293655 1px,transparent 1px),linear-gradient(to right,#20293625 1px,transparent 1px);background-size:calc(100% / 24) 100%,calc(100% / 96) 100%}.now{position:absolute;top:-3px;bottom:-3px;width:3px;background:var(--primary-text-color,#111);box-shadow:0 0 0 1px var(--card-background-color,#fff);pointer-events:none;z-index:5}.legend{font-size:.8rem}.legend span{display:inline-flex;gap:5px;align-items:center}.swatch{display:inline-block;width:16px;height:13px;border-radius:2px;border:1px solid #20293660}.selection-status{font-size:.85rem;overflow-wrap:anywhere}details{border-top:1px solid var(--divider-color,#dce1e7);padding:10px 0}summary{cursor:pointer}ul{padding-left:20px}.critical,.error{color:var(--error-color,#ba2533)}.warning{border-left:3px solid #ce8b19;padding-left:9px}.findings li{margin:10px 0}.findings label{display:flex;align-items:center;gap:8px}input[type=checkbox]{min-height:24px;min-width:24px}.day-scroll{min-width:2200px}.day-scroll .timeline{height:44px}.scroll{overflow:auto}.toolbar{border-radius:9px;background:var(--secondary-background-color,#f2f5f7);padding:12px}.profile-name{overflow-wrap:anywhere}.send-review{position:fixed;inset:8vh max(16px,calc((100vw - 600px)/2));max-height:84vh;overflow:auto;z-index:9999;background:var(--card-background-color,#fff);color:inherit;border:2px solid var(--primary-color,#087f8c);border-radius:14px;padding:20px;box-shadow:0 0 0 100vmax #0008}.send-review dl{display:grid;grid-template-columns:1fr 2fr;gap:8px}.send-review dd{margin:0;overflow-wrap:anywhere}.diff{font-size:.9rem}.mapping-grid label{display:flex;justify-content:space-between;gap:8px;margin:7px 0}.actions{border-top:1px solid var(--divider-color,#dce1e7);padding-top:12px}.phone-hint{display:none}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow:auto;font-size:.75rem}
+      @media(max-width:600px){ha-card{padding:12px;border-radius:12px}h2{font-size:1.1rem}.minor{display:none!important}.week-row,.ruler{grid-template-columns:28px minmax(0,1fr);gap:4px}.schedule{padding:8px}.week-grid .cell{pointer-events:none;visibility:hidden}.week-grid .timeline{height:25px}.phone-hint{display:block}.controls label{flex-wrap:wrap}.controls select{max-width:100%}button,select,input{min-height:44px}.controls button{flex:1 1 auto}.day-label{min-height:30px}.send-review{inset:12px;max-height:calc(100vh - 24px)}.legend{gap:5px}.tabs .status{width:100%}.toolbar{padding:8px}.mapping-grid label{flex-wrap:wrap}}
+      @media(prefers-contrast:more){.bar{border:1px solid currentColor}.cell.selected{outline-width:3px}}
+    </style><ha-card><h2>${t('Schedule editor')}</h2><div class="tabs" role="tablist"><div>${['heating','hot_water'].map(c=>`<button role="tab" data-category="${c}" aria-selected="${c===this._category}" ${busy}>${t(c==='heating'?'Heating':'Hot water')}</button>`).join('')}</div><span class="status">${t('Allow writes')}: <b>${t(m.writes_enabled?'ON':'OFF')}</b></span></div>
+      <div class="controls"><button id="load" ${busy}>${t('Load from pump')}</button><button id="refresh" ${busy} ${!metadata?'disabled':''}>${t('Refresh baseline')}</button><button id="catalog" ${busy}>${t('Profiles')}</button></div>
+      <div class="controls"><select id="profiles" aria-label="${t('Profiles')}" ${busy}><option value="">${t('Profiles')}</option>${this._profiles.map(p=>`<option value="${esc(p.id)}" ${p.id===this._profileId?'selected':''}>${p.read_only?t(p.name):esc(p.name)} · ${p.read_only?t('Built-in, read-only'):`r${p.revision}`}</option>`).join('')}</select><button id="profile-load" ${busy} ${!chosen?'disabled':''}>${t('Use as starting point')}</button><button id="profile-apply" ${busy} ${!chosen?'disabled':''}>${t('Apply profile…')}</button><button id="rename" ${busy} ${!chosen || chosen.read_only?'disabled':''}>${t('Rename')}</button><button id="delete" ${busy} ${!chosen || chosen.read_only?'disabled':''}>${t('Delete')}</button></div>
+      ${chosen?.read_only || this._profile?.read_only?`<small>${t(this.index===2?'Factory default: Monday–Sunday 00:00–24:00 Normal. Unspecified heating periods remain Normal.':'Factory default: Monday–Sunday 00:00–24:00 On. Unspecified hot-water periods are Off (minimum maintenance at WW_min, +5 K).')} ${t('web control 321 manual, pp.10–11. Save as creates an editable copy.')}</small>`:''}
+      ${m.library_error?`<p class="error">${t('This library is damaged or has an unsupported version. Repair the HA Store from a backup; no approval was restored.')}</p>`:''}
+      <section class="schedule"><h3>${t('Current heat-pump schedule')}</h3><small class="profile-name">${esc(loaded && m.current_state==='read'?(m.current_profile_names?.join(', ')||this.t('Custom / no matching saved profile')):this.t('Current state unavailable'))}</small>${this.grid(current)}<small>${t('Last successful read')}: ${esc(this.stamp(loaded?m.baseline_read_at:null))} · ${esc(metadata?`#${metadata.index} ${metadata.name} · ead=${metadata.ead}, nos=${metadata.nos}, ste=${metadata.ste}, nod=${metadata.nod}`:this.t('Unknown'))}</small></section>
+      <section class="schedule"><h3>${t('Draft schedule')} <small class="profile-name">${esc(this.draftName())}</small></h3>${this.grid(draft,true)}<div class="legend">${Array.from({length:nos},(_,i)=>`<span><i class="swatch ${this.styleMode(i)}"></i>${esc(this.label(i))}</span>`).join('')}<span><i class="swatch unknown"></i>${t('Unknown')}</span></div><small>${t('Current time; not compressor activity. Global mode and overrides can supersede the time program.')}</small></section>
+      <div class="toolbar"><p id="selection-status" class="selection-status" aria-live="polite">${esc(this.selectionText())}</p><div class="controls"><select id="mode" aria-label="${t('Mode')}" ${busy}>${Array.from({length:nos},(_,i)=>`<option value="${i}" ${this._mode===i?'selected':''}>${esc(this.label(i))}</option>`).join('')}</select><button id="paint" ${busy} ${!this._selection.cells.size || !this._local?'disabled':''}>${t('Set mode for selection')}</button><button id="clear">${t('Clear selection')}</button><button id="undo" ${busy} ${!this._local?.undo.length?'disabled':''}>${t('Undo')}</button><button id="redo" ${busy} ${!this._local?.redo.length?'disabled':''}>${t('Redo')}</button></div>
+      <p class="phone-hint muted">${t('Selection alone makes no changes. Choose a mode, then Set mode.')}</p><div class="controls"><label>${t('Day')} <select id="day">${this.days.map((day,d)=>`<option value="${d}" ${d===this._day?'selected':''}>${esc(day)}</option>`).join('')}</select></label><label>${t('Start')} <select id="range-start">${options(false,this._rangeStart??24)}</select></label><label>${t('End')} <select id="range-end">${options(true,this._rangeEnd??32)}</select></label><label><input type="checkbox" id="add-selection" ${this._add?'checked':''}>${t('Add selection')}</label><button id="select-range">${t('Select range')}</button></div>
+      <details id="day-detail" ${opens.has('day-detail')?'open':''}><summary>${esc(this.days[this._day])} · 00:00–24:00</summary><div class="scroll" data-scroll="detail">${this.grid(draft,true,true)}</div><ul>${toDraft(draft).entries[this._day].map(e=>`<li>${esc(e.start)}–${esc(e.end)}: ${esc(this.label(e.state))}</li>`).join('')}</ul></details>
+      <div class="controls"><label>${t('Copy this day to…')} <select id="copy-target"><option value="all">${t('All days')}</option><option value="weekdays">${t('Weekdays')}</option><option value="weekend">${t('Weekend')}</option><option value="custom">${t('Selected days')}</option></select></label><button id="copy" data-copy="${this._day}" ${busy} ${!this._local?'disabled':''}>${t('Copy day')}</button></div><div id="copy-days" hidden>${this.days.map((day,d)=>`<label><input type="checkbox" data-copy-day="${d}">${esc(day)}</label>`).join('')}</div></div>
+      ${this._draft?`<small>${this._draft.entries.map((day,d)=>`${this.days[d].slice(0,3)}: ${day.length}/${Math.min(metadata?.ead||7,7)}`).join(' · ')} ${unknown?' · '+t('Resolve unknown cells explicitly before saving or sending.'):''}</small>`:''}
+      <details id="mapping-detail" ${opens.has('mapping-detail')?'open':''}><summary>${t(m.mapping_valid?'Confirm mode mapping':'Unverified mode mapping')}</summary><p>${t('Verify each numeric code on this controller before assigning a name. Labels never translate numeric payloads.')}</p><div class="mapping-grid">${Array.from({length:nos},(_,i)=>`<label>${t('Mode')} ${i}<select data-map="${i}" ${busy}><option value="">${t('Unverified')}</option>${semanticChoices.map(s=>`<option value="${s}" ${mapping?.[String(i)]===s?'selected':''}>${t(SEMANTIC_LABELS[s])}</option>`).join('')}</select></label>`).join('')}</div><button id="mapping-save" ${busy} ${!metadata?'disabled':''}>${t('Confirm mode mapping')}</button></details>
+      <div class="controls"><label>${t('Normal code')} <select id="normal" ${busy}>${Array.from({length:nos},(_,i)=>`<option value="${i}" ${i===this._policy.normal_state?'selected':''}>${i}</option>`).join('')}</select></label><label><input type="checkbox" id="normal-confirm" ${this._policy.mapping_confirmed?'checked':''} ${busy}>${t('I verified this numeric Normal code on my controller')}</label>${this.index===2?`<label><input type="checkbox" id="floor" ${this._policy.floor_heating?'checked':''} ${busy}>${t('Floor heating')}</label>`:''}</div>
+      <details id="advice" ${opens.has('advice')?'open':''}><summary>${t('Advice / Why')}</summary><p>${t('Click selects; Ctrl/Cmd toggles; Shift extends within one day. Drag selects only. Arrows move, Shift+arrows extend, Space toggles, Escape clears. On phones use the large range controls or scroll the focused day.')}</p><p>${t('Full 00:00–24:00 draft coverage is integration policy, stricter than manual fallback. DHW Minimum maintains the minimum target; it is not hard-Off. Heating Normal follows the existing curve, not continuous compressor operation.')}</p><p>${t('For slow floor heating, review comfort and recovery after setback. For a buffer-fed fresh-water station, plan charging before demand and verify plumbing separately. No temperature, curve, hysteresis or global mode is changed here.')}</p></details>
+      <div class="controls actions"><button class="primary" id="check" ${busy} ${!this._draft?'disabled':''}>${t('Validate')}</button><button id="save-profile" ${busy} ${!this._draft?'disabled':''}>${t('Save profile')} / ${t('Save as')}</button><button id="update-profile" ${busy} ${!this._profile || this._profile.read_only?'disabled':''}>${t('Update profile')}</button><button class="primary" id="save" ${busy} ${this.missing().length || !m.can_apply?'disabled':''}>${t('Send to heat pump')}</button></div>
+      <small id="gate-reasons">${esc(this.missing().join(' · '))}</small><p id="draft-status" aria-live="polite">${this._dirty?t('Needs validation / not sendable'):esc(m.status==='applied'?this.t('Sent to heat pump'):m.status==='warnings'?this.t('Acknowledge every warning'):m.status==='critical'?this.t('Fix critical findings'):this.t('Validate'))}</p><p class="error" role="alert">${esc(this._error)}</p><p role="status">${esc(this._notice)}</p>
+      <ul class="findings">${this.findingList((m.findings||[]).filter(f=>f.severity!=='info'))}</ul><button id="ack" ${busy} ${this._dirty || m.critical_count || !m.warning_ids?.length || !m.warning_ids?.every(id=>this._warningChecks.has(id))?'disabled':''}>${t('Acknowledge selected warnings')}</button><details id="info-findings" ${opens.has('info-findings')?'open':''}><summary>${t('Advice / Why')}</summary><ul>${this.findingList((m.findings||[]).filter(f=>f.severity==='info'))}</ul></details>
+      ${this.diffHTML()}<details id="recovery" ${opens.has('recovery')?'open':''}><summary>${t('Recovery evidence')}</summary><p class="error">${esc(m.apply_error||'')} ${esc(m.recovery_read_error||'')}</p><div class="controls"><button id="previous" ${busy} ${!m.previous_program?'disabled':''}>${t('Use previous program as draft')}</button><button id="restore" ${busy} ${!this._restoring || this.missing().length || !m.can_apply?'disabled':''}>${t('Restore previous program')}</button></div><pre>${esc(JSON.stringify({previous_program:m.previous_program,actual_program:m.actual_program,possible_partial_write:m.possible_partial_write,recovery_storage_error:m.recovery_storage_error},null,2))}</pre></details>
+      ${this._sendDialog?`<div class="send-review" role="dialog" aria-modal="true" aria-label="${t('Send schedule')}"><h3>${t(this._restoring?'Restore previous program':'Send schedule')}</h3><dl><dt>${t('Controller')}</dt><dd>${esc(m.controller?.serial||m.metadata?.name||this.config.config_entry_id)} ${esc(m.controller?.firmware||'')}</dd><dt>${t('Category')}</dt><dd>${t(this.index===2?'Heating':'Hot water')}</dd><dt>${t('Profile')}</dt><dd>${esc(this.draftName())}</dd><dt>${t('Changed days')}</dt><dd>${esc(m.diff?.days?.filter(d=>d.changed_cells).map(d=>this.days[d.day]).join(', ')||this.t('No changes'))}</dd><dt>${t('Numeric modes')}</dt><dd>${esc([...new Set(this._draft?.entries.flat().map(e=>e.state))].map(n=>this.label(n)).join(', '))}</dd><dt>${t('Compared with pump read at')}</dt><dd>${esc(this.stamp(m.baseline_read_at))}</dd></dl>${this.diffHTML()}<p>${t('Multiple slot writes can partially fail. No automatic retry or rollback.')}</p><div class="controls"><button id="send-cancel">${t('Cancel')}</button><button class="primary" id="send-confirm">${t('Send schedule')}</button></div></div>`:''}
+    </ha-card>`;
+    const by=id=>root.getElementById(id),bind=(id,event,fn)=>{const e=by(id);if(e)e[event]=fn;};
+    root.querySelectorAll('[data-category]').forEach(e=>e.onclick=()=>this.changeCategory(e.dataset.category));
+    bind('load','onclick',()=>this.loadPump());bind('refresh','onclick',()=>this.call('refresh_time_program_baseline',this.revisionData()));bind('catalog','onclick',()=>this.listProfiles());
+    bind('profiles','onchange',e=>{this._profileId=e.target.value;this.render();});bind('profile-load','onclick',()=>this.loadProfile());bind('profile-apply','onclick',()=>this.loadProfile(true));bind('rename','onclick',()=>this.renameProfile());bind('delete','onclick',()=>this.deleteProfile());
+    bind('save-profile','onclick',()=>this.saveProfile());bind('update-profile','onclick',()=>this.saveProfile(true));bind('check','onclick',()=>this.validate());bind('ack','onclick',()=>this.acknowledge());
+    bind('save','onclick',()=>this.requestSend());bind('restore','onclick',()=>this.requestSend());bind('send-cancel','onclick',()=>this.confirmSend(false));bind('send-confirm','onclick',()=>this.confirmSend(true));
+    bind('mode','onchange',e=>{this._mode=Number(e.target.value);});bind('paint','onclick',()=>this.paint());bind('clear','onclick',()=>{this._selection.clear();this.updateSelection();});
+    bind('undo','onclick',()=>{if(this._local?.history())this.edit();});bind('redo','onclick',()=>{if(this._local?.history(true))this.edit();});
+    bind('day','onchange',e=>{this._day=Number(e.target.value);this._focus={day:this._day,i:0};this.render();});
+    root.querySelectorAll('[data-day]').forEach(e=>e.onclick=()=>{this._day=Number(e.dataset.day);this.render();if(by('day-detail'))by('day-detail').open=true;});
+    bind('range-start','onchange',e=>{this._rangeStart=Number(e.target.value);});bind('range-end','onchange',e=>{this._rangeEnd=Number(e.target.value);});bind('add-selection','onchange',e=>{this._add=e.target.checked;});
+    bind('select-range','onclick',()=>this.selectRange(this._day,Number(by('range-start').value),Number(by('range-end').value)));
+    bind('copy-target','onchange',e=>{by('copy-days').hidden=e.target.value!=='custom';});
+    bind('copy','onclick',()=>{const target=by('copy-target').value;this.copyDay(target==='all'?[0,1,2,3,4,5,6]:target==='weekdays'?[0,1,2,3,4]:target==='weekend'?[5,6]:[...root.querySelectorAll('[data-copy-day]:checked')].map(e=>Number(e.dataset.copyDay)));});
+    bind('normal','onchange',e=>{this._policy.normal_state=Number(e.target.value);this._policy.mapping_confirmed=false;this.invalidate();});
+    bind('normal-confirm','onchange',e=>{this._policy.mapping_confirmed=e.target.checked;this.invalidate();});bind('floor','onchange',e=>{this._policy.floor_heating=e.target.checked;this.invalidate();});
+    root.querySelectorAll('[data-map]').forEach(e=>e.onchange=()=>{this._mappingEdits=Object.fromEntries([...root.querySelectorAll('[data-map]')].map(x=>[x.dataset.map,x.value||null]));this.invalidate(false);this.updateGates();});
+    bind('mapping-save','onclick',()=>{const map=Object.fromEntries([...root.querySelectorAll('[data-map]')].map(e=>[e.dataset.map,e.value||null]));if(window.confirm(this.t('Verify each numeric code on this controller before assigning a name. Labels never translate numeric payloads.')))this.call('set_time_program_mode_mapping',{program_index:this.index,mapping:map,expected_mapping_revision:m.mapping_revision||0,confirmed:true,...this.revisionData()});});
+    root.querySelectorAll('[data-warning]').forEach(e=>e.onchange=()=>{if(e.checked)this._warningChecks.add(e.dataset.warning);else this._warningChecks.delete(e.dataset.warning);by('ack').disabled=this._dirty || !!m.critical_count || !m.warning_ids?.every(id=>this._warningChecks.has(id));});
+    bind('previous','onclick',()=>{if(!this.discardOK())return;this.adoptDraft(m.previous_program);this._profile=null;this._restoring=true;this.render();});
+    root.querySelectorAll('[data-cell]').forEach(e=>{
+      const [d,i]=e.dataset.cell.split(':').map(Number);
+      e.onclick=event=>this.clickCell(d,i,event);e.onkeydown=event=>this.key(d,i,event);
+      e.onpointerdown=event=>this.pointerDown(d,i,event);e.onpointermove=event=>this.pointerMove(event);e.onpointerup=()=>this.pointerEnd();e.onpointercancel=()=>this.pointerEnd(true);
+      e.onfocus=()=>{this._focus={day:d,i};};
+    });
+    for(const [key,left,top] of scrolls){const e=root.querySelector(`[data-scroll="${key}"]`);if(e){e.scrollLeft=left;e.scrollTop=top;}}
+    if(focusId)by(focusId)?.focus();else if(focusCell)root.querySelector(`[data-cell="${focusCell}"]`)?.focus();
+    if(this._sendDialog) {
+      const dialog=root.querySelector('.send-review');by('send-cancel')?.focus();
+      if(dialog)dialog.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();this.confirmSend(false);}if(e.key==='Tab'){const buttons=[by('send-cancel'),by('send-confirm')];if(e.shiftKey && root.activeElement===buttons[0]){e.preventDefault();buttons[1].focus();}else if(!e.shiftKey && root.activeElement===buttons[1]){e.preventDefault();buttons[0].focus();}}};
+    }
   }
 }
-if (!customElements.get('htha-schedule-scratchpad-card')) customElements.define('htha-schedule-scratchpad-card', HthaScheduleScratchpadCard);
-window.customCards = window.customCards || [];
-window.customCards.push({type:'htha-schedule-scratchpad-card',name:'HTHA schedule scratchpad',description:'Checked, explicitly applied weekly drafts. No writes on edit.'});
+if(!customElements.get('htha-schedule-scratchpad-card'))customElements.define('htha-schedule-scratchpad-card',HthaScheduleScratchpadCard);
+window.customCards=window.customCards||[];
+if(!window.customCards.some(c=>c.type==='htha-schedule-scratchpad-card'))window.customCards.push({type:'htha-schedule-scratchpad-card',name:'HTHA schedule editor',description:'Local selection, persistent HA profiles and guarded weekly schedule review.'});
+// Pure logic is exposed for the Node built-in runner and offline fixture only.
+window.HthaScheduleEditor={Selection,LocalWeek,toCells,toDraft,time,slot,esc};

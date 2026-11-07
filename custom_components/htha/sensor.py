@@ -338,7 +338,9 @@ class HtHAScheduleValidationSensor(HtHAEntity, SensorEntity):
 
     _unrecorded_attributes = frozenset({"draft", "metadata", "policy", "findings", "canonical",
                                        "previous_program", "actual_program", "warning_ids",
-                                       "apply_error", "recovery_read_error", "recovery_storage_error", "disconnect_error"})
+                                       "apply_error", "recovery_read_error", "recovery_storage_error", "disconnect_error",
+                                       "current_program", "mode_catalog", "mode_mapping", "diff", "controller",
+                                       "current_profile_names", "profile_context", "missing_gates"})
 
     @property
     def native_value(self):

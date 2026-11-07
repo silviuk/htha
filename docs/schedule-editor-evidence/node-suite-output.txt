@@ -1,0 +1,44 @@
+✔ repeated setConfig creates one shadow root (3.1501ms)
+✔ session/revision reset consumes local validation {"session_id":"new","revision":0} (1.6701ms)
+✔ session/revision reset consumes local validation {"session_id":"old","revision":1} (0.9109ms)
+✔ render exposes required controls and named, unverified modes (23.0536ms)
+✔ 96 recurring cells round trip all-day and midnight endpoints (3.3208ms)
+✔ unknown native gaps, overlaps, bad codes and padding are visible (2.3589ms)
+✔ click, Ctrl/Cmd toggle, inclusive Shift and additive Shift stay row-local (2.2884ms)
+✔ selection and dropdown never edit, invalidate or call services; explicit Set does (14.2684ms)
+✔ pointer drag selects only, captures pointer and cancellation is safe (2.2858ms)
+✔ touch range/add controls preserve scroll and last endpoint is 24:00 (2.1946ms)
+✔ keyboard arrows, Shift, Space and Escape have independent selection semantics (1.8284ms)
+✔ copy/deep isolation/one-step undo 0,1,2,3,4,5,6 (2.3029ms)
+✔ copy/deep isolation/one-step undo 0,1,2,3,4 (2.147ms)
+✔ copy/deep isolation/one-step undo 5,6 (2.4267ms)
+✔ copy/deep isolation/one-step undo 1,3 (2.0107ms)
+✔ copy confirmation cancellation changes nothing (1.4747ms)
+✔ 8-run editing is retained, compression is numeric and does not smooth (2.1016ms)
+✔ dirty replacement cancel prevents category/profile/pump calls (1.7383ms)
+✔ profile Save/create and explicit overwrite use immutable local copy and revision (1.8127ms)
+✔ profile rename/delete use selected UUID and exact profile revision (1.6356ms)
+✔ Apply profile shortcut stops at fresh validation and never trusts saved approvals (2.254ms)
+✔ profile conflict preserves draft and invalidates local approval (1.6031ms)
+✔ validate shows findings AND server diff and uses baseline/mapping/session revisions (14.3486ms)
+✔ send review cancel and duplicate-send prevention yield zero/one apply calls (1.9721ms)
+✔ per-warning explicit acknowledgement required, never auto-acknowledged (1.7852ms)
+✔ every missing gate including writes OFF remains visible and send disabled (8.1856ms)
+✔ read failure and failed apply show unknown current, retain draft, never retry (1.9919ms)
+✔ hass updates preserve dirty draft, selection, focus and active gesture (1.6776ms)
+✔ idempotent config keeps local state and timer cleans up (1.6273ms)
+✔ localized safe rendering, semantic colors, phone/dark CSS en (8.437ms)
+✔ localized safe rendering, semantic colors, phone/dark CSS de (8.0201ms)
+✔ timestamps use HA time zone, not browser zone (2.145ms)
+✔ edited profile is labelled Unsaved draft and ordinary edits exit restore workflow (2.8217ms)
+✔ renaming another saved profile does not relabel active draft (4.6339ms)
+✔ changing policy invalidates the check, but numeric dropdown alone does not (12.6884ms)
+✔ stale comparison is explicitly labelled after editing (8.0099ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 237.5753

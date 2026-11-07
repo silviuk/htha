@@ -1,133 +1,496 @@
 load_time_program_draft:
-  name: Load pump schedule into draft
-  description: Read only. Replace the temporary draft with the controller week; clears
-    validation and acknowledgements.
+  name: "Load pump schedule into draft"
+  description: "Read only. Replace draft, clear approvals."
   fields:
     config_entry_id:
-      name: HTHA entry ID
-      description: Loaded HTHA integration config entry ID.
+      name: "HTHA entry ID"
+      description: "Loaded HTHA integration entry."
       required: true
       selector:
         config_entry:
           integration: htha
     program_index:
-      name: Program index
-      description: 0 = hot water; 2 = primary heating.
+      name: "Program index"
+      description: "0 = hot water; 2 = heating."
       required: true
       selector:
-        select:
-          options:
-            - label: Hot water
-              value: "0"
-            - label: Heating
-              value: "2"
+        number:
+          min: 0
+          max: 2147483647
+          mode: box
+    expected_draft_revision:
+      name: "Expected editor revision"
+      description: "Exact snapshot revision; stale tabs conflict. Optional for legacy services; required when loading profiles."
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 2147483647
+          mode: box
+    session_id:
+      name: "Editor session ID"
+      description: "Exact session_id from the latest editor snapshot."
+      required: false
+      selector:
+        text: {}
 validate_time_program:
-  name: Check schedule draft
-  description: Validate the full week and explicitly verified Normal code. No pump
-    writes.
+  name: "Validate schedule and compare"
+  description: "No writes. Canonicalize, check full week and mapping, return numeric diff; fresh_read reads baseline under the manager lock."
   fields:
     config_entry_id:
-      name: HTHA entry ID
-      description: Loaded HTHA integration config entry ID.
+      name: "HTHA entry ID"
+      description: "Loaded HTHA integration entry."
       required: true
       selector:
         config_entry:
           integration: htha
     draft:
-      name: Complete weekly draft
-      description: 'entries: seven arrays of start/end (HH:MM) and integer state;
-        explicitly cover 00:00–24:00.'
+      name: "Complete weekly draft"
+      description: "Seven arrays of ordered start/end HH:MM and integer state, covering 00:00–24:00. At most 96 runs/day; native capacity checked after merge."
       required: true
       selector:
         object: {}
     policy:
-      name: Check policy
-      description: 'kind: heating/hot_water; normal_state: verified code; mapping_confirmed:
-        true only after verification; floor_heating: true/false.'
+      name: "Validation policy"
+      description: "kind, normal_state, mapping_confirmed, floor_heating. Normal attestation remains required alongside complete semantic mapping."
       required: true
       selector:
         object: {}
+    fresh_read:
+      name: "Fresh baseline read"
+      description: "Read-only refresh under manager lock, retain submitted draft; failure revokes approval."
+      required: false
+      selector:
+        boolean: {}
+    expected_draft_revision:
+      name: "Expected editor revision"
+      description: "Exact snapshot revision; stale tabs conflict. Optional for legacy services; required when loading profiles."
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 2147483647
+          mode: box
+    session_id:
+      name: "Editor session ID"
+      description: "Exact session_id from the latest editor snapshot."
+      required: false
+      selector:
+        text: {}
+    expected_mapping_revision:
+      name: "Expected mapping revision"
+      description: "Exact mapping_revision; 0 before first mapping."
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 2147483647
+          mode: box
 acknowledge_time_program_warnings:
-  name: Acknowledge checked warnings
-  description: Acknowledge exactly the latest warning IDs bound to this draft hash.
-    Critical errors cannot be overridden.
+  name: "Acknowledge checked warnings"
+  description: "Review all warnings and acknowledge exactly their IDs bound to the checked hash."
   fields:
     config_entry_id:
-      name: HTHA entry ID
-      description: Loaded HTHA integration config entry ID.
+      name: "HTHA entry ID"
+      description: "Loaded HTHA integration entry."
       required: true
       selector:
         config_entry:
           integration: htha
     draft_hash:
-      name: Checked hash
-      description: Exact draft_hash returned by the latest validation.
+      name: "Checked hash"
+      description: "Exact draft_hash from the current check; binds payload, metadata, policy, mapping, baseline and session."
       required: true
       selector:
         text: {}
     warning_ids:
-      name: Warning IDs
-      description: Exactly all warning_ids from the latest check; read each before
-        acknowledging.
+      name: "Warning IDs"
+      description: "Exactly all warning_ids after individually reviewing every warning."
       required: true
       selector:
         object: {}
+    expected_draft_revision:
+      name: "Expected editor revision"
+      description: "Exact snapshot revision; stale tabs conflict. Optional for legacy services; required when loading profiles."
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 2147483647
+          mode: box
+    session_id:
+      name: "Editor session ID"
+      description: "Exact session_id from the latest editor snapshot."
+      required: false
+      selector:
+        text: {}
 apply_time_program:
-  name: Apply checked schedule
-  description: Admin only. Requires Allow writes ON, checked unchanged draft, all
-    warnings acknowledged and confirmation. Independent read-back; no automatic retry/rollback
-    on partial failure.
+  name: "Send checked schedule"
+  description: "Admin only. Requires Allow writes, valid check, all used mode mappings, exact acknowledgements and explicit confirmation. Durable recovery and independent read-back; no automatic retry/rollback."
   fields:
     config_entry_id:
-      name: HTHA entry ID
-      description: Loaded HTHA integration config entry ID.
+      name: "HTHA entry ID"
+      description: "Loaded HTHA integration entry."
       required: true
       selector:
         config_entry:
           integration: htha
     draft:
-      name: Complete weekly draft
-      description: 'entries: seven arrays of start/end (HH:MM) and integer state;
-        explicitly cover 00:00–24:00.'
+      name: "Complete weekly draft"
+      description: "Seven arrays of ordered start/end HH:MM and integer state, covering 00:00–24:00. At most 96 runs/day; native capacity checked after merge."
       required: true
       selector:
         object: {}
     draft_hash:
-      name: Checked hash
-      description: Exact draft_hash returned by the latest validation.
+      name: "Checked hash"
+      description: "Exact draft_hash from the current check; binds payload, metadata, policy, mapping, baseline and session."
       required: true
       selector:
         text: {}
     confirm:
-      name: Confirm physical change
-      description: Must be true. Apply and restore are the only scratchpad actions that write.
+      name: "Explicit confirmation"
+      description: "Must be true. Deleting profiles affects only the HA library. Apply/restore are the only schedule-write workflows."
       required: true
       selector:
         boolean: {}
-
+    expected_draft_revision:
+      name: "Expected editor revision"
+      description: "Exact snapshot revision; stale tabs conflict. Optional for legacy services; required when loading profiles."
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 2147483647
+          mode: box
+    session_id:
+      name: "Editor session ID"
+      description: "Exact session_id from the latest editor snapshot."
+      required: false
+      selector:
+        text: {}
 refresh_time_program_baseline:
-  name: Refresh pump baseline, keep my draft
-  description: Read only. Keeps edits; clears validation and acknowledgements.
+  name: "Refresh baseline, keep draft"
+  description: "Read only. Clear approval before fresh read, retain draft on failure."
   fields:
     config_entry_id:
+      name: "HTHA entry ID"
+      description: "Loaded HTHA integration entry."
       required: true
       selector:
         config_entry:
           integration: htha
+    expected_draft_revision:
+      name: "Expected editor revision"
+      description: "Exact snapshot revision; stale tabs conflict. Optional for legacy services; required when loading profiles."
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 2147483647
+          mode: box
+    session_id:
+      name: "Editor session ID"
+      description: "Exact session_id from the latest editor snapshot."
+      required: false
+      selector:
+        text: {}
 restore_previous_time_program:
-  name: Restore previous program
-  description: Check and acknowledge previous_program as the draft first. Requires Allow writes and confirmation.
+  name: "Restore previous program after review"
+  description: "Same guarded apply path. First check/acknowledge the exact previous program as the current draft."
   fields:
     config_entry_id:
+      name: "HTHA entry ID"
+      description: "Loaded HTHA integration entry."
       required: true
       selector:
         config_entry:
           integration: htha
     draft_hash:
+      name: "Checked hash"
+      description: "Exact draft_hash from the current check; binds payload, metadata, policy, mapping, baseline and session."
       required: true
       selector:
         text: {}
     confirm:
+      name: "Explicit confirmation"
+      description: "Must be true. Deleting profiles affects only the HA library. Apply/restore are the only schedule-write workflows."
       required: true
       selector:
         boolean: {}
+    expected_draft_revision:
+      name: "Expected editor revision"
+      description: "Exact snapshot revision; stale tabs conflict. Optional for legacy services; required when loading profiles."
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 2147483647
+          mode: box
+    session_id:
+      name: "Editor session ID"
+      description: "Exact session_id from the latest editor snapshot."
+      required: false
+      selector:
+        text: {}
+get_time_program_editor:
+  name: "Get editor snapshot"
+  description: "Read cached current/draft, catalog, gates and profile summaries; no pump read. Does not replace draft."
+  fields:
+    config_entry_id:
+      name: "HTHA entry ID"
+      description: "Loaded HTHA integration entry."
+      required: true
+      selector:
+        config_entry:
+          integration: htha
+    program_index:
+      name: "Program index"
+      description: "0 = hot water; 2 = heating."
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 2147483647
+          mode: box
+list_time_program_profiles:
+  name: "List schedule profiles"
+  description: "Category-filtered user profiles and a read-only Factory default (Heliotherm) preset, with library revision. No pump calls."
+  fields:
+    config_entry_id:
+      name: "HTHA entry ID"
+      description: "Loaded HTHA integration entry."
+      required: true
+      selector:
+        config_entry:
+          integration: htha
+    category:
+      name: "Category"
+      description: "heating or hot_water; separate profile catalogs."
+      required: true
+      selector:
+        select:
+          options: [heating, hot_water]
+save_time_program_profile:
+  name: "Save schedule profile in HA"
+  description: "Create or explicitly update by UUID/revision. Maximum 50 per category. Capacity/risk-invalid work may be saved; no approval is stored. Success only after durable Store save."
+  fields:
+    config_entry_id:
+      name: "HTHA entry ID"
+      description: "Loaded HTHA integration entry."
+      required: true
+      selector:
+        config_entry:
+          integration: htha
+    category:
+      name: "Category"
+      description: "heating or hot_water; separate profile catalogs."
+      required: true
+      selector:
+        select:
+          options: [heating, hot_water]
+    name:
+      name: "Profile name"
+      description: "Trimmed plain text, 1–80 characters. Names are unique case-insensitively per category."
+      required: true
+      selector:
+        text: {}
+    draft:
+      name: "Complete weekly draft"
+      description: "Seven arrays of ordered start/end HH:MM and integer state, covering 00:00–24:00. At most 96 runs/day; native capacity checked after merge."
+      required: true
+      selector:
+        object: {}
+    profile_id:
+      name: "Profile UUID"
+      description: "UUID of an existing profile in this entry. Omit only for Save as/create."
+      required: false
+      selector:
+        text: {}
+    expected_profile_revision:
+      name: "Expected profile revision"
+      description: "Exact revision for update/rename/delete; stale updates conflict."
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 2147483647
+          mode: box
+    description:
+      name: "Description"
+      description: "Optional plain text, at most 1000 characters."
+      required: false
+      selector:
+        text: {}
+    expected_draft_revision:
+      name: "Expected editor revision"
+      description: "Exact snapshot revision; stale tabs conflict. Optional for legacy services; required when loading profiles."
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 2147483647
+          mode: box
+    session_id:
+      name: "Editor session ID"
+      description: "Exact session_id from the latest editor snapshot."
+      required: false
+      selector:
+        text: {}
+rename_time_program_profile:
+  name: "Rename profile"
+  description: "Rename by UUID and exact profile revision; no pump calls."
+  fields:
+    config_entry_id:
+      name: "HTHA entry ID"
+      description: "Loaded HTHA integration entry."
+      required: true
+      selector:
+        config_entry:
+          integration: htha
+    profile_id:
+      name: "Profile UUID"
+      description: "UUID of an existing profile in this entry. Omit only for Save as/create."
+      required: true
+      selector:
+        text: {}
+    name:
+      name: "Profile name"
+      description: "Trimmed plain text, 1–80 characters. Names are unique case-insensitively per category."
+      required: true
+      selector:
+        text: {}
+    expected_profile_revision:
+      name: "Expected profile revision"
+      description: "Exact revision for update/rename/delete; stale updates conflict."
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 2147483647
+          mode: box
+delete_time_program_profile:
+  name: "Delete profile"
+  description: "Confirmed library deletion only; does not change the pump or active draft."
+  fields:
+    config_entry_id:
+      name: "HTHA entry ID"
+      description: "Loaded HTHA integration entry."
+      required: true
+      selector:
+        config_entry:
+          integration: htha
+    profile_id:
+      name: "Profile UUID"
+      description: "UUID of an existing profile in this entry. Omit only for Save as/create."
+      required: true
+      selector:
+        text: {}
+    expected_profile_revision:
+      name: "Expected profile revision"
+      description: "Exact revision for update/rename/delete; stale updates conflict."
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 2147483647
+          mode: box
+    confirm:
+      name: "Explicit confirmation"
+      description: "Must be true. Deleting profiles affects only the HA library. Apply/restore are the only schedule-write workflows."
+      required: true
+      selector:
+        boolean: {}
+load_time_program_profile:
+  name: "Use profile as draft"
+  description: "Copy user profile or read-only factory preset into draft and clear approvals. Factory presets require loaded metadata for the selected program and resolve only verified mode mappings. Apply profile shortcut must then fresh-validate, review diff/warnings and explicitly confirm through apply_time_program."
+  fields:
+    config_entry_id:
+      name: "HTHA entry ID"
+      description: "Loaded HTHA integration entry."
+      required: true
+      selector:
+        config_entry:
+          integration: htha
+    profile_id:
+      name: "Profile ID"
+      description: "User profile UUID or factory_default_heating / factory_default_hot_water. Factory presets require loaded metadata for the selected program."
+      required: true
+      selector:
+        text: {}
+    expected_draft_revision:
+      name: "Expected editor revision"
+      description: "Exact snapshot revision; stale tabs conflict. Optional for legacy services; required when loading profiles."
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 2147483647
+          mode: box
+    session_id:
+      name: "Editor session ID"
+      description: "Exact session_id from the latest editor snapshot."
+      required: true
+      selector:
+        text: {}
+    read_only:
+      name: "Allow read-only profile preview"
+      description: "Load without a compatible baseline for numeric editing only. Fresh validation still required."
+      required: false
+      selector:
+        boolean: {}
+set_time_program_mode_mapping:
+  name: "Confirm numeric mode mapping"
+  description: "Persist display mapping bound to program metadata, controller and firmware. Invalidates approval, never translates numeric codes or writes to pump."
+  fields:
+    config_entry_id:
+      name: "HTHA entry ID"
+      description: "Loaded HTHA integration entry."
+      required: true
+      selector:
+        config_entry:
+          integration: htha
+    program_index:
+      name: "Program index"
+      description: "0 = hot water; 2 = heating."
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 2147483647
+          mode: box
+    mapping:
+      name: "Numeric-to-semantic mapping"
+      description: "Exactly keys 0..nos-1. Heating: setback, normal, boost. DHW: minimum, charging. Null remains unverified. No guessed ordering or numeric translation."
+      required: true
+      selector:
+        object: {}
+    expected_mapping_revision:
+      name: "Expected mapping revision"
+      description: "Exact mapping_revision; 0 before first mapping."
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 2147483647
+          mode: box
+    confirmed:
+      name: "Confirm controller mapping"
+      description: "True only after explicitly verifying these codes on this controller and firmware."
+      required: true
+      selector:
+        boolean: {}
+    expected_draft_revision:
+      name: "Expected editor revision"
+      description: "Exact snapshot revision; stale tabs conflict. Optional for legacy services; required when loading profiles."
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 2147483647
+          mode: box
+    session_id:
+      name: "Editor session ID"
+      description: "Exact session_id from the latest editor snapshot."
+      required: false
+      selector:
+        text: {}
