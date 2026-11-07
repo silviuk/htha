@@ -10,7 +10,7 @@
  * matched by domain + translation_key), so it works with any entity_ids and
  * with several heat pumps. Only built-in Home Assistant cards are used.
  */
-const HTHA_VERSION = "1.0.15";
+const HTHA_VERSION = "1.0.16";
 
 const ROLES = {
   operating_state: "sensor.operating_state",
