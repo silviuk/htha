@@ -456,3 +456,15 @@ The author does not provide any guarantee or warranty concerning correctness, fu
 [releases-shield]: https://img.shields.io/github/release/silviuk/htha.svg?style=for-the-badge
 [releases]: https://github.com/silviuk/htha/releases
 [user_profile]: https://github.com/silviuk
+
+### Device details
+
+HTHA reads the manufacturer's serial number and firmware version once per integration
+load, during the first connected poll. These optional identity reads are cached;
+unsupported or failed identity commands do not prevent normal polling. Restarting or
+reloading the integration retries them. No heat-pump setting is changed by these reads.
+
+To show the product model in Home Assistant device details, open the integration's
+**Configure** options and enter **Heat pump model (optional)** from the nameplate.
+This is a display-only value, not automatic model detection. Leave it blank to keep
+**Heat Pump**. Saving options uses the integration's existing reload mechanism.

@@ -61,21 +61,26 @@ async def validate_connection(
         await heatpump.login_async()
 
         # Get serial number and version for device info
-        serial_number = await heatpump.get_serial_number_async()
-        version, _ = await heatpump.get_version_async()
+        info: dict[str, Any] = {}
+        try:
+            info["serial_number"] = await heatpump.get_serial_number_async()
+        except Exception as err:
+            _LOGGER.debug("Serial number unavailable during validation: %s", err)
+        try:
+            info["version"], _ = await heatpump.get_version_async()
+        except Exception as err:
+            _LOGGER.debug("Firmware unavailable during validation: %s", err)
 
-        await heatpump.logout_async()
-
-        return {
-            "serial_number": serial_number,
-            "version": version,
-        }
+        return info
     except Exception as ex:
         _LOGGER.error("Connection validation failed: %s", ex)
         raise
     finally:
         if heatpump.is_open:
-            await heatpump.logout_async()
+            try:
+                await heatpump.logout_async()
+            except Exception as err:
+                _LOGGER.debug("Could not close validation session: %s", err)
 
 
 class HtHAConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -112,7 +117,7 @@ class HtHAConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "cannot_connect"
             else:
                 # Check if already configured
-                await self.async_set_unique_id(str(self._device_info.get("serial_number", "")))
+                await self.async_set_unique_id(str(self._device_info.get("serial_number") or f"{self._host}:{self._port}"))
                 self._abort_if_unique_id_configured()
 
                 return await self.async_step_write_protection()
@@ -191,6 +196,8 @@ class HtHAOptionsFlow(config_entries.OptionsFlow):
             return self.async_create_entry(
                 title="",
                 data={
+                    **self._config_entry.options,
+                    "model": user_input.get("model", "").strip(),
                     CONF_SCAN_INTERVAL: user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
                     CONF_SELECTED_PARAMS: user_input.get(CONF_SELECTED_PARAMS, DEFAULT_PARAMS),
                 },
@@ -209,6 +216,7 @@ class HtHAOptionsFlow(config_entries.OptionsFlow):
             step_id="init",
             data_schema=vol.Schema(
                 {
+                    vol.Optional("model", default=self._config_entry.options.get("model", "")): str,
                     vol.Required(CONF_SCAN_INTERVAL, default=current_scan_interval): cv.positive_int,
                     vol.Optional(
                         CONF_SELECTED_PARAMS,
