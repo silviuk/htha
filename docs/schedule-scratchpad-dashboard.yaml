@@ -1,0 +1,7 @@
+# PREPARED ONLY: do not add to HA before installing the PR and verifying entity ID.
+# Add dashboard resource /htha_frontend/htha-schedule-scratchpad-card.js?v=2
+# Resource type: JavaScript Module. No browser_mod/third-party cards required.
+# One per-entry session: choose Heating or Hot water, Load, edit, Check, acknowledge.
+type: custom:htha-schedule-scratchpad-card
+entity: sensor.REPLACE_WITH_HTHA_SCHEDULE_VALIDATION_ENTITY
+config_entry_id: REPLACE_WITH_HTHA_CONFIG_ENTRY_ID

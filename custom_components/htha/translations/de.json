@@ -209,6 +209,19 @@
             },
             "heat_source_spread": {
                 "name": "Wärmequelle Spreizung (Eintritt − Austritt)"
+            },
+            "schedule_validation": {
+                "name": "Zeitprogramm-Entwurfsprüfung",
+                "state": {
+                    "unvalidated": "Nicht geprüft",
+                    "critical": "Kritische Fehler",
+                    "warnings": "Warnungen — Prüfung nötig",
+                    "ready": "Bereit",
+                    "applying": "Übertragung läuft",
+                    "applied": "Übertragen und geprüft",
+                    "failed": "Fehler — Regler prüfen",
+                    "stale": "Geändert — erneut prüfen"
+                }
             }
         },
         "binary_sensor": {
@@ -301,6 +314,120 @@
             "ht_datetime_sync": {
                 "name": "Uhrzeit der Wärmepumpe synchronisieren"
             }
+        }
+    },
+    "services": {
+        "load_time_program_draft": {
+            "name": "Zeitprogramm als Entwurf laden",
+            "description": "Nur lesen. Reglerwoche als temporären Entwurf laden; verwirft Prüfungen und Bestätigungen.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA-Konfigurationseintrag-ID",
+                    "description": "ID des geladenen HTHA-Konfigurationseintrags."
+                },
+                "program_index": {
+                    "name": "Programmindex",
+                    "description": "0 = Warmwasser; 2 = Hauptheizkreis."
+                }
+            }
+        },
+        "validate_time_program": {
+            "name": "Zeitprogramm-Entwurf prüfen",
+            "description": "Gesamte Woche und ausdrücklich geprüften Normal-Code prüfen. Keine Schreibbefehle an die Wärmepumpe.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA-Konfigurationseintrag-ID",
+                    "description": "ID des geladenen HTHA-Konfigurationseintrags."
+                },
+                "draft": {
+                    "name": "Vollständiger Wochenentwurf",
+                    "description": "entries: sieben Listen aus start/end (HH:MM) und ganzzahligem state; 00:00–24:00 explizit abdecken."
+                },
+                "policy": {
+                    "name": "Prüfregeln",
+                    "description": "kind: heating/hot_water; normal_state: user-attested advice mapping; mapping_confirmed: true after verification. The mapping does not translate or protect numeric codes written."
+                }
+            }
+        },
+        "acknowledge_time_program_warnings": {
+            "name": "Geprüfte Warnungen bestätigen",
+            "description": "Genau die letzten Warnungs-IDs für diesen Entwurfs-Hash bestätigen. Kritische Fehler sind nicht übersteuerbar.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA-Konfigurationseintrag-ID",
+                    "description": "ID des geladenen HTHA-Konfigurationseintrags."
+                },
+                "draft_hash": {
+                    "name": "Geprüfter Hash",
+                    "description": "Exakter draft_hash der letzten Prüfung."
+                },
+                "warning_ids": {
+                    "name": "Warnungs-IDs",
+                    "description": "Genau alle warning_ids der letzten Prüfung; vor dem Bestätigen jeden Hinweis lesen."
+                }
+            }
+        },
+        "apply_time_program": {
+            "name": "Geprüftes Zeitprogramm übertragen",
+            "description": "Nur Administratoren. Schreibzugriff EIN, unveränderter geprüfter Entwurf, bestätigte Warnungen und Freigabe nötig. Unabhängiges Rücklesen; kein automatischer Wiederholungsversuch/Rollback bei Teilfehlern.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA-Konfigurationseintrag-ID",
+                    "description": "ID des geladenen HTHA-Konfigurationseintrags."
+                },
+                "draft": {
+                    "name": "Vollständiger Wochenentwurf",
+                    "description": "entries: sieben Listen aus start/end (HH:MM) und ganzzahligem state; 00:00–24:00 explizit abdecken."
+                },
+                "draft_hash": {
+                    "name": "Geprüfter Hash",
+                    "description": "Exakter draft_hash der letzten Prüfung."
+                },
+                "confirm": {
+                    "name": "Reale Änderung bestätigen",
+                    "description": "Must be true. Apply and restore are the only scratchpad actions that write."
+                }
+            }
+        },
+        "refresh_time_program_baseline": {
+            "name": "Refresh pump baseline, keep my draft",
+            "description": "Read only. Keeps edits and invalidates validation and acknowledgements.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA entry",
+                    "description": "Loaded HTHA integration entry."
+                }
+            }
+        },
+        "restore_previous_time_program": {
+            "name": "Restore previous program",
+            "description": "Check and acknowledge previous_program as the draft first. Requires Allow writes and explicit confirmation.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "HTHA entry",
+                    "description": "Loaded HTHA integration entry."
+                },
+                "draft_hash": {
+                    "name": "Checked hash"
+                },
+                "confirm": {
+                    "name": "Confirm physical change"
+                }
+            }
+        }
+    },
+    "exceptions": {
+        "entry_not_loaded": {
+            "message": "HTHA-Eintrag ist nicht geladen."
+        },
+        "schedule_gate": {
+            "message": "Zeitprogramm gesperrt: {reason}"
+        }
+    },
+    "issues": {
+        "schedule_recovery": {
+            "title": "Zeitprogramm pr?fen",
+            "description": "Ein Schreibvorgang f?r {entry} wurde unterbrochen oder ist fehlgeschlagen. Aktuellen Stand laden (Entwurf behalten), vorheriges Programm pr?fen und bei Bedarf best?tigt wiederherstellen."
         }
     }
 }

@@ -1,0 +1,133 @@
+load_time_program_draft:
+  name: Load pump schedule into draft
+  description: Read only. Replace the temporary draft with the controller week; clears
+    validation and acknowledgements.
+  fields:
+    config_entry_id:
+      name: HTHA entry ID
+      description: Loaded HTHA integration config entry ID.
+      required: true
+      selector:
+        config_entry:
+          integration: htha
+    program_index:
+      name: Program index
+      description: 0 = hot water; 2 = primary heating.
+      required: true
+      selector:
+        select:
+          options:
+            - label: Hot water
+              value: "0"
+            - label: Heating
+              value: "2"
+validate_time_program:
+  name: Check schedule draft
+  description: Validate the full week and explicitly verified Normal code. No pump
+    writes.
+  fields:
+    config_entry_id:
+      name: HTHA entry ID
+      description: Loaded HTHA integration config entry ID.
+      required: true
+      selector:
+        config_entry:
+          integration: htha
+    draft:
+      name: Complete weekly draft
+      description: 'entries: seven arrays of start/end (HH:MM) and integer state;
+        explicitly cover 00:00–24:00.'
+      required: true
+      selector:
+        object: {}
+    policy:
+      name: Check policy
+      description: 'kind: heating/hot_water; normal_state: verified code; mapping_confirmed:
+        true only after verification; floor_heating: true/false.'
+      required: true
+      selector:
+        object: {}
+acknowledge_time_program_warnings:
+  name: Acknowledge checked warnings
+  description: Acknowledge exactly the latest warning IDs bound to this draft hash.
+    Critical errors cannot be overridden.
+  fields:
+    config_entry_id:
+      name: HTHA entry ID
+      description: Loaded HTHA integration config entry ID.
+      required: true
+      selector:
+        config_entry:
+          integration: htha
+    draft_hash:
+      name: Checked hash
+      description: Exact draft_hash returned by the latest validation.
+      required: true
+      selector:
+        text: {}
+    warning_ids:
+      name: Warning IDs
+      description: Exactly all warning_ids from the latest check; read each before
+        acknowledging.
+      required: true
+      selector:
+        object: {}
+apply_time_program:
+  name: Apply checked schedule
+  description: Admin only. Requires Allow writes ON, checked unchanged draft, all
+    warnings acknowledged and confirmation. Independent read-back; no automatic retry/rollback
+    on partial failure.
+  fields:
+    config_entry_id:
+      name: HTHA entry ID
+      description: Loaded HTHA integration config entry ID.
+      required: true
+      selector:
+        config_entry:
+          integration: htha
+    draft:
+      name: Complete weekly draft
+      description: 'entries: seven arrays of start/end (HH:MM) and integer state;
+        explicitly cover 00:00–24:00.'
+      required: true
+      selector:
+        object: {}
+    draft_hash:
+      name: Checked hash
+      description: Exact draft_hash returned by the latest validation.
+      required: true
+      selector:
+        text: {}
+    confirm:
+      name: Confirm physical change
+      description: Must be true. Apply and restore are the only scratchpad actions that write.
+      required: true
+      selector:
+        boolean: {}
+
+refresh_time_program_baseline:
+  name: Refresh pump baseline, keep my draft
+  description: Read only. Keeps edits; clears validation and acknowledgements.
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: htha
+restore_previous_time_program:
+  name: Restore previous program
+  description: Check and acknowledge previous_program as the draft first. Requires Allow writes and confirmation.
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: htha
+    draft_hash:
+      required: true
+      selector:
+        text: {}
+    confirm:
+      required: true
+      selector:
+        boolean: {}
