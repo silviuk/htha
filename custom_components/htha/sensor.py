@@ -349,4 +349,7 @@ class HtHAScheduleValidationSensor(HtHAEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         from .schedule_services import snapshot
-        return snapshot(self.coordinator.schedule_scratchpad)
+        return {
+            **snapshot(self.coordinator.schedule_scratchpad),
+            "config_entry_id": self._config_entry.entry_id,
+        }

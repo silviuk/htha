@@ -1,8 +1,11 @@
-# Schedule editor v2 (local, not deployed)
+# Schedule editor
 
 The card keeps `custom:htha-schedule-scratchpad-card`, `entity` and
-`config_entry_id`. Resource: `/htha_frontend/htha-schedule-scratchpad-card.js?v=4`
-(JavaScript Module). See [dashboard example](../dashboards/schedule-editor-v2.yaml).
+`config_entry_id`. The integration auto-loads the card and manages its storage-mode
+resource. The strategy shows it in the schedule section; `schedule_editor: false`
+selects the read-only view. For an explicit YAML resource, use
+`/htha_frontend/htha-schedule-scratchpad-card.js?v=1.3.0` (JavaScript Module).
+See [dashboard example](../dashboards/schedule-editor-v2.yaml).
 Existing binary schedule helpers remain separate.
 
 **Saved in HA** means a persistent profile. **Sent to heat pump** means a

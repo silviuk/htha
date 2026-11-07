@@ -1,72 +1,32 @@
-# Ht HA - Home Assistant Integration for Heliotherm heatpumps
+# Ht HA
 
-[![GitHub Release][releases-shield]][releases]
-[![GitHub Activity][commits-shield]][commits]
-[![License][license-shield]](LICENSE)
+Heliotherm heat pump monitoring, controls and weekly schedules in Home Assistant, over serial-to-TCP.
 
-[![hacs][hacs-shield]][hacs]
-[![Project Maintenance][maintenance-shield]][user_profile]
-[![BuyMeCoffee][buymecoffee-shield]][buymecoffee]
+[![Release](https://img.shields.io/github/v/release/silviuk/htha)](https://github.com/silviuk/htha/releases)
+[![Commits](https://img.shields.io/github/last-commit/silviuk/htha/master)](https://github.com/silviuk/htha/commits/master)
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5)](https://hacs.xyz/)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-A Home Assistant integration for Heliotherm heat pumps using the [htheatpump](https://github.com/silviuk/htheatpump) library over TCP socket connections.
+## Highlights
 
-## Project Structure
+- Temperatures, operating state, pumps, counters, setpoints and clock entities.
+- Ready-made dashboard that discovers your heat pump's entities automatically.
+- Heliotherm-style schedule editor with a week grid, validation, change comparison and saved profiles.
+- Writes disabled by default, with explicit confirmation and additional schedule send gates.
+- English and German labels; configurable polling and exposed parameters.
 
-```
-htha/
-|-- custom_components/
-|   |-- htha/                    # Home Assistant integration
-|       |-- __init__.py          # Integration setup and unload
-|       |-- binary_sensor.py     # Binary sensor entities (fault, pump status, etc.)
-|       |-- config_flow.py       # UI configuration flow
-|       |-- const.py             # Constants and parameter definitions
-|       |-- coordinator.py       # Data coordinator for polling
-|       |-- entity.py            # Base entity classes
-|       |-- frontend/            # Dashboard strategy (custom:htha-heatpump)
-|       |-- icons.json           # Entity icons
-|       |-- manifest.json        # Home Assistant manifest
-|       |-- number.py            # Number entities (setpoints)
-|       |-- select.py            # Select entities (operating mode)
-|       |-- sensor.py            # Sensor entities (temperatures, etc.)
-|       |-- switch.py            # Switch entities (write protection)
-|       |-- translations/        # Localization files
-|       |   |-- de.json          # German translations
-|       |   |-- en.json          # English translations
-|       |-- README.md            # Integration documentation
-|-- dashboards/                # Example dashboard YAML
-|-- plans/
-|   |-- home-assistant-integration-plan.md  # Development plan
-|-- test_htha_config_flow.py     # Config flow tests
-|-- test_htha_coordinator.py     # Coordinator tests
-|-- .gitignore
-|-- README.md                    # This file
-```
+## Screenshots
 
-## Features
+![Heat pump dashboard](docs/dashboard-cleanup-evidence/after/1100-en-light.png)
+![Weekly schedule editor](docs/schedule-editor-evidence/1100-en-light.png)
 
-- **Temperature Sensors**: Monitor outdoor, hot water, flow, return, and other temperatures
-- **Binary Sensors**: Track fault status, pump status, compressor status, and more
-- **Number Entities**: Control setpoints like room temperature and hot water temperature
-- **Select Entity**: Change operating mode (Heating, Cooling, Hot Water, Auto, etc.)
-- **Write Protection**: Safety switch to prevent accidental changes to heat pump settings
-- **Ready-made dashboard**: `custom:htha-heatpump` dashboard strategy, loaded automatically
-- **Configurable Parameters**: Choose which parameters to expose through the options flow
+Offline previews using synthetic data; these are not live controller screenshots.
 
-## Supported Heat Pumps
+## Supported hardware and connection
 
-This integration has been tested with:
+Tested with **Heliotherm HP07S08W-S-WEB**. Other Heliotherm and Brotje models with a compatible serial/TCP interface may work; compatibility depends on the controller.
 
-- Heliotherm HP07S08W-S-WEB
-
-Other Heliotherm and Brötje heat pumps with a serial or TCP interface should also work.
-
-## Prerequisites
-
-### Hardware Setup
-
-You need a serial-to-TCP converter (like [ser2net](https://github.com/cminyard/ser2net) or a hardware serial server) to connect your heat pump's serial port to your network.
-
-Example ser2net configuration:
+Connect the serial port through a serial-to-TCP adapter or [ser2net](https://github.com/cminyard/ser2net). Example:
 
 ```yaml
 connection: &htheatpump
@@ -76,282 +36,114 @@ connection: &htheatpump
     max-connections: 2
 ```
 
-### Software Requirements
-
-- Home Assistant >= 2024.1.0
-- htheatpump >= 1.3.4 (installed automatically)
+Use the serial settings required by your controller (typically 9600 baud, 8N1). The integration installs its pinned [htheatpump](https://github.com/silviuk/htheatpump) dependency automatically.
 
 ## Installation
 
-### HACS (Recommended)
+**HACS:** Open HACS -> Custom repositories, add `https://github.com/silviuk/htha` with category **Integration**, download **Ht HA**, then restart Home Assistant.
 
-#### Option 1: Default HACS Repository (If Published)
+**Manual:** Copy [`custom_components/htha`](custom_components/htha) into your Home Assistant `custom_components` directory, then restart.
 
-1. Open HACS in Home Assistant
-2. Go to "Integrations"
-3. Click the "+" button
-4. Search for "Ht HA"
-5. Click "Download"
-6. Restart Home Assistant
+## Setup
 
-#### Option 2: Add as Custom Repository
+Go to **Settings -> Devices & services -> Add integration -> Ht HA**. Enter:
 
-If the integration is not yet in the default HACS store, you can add it as a custom repository:
+| Field | Value |
+| --- | --- |
+| Host | Serial/TCP server hostname or IP address |
+| Port | Default `9999` |
+| Timeout | Default `10` seconds |
+| Scan interval | Default `30` seconds |
+| Enable writes | Optional second step; disabled by default |
 
-1. Open HACS in Home Assistant
-2. Go to **Integrations**
-3. Click the **three dots** menu (top right) and select **Custom repositories**
-4. In the **Repository** field, enter: `https://github.com/silviuk/htha`
-5. In the **Category** dropdown, select **Integration**
-6. Click **Add**
-7. Close the custom repositories dialog
-8. Click the **"+"** button to add a new integration
-9. Search for "Ht HA" (it should now appear in the list)
-10. Click **Download**
-11. Restart Home Assistant
-
-### Manual Installation
-
-1. Copy the `custom_components/htha` directory to your Home Assistant `custom_components` directory
-2. Restart Home Assistant
-
-## Configuration
-
-### Initial Setup
-
-1. Go to **Settings** > **Devices & Services**
-2. Click **Add Integration**
-3. Search for "Ht HA"
-4. Enter your connection details:
-   - **Host**: IP address or hostname of your TCP/serial server
-   - **Port**: TCP port (default: 9999)
-   - **Timeout**: Connection timeout in seconds (default: 10)
-   - **Scan Interval**: How often to poll for data (default: 30 seconds)
-5. Click **Submit**
-6. Choose whether to enable writes (allows changing heat pump settings)
-7. Click **Submit** to complete setup
-
-### Options Configuration
-
-After initial setup, you can configure:
-
-1. Go to **Settings** > **Devices & Services**
-2. Find your Ht HA integration
-3. Click **Configure**
-4. Select which parameters to expose as entities
-
-## Development
-
-### Setting Up a Development Environment
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/silviuk/htha.git
-   cd htha
-   ```
-
-2. Install development dependencies (if using Home Assistant development environment):
-   ```bash
-   pip install homeassistant
-   pip install pytest pytest-asyncio pytest-homeassistant-custom-component
-   ```
-
-### Running Tests
-
-The project includes tests for the config flow and coordinator:
-
-```bash
-# Run all tests
-pytest
-
-# Run specific test file
-pytest test_htha_config_flow.py
-
-# Run with verbose output
-pytest -v
-```
-
-### Test Files
-
-- [`test_htha_config_flow.py`](test_htha_config_flow.py) - Tests for the UI configuration flow
-- [`test_htha_coordinator.py`](test_htha_coordinator.py) - Tests for the data coordinator
-
-## Entities
-
-Entity names are translated (English and German) and follow Home Assistant's
-naming rules, so they read as *device name + entity name*, for example
-"Heliotherm Heat Pump Heating flow temperature".
-
-### Default entities
-
-| Type | Entities |
-|------|----------|
-| Sensors | Outdoor temperature, Outdoor temperature (damped), Hot water temperature, Heating flow temperature, Heating return temperature, Heat source inlet temperature, Heat source outlet temperature, Refrigerant suction gas temperature |
-| Derived sensors | Operating state (off / standby / heating / hot water / cooling / fault), Heating flow/return spread, Heat source inlet/outlet spread |
-| Statistics (diagnostic) | Compressor starts, Heating circuit pump runtime, Heat source pump runtime, Hot water mode runtime |
-| Binary sensors | Fault, Compressor, Hot water mode, Heating circuit pump, Heat source pump/fan, Hot water circulation pump; Main switch and Fresh water station flow switch (diagnostic) |
-| Numbers | Room temperature setpoint, Hot water setpoint (normal), Hot water setpoint (minimum), Heating curve return setpoint at upper heating limit / at 0 °C outdoor / at lower heating limit (configuration) |
-| Select | Operating mode |
-| Configuration | Allow writes to heat pump (switch), Heat pump clock (datetime), Sync heat pump clock (button) |
-
-Every number/select parameter also has a read-only sensor twin, e.g.
-"Room temperature setpoint (read-only)". These are diagnostic and disabled by
-default on new installs; enable them if you need long-term statistics of a
-setpoint.
-
-### Upgrading from 1.0.11 or older
-
-Version 1.0.12 only changes *display names*, icons, categories and units;
-`entity_id`s and `unique_id`s stay the same, so history and automations keep
-working. Entities you renamed yourself keep your name. Entity_ids that were
-generated from the old names (e.g. `sensor.heliotherm_heat_pump_temperature_2`)
-are not renamed automatically; you can rename them in the UI if you like. The
-three derived sensors are new entities.
-
-### Operating Modes
-
-The operating mode select entity supports the following options:
-
-| Mode | Description |
-|------|-------------|
-| Off | Heat pump is off |
-| Heating | Heating mode only |
-| Cooling | Cooling mode only |
-| Hot Water | Hot water mode only |
-| Heating + Cooling | Both heating and cooling |
-| Auto | Automatic mode selection |
-| Emergency | Emergency operation |
-| Standby | Standby mode |
+Under the integration's **Configure** options, choose exposed parameters, adjust the scan interval and optionally enter the model from the nameplate. Model is display-only. Serial number and firmware are read once per load and cached; unsupported identity reads do not stop polling. Saving options reloads the integration.
 
 ## Dashboard
 
-The integration ships a ready-made, modern heat pump dashboard that uses only
-built-in Home Assistant cards. There are two ways to use it:
+**Do I get the dashboard when I install htha? Yes:** the dashboard strategy and schedule editor card are bundled and loaded automatically. **Home Assistant does not create a dashboard by itself.** Add one using the configuration below.
 
-- **Explicit cards (most robust, recommended for your main dashboard).** Copy
-  [`dashboards/heliotherm_heatpump.yaml`](https://github.com/silviuk/htha/blob/master/dashboards/heliotherm_heatpump.yaml)
-  into a dashboard (Raw configuration editor). It does not depend on any
-  JavaScript, works in every browser and app version and is easy to tweak.
-  It uses the entity_ids of a default install; adjust them if yours differ.
-  You can also generate it from the strategy: add the strategy (below), then
-  use "Take control" in the dashboard editor to turn it into explicit cards.
-- **Strategy (most convenient).** The `custom:htha-heatpump` dashboard / view
-  / section strategy builds itself from your entities, so it works with any
-  entity_ids, languages and several heat pumps, and picks up improvements with
-  every integration update. Its module is loaded automatically: Ht HA serves
-  it, adds it to the frontend and (in storage mode) also adds it as a
-  dashboard resource (`/htha_frontend/htha-heatpump-strategy.js?v=<version>`,
-  type JavaScript module). The resource is removed again when the last Ht HA
-  entry is deleted, if Ht HA added it. With YAML mode resources, add it
-  yourself.
-
-<!-- Screenshot placeholder: add docs/dashboard.png here -->
-
-Sections: **overview** (state, compressor, outdoor temperature, fault alert, 24 h
-activity), **heating** (pump, flow/return/spread, target, 48 h graph),
-**hot_water** (mode, gauge, circulation pump, 72 h graph), **source** (source pump, heat source
-and refrigerant temperatures/pressures), **statistics** (compressor starts and
-runtimes per day), **controls** (operating mode, room/hot-water setpoints,
-heating curve and other settings; input controls appear only while *Allow writes*
-is on, with read-only values in the same place while it is off),
-**schedule** (time programs) and **diagnostics** (everything else).
-
-Each current value has one location; historical graphs retain trends and daily
-changes. Cards use the full section width for readable phone layouts, and
-Home Assistant collapses the sections into a single column on narrow screens.
-The schedule editor's help and recommendations open from a compact **?** button.
-Its verified firmware 2.03N mapping is heating 0 Setback, 1 Normal, 2 Boost;
-hot water 0 Off, 1 On. Optional mapping overrides remain available; no separate
-Normal-code checkbox is required. Validation, warning acknowledgement, Allow
-writes, explicit send confirmation and read-back still apply.
-
-Whole dashboard: Settings -> Dashboards -> Add dashboard -> New dashboard from
-scratch, open it, then three dots -> Edit -> three dots -> Raw configuration
-editor and paste:
+For a whole dashboard, go to **Settings -> Dashboards -> Add dashboard**, create a dashboard from scratch, then open **Edit -> Raw configuration editor** and paste:
 
 ```yaml
 strategy:
   type: custom:htha-heatpump
 ```
 
-A single view in an existing dashboard:
+For a single view, add this view configuration under an existing dashboard's `views:` list:
 
 ```yaml
-views:
-  - title: Heat pump
-    icon: mdi:heat-pump
-    strategy:
-      type: custom:htha-heatpump
-      # device_id: 0123abcd...           # optional: only this heat pump
-      # sections: [overview, heating, hot_water, controls]  # optional subset
+- strategy:
+    type: custom:htha-heatpump
 ```
 
-Single sections inside your own `type: sections` view:
+For a single section, add this under `sections:` in a `type: sections` view:
 
 ```yaml
-sections:
-  - strategy:
-      type: custom:htha-heatpump
-      section: overview   # overview | heating | hot_water | source |
-                          # statistics | controls | schedule | diagnostics
+- strategy:
+    type: custom:htha-heatpump
+    section: schedule
 ```
 
-**Time programs (schedule section).** By default the full week of every time
-program is shown. To make it collapsible, create a toggle helper (Settings ->
-Devices & services -> Helpers -> Toggle) with the entity_id
-`input_boolean.htha_show_time_programs`. The section then shows only today's
-programs, and the full week when you switch the toggle on (tap the heading or the
-"Show full week" tile). Options for the section, view or dashboard strategy:
+The strategy discovers entities by integration and translation key, so renamed entity IDs work. A whole dashboard creates one view per heat pump. Sections are `overview`, `heating`, `hot_water`, `source`, `statistics`, `controls`, `schedule` and `diagnostics`. Use `device_id` to select a pump, or `sections: [overview, heating, hot_water, controls, schedule]` to choose sections on a dashboard/view strategy.
+
+The **schedule** section shows the editor automatically when it can discover the schedule validation sensor and its config entry ID. Set `schedule_editor: false` in the strategy configuration to use the read-only time-program view. That view also serves as a fallback when editor discovery is incomplete. Its `time_programs` option accepts `full`, `summary` or `collapsible`; the last uses `input_boolean.htha_show_time_programs` by default when that helper exists, or a helper named by `time_programs_toggle`.
+
+Prefer explicit cards? Copy [`dashboards/heliotherm_heatpump.yaml`](dashboards/heliotherm_heatpump.yaml) into the raw editor and adjust entity IDs. This static dashboard uses built-in cards. You can also use **Take control** on a strategy dashboard to customize its generated cards.
+
+To add the editor independently, use [`dashboards/schedule-editor-v2.yaml`](dashboards/schedule-editor-v2.yaml), replacing the validation sensor and config entry ID:
 
 ```yaml
-strategy:
-  type: custom:htha-heatpump
-  time_programs: collapsible   # full | summary | collapsible (default: collapsible
-                               # when a toggle exists, otherwise full)
-  time_programs_toggle: input_boolean.my_toggle   # optional, another toggle helper
+type: custom:htha-schedule-scratchpad-card
+entity: sensor.heliotherm_schedule_validation
+config_entry_id: YOUR_HTHA_CONFIG_ENTRY_ID
 ```
 
-**Runtime and starts per day.** The heat pump's hour counters (compressor,
-heating pump, source pump and hot water operating hours) are only updated by the
-controller about once a day, shortly after midnight. A daily bar therefore shows
-the previous day's runtime, and the current day stays at 0 until then. If you
-rename these entities and later rename them back to old entity_ids, Home
-Assistant resumes the old statistics series and books the whole gap in one hour,
-so one day can show more than 24 h. Fix that bar with Developer tools ->
-Statistics -> "Adjust sum" for that hour. Don't delete the statistics.
+No manual resource is normally needed. Both scripts are served under `/htha_frontend/`, loaded through the frontend and registered as versioned JavaScript modules in storage-mode resources. Existing matching resources are updated; only resources created by htha are removed when its last entry is deleted. YAML resource lists are not edited; if explicit resources are needed, add these with `type: module`:
 
-**If a strategy section shows "Timeout waiting for strategy element
-ll-strategy-section-htha-heatpump to be registered":** update to 1.0.13 or
-newer, restart Home Assistant and reload the page. In the Companion app,
-pull down to refresh, or clear the app's frontend cache (Settings ->
-Companion app -> Troubleshooting). Older versions defined the strategy before the
-frontend's custom element registry was set up, which always fails with the
-legacy browser build (older Android WebViews) and sometimes on a cold cache.
-If you keep seeing it, use the explicit cards.
+```yaml
+- url: /htha_frontend/htha-heatpump-strategy.js?v=1.3.0
+  type: module
+- url: /htha_frontend/htha-schedule-scratchpad-card.js?v=1.3.0
+  type: module
+```
 
-To customise the cards, use "Take control" in the dashboard editor, or start
-from [`dashboards/heliotherm_heatpump.yaml`](https://github.com/silviuk/htha/blob/master/dashboards/heliotherm_heatpump.yaml)
-(the same layout as explicit cards for a default install).
+## Schedule editor
 
-## Write Protection
+Edit recurring quarter-hour cells in a weekly grid, select multiple cells, assign modes and copy days. Validate to see findings and a diff before sending. Save personal profiles or start from the read-only **Factory default (Heliotherm)** profiles for heating and hot water.
 
-For safety, the integration includes a write protection feature:
+Verified mapping for **firmware 2.03N**: heating **0 Setback / 1 Normal / 2 Boost**; hot water **0 Off / 1 On**. Other firmware or incompatible metadata requires a verified mapping override. Hot water Off retains the controller's minimum-temperature maintenance; Normal does not mean continuous compressor operation.
 
-- By default, writes are **disabled**
-- Enable writes by turning on the "Allow writes to heat pump" switch (switch it on again within 10 s to confirm)
-- When writes are disabled, number and select entities will show an error if you try to change them
+Sending requires Allow writes, fresh validation, verified modes, acknowledgement of warnings and explicit confirmation. Writes are read back for verification and can fail partially; there is no automatic retry or rollback. Firmware 2.03N schedule writes remain unverified on hardware. See [schedule editor details and recovery](docs/schedule-scratchpad.md).
+
+## Entities
+
+Names follow the device name and are translated into English and German.
+
+| Type | Examples |
+| --- | --- |
+| Sensors | Outdoor, hot water, flow/return, heat source and refrigerant temperatures; pressures |
+| Derived sensors | Operating state, heating spread, heat source spread |
+| Statistics | Compressor starts and runtimes for compressor, heating/source pumps and hot water |
+| Binary sensors | Fault, compressor, heating/source/circulation pumps, hot water mode |
+| Numbers | Room and hot water setpoints, heating curve and other selected settings |
+| Select | Operating mode |
+| Configuration | Allow writes switch, heat pump clock, Sync clock button |
+| Schedules | Time programs and schedule validation |
+
+Read-only sensor twins of number/select parameters are diagnostic and disabled by default on new installs. Enable them if you need long-term setpoint statistics. Existing entity IDs and custom names are retained across display-name updates.
+
+## Write protection
+
+Writes are disabled by default. Turn on **Allow writes to heat pump**, then turn it on again within 10 seconds to confirm. With writes off, settings remain visible but input controls are hidden and changes are rejected. Turn writes off when finished. The schedule editor displays this permission but cannot enable it; its separate validation and confirmation gates still apply.
 
 ## Troubleshooting
 
-### Connection Issues
+- **Cannot connect / unavailable entities:** Check the configured host/port, serial server, cable and serial settings, then inspect Home Assistant logs. Reload the integration after correcting the connection.
+- **Cannot change a setting:** Confirm Allow writes is on and the parameter is writable. For schedules, review every missing gate shown by the editor.
+- **Strategy registration timeout** (`ll-strategy-section-htha-heatpump`): Restart Home Assistant and reload the page. In the Companion app, refresh or clear the frontend cache under its troubleshooting settings. Check that the current versioned modules load; the static YAML dashboard is an alternative.
+- **Daily runtime bars:** Controller hour counters generally update shortly after midnight, so the current day can stay at zero. Reusing old entity IDs can resume an old statistics series and book a gap in one hour, producing a bar above 24 h. Correct that hour using **Developer tools -> Statistics -> Adjust sum** rather than deleting statistics.
 
-1. **Check network connectivity**: Ensure your Home Assistant instance can reach the TCP server
-2. **Verify port**: Make sure the port is correct and not blocked by a firewall
-3. **Check serial settings**: Ensure the serial port settings match your heat pump (typically 9600 baud, 8N1)
-
-### Debug Logging
-
-Enable debug logging for more details:
+For debug logs:
 
 ```yaml
 logger:
@@ -360,122 +152,25 @@ logger:
     htheatpump: debug
 ```
 
-### Common Issues
+## Development and tests
 
-**"Cannot connect" error during setup**:
-- Verify the host and port are correct
-- Check that the TCP server is running
-- Ensure the serial cable is properly connected
+Use a Python environment compatible with Home Assistant, the pinned integration dependency, `pytest`, `pytest-asyncio` and `pytest-homeassistant-custom-component`. Run from the repository root:
 
-**Entities show "unavailable"**:
-- Check the Home Assistant logs for errors
-- Verify the heat pump is powered on
-- Try restarting the integration
+```bash
+pytest
+node --test tests/
+```
 
-**Cannot change setpoints**:
-- Make sure write protection is disabled
-- Check that the parameter is writable (some are read-only)
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a pull request.
-
-### Code Style
-
-- Follow PEP 8 guidelines
-- Use type hints where appropriate
-- Add docstrings to functions and classes
-- Write tests for new functionality
-
-## Publishing to HACS
-
-To make this integration available through HACS, follow these steps:
-
-### Requirements
-
-1. **Repository Structure**: Ensure your repository follows the HACS format:
-   - Integration code must be in `custom_components/<domain>/` directory
-   - A valid [`manifest.json`](custom_components/htha/manifest.json) file is required
-   - A `README.md` file is required
-
-2. **Manifest Requirements**: The [`manifest.json`](custom_components/htha/manifest.json) must include:
-   - `domain`: The integration domain (e.g., "htha")
-   - `name`: Display name
-   - `documentation`: Link to documentation
-   - `issue_tracker`: Link to issue tracker
-   - `codeowners`: List of GitHub usernames
-   - `requirements`: Python dependencies
-
-### Submitting to HACS
-
-#### Option 1: Default HACS Repository (Recommended)
-
-1. Ensure your repository meets all [HACS requirements](https://hacs.xyz/docs/publish/start)
-2. Add your repository to the [HACS default repository list](https://hacs.xyz/docs/publish/include):
-   - Fork the [hacs/default repository](https://github.com/hacs/default)
-   - Add your repository URL to the `repositories` list
-   - Submit a pull request
-
-#### Option 2: Custom Repository (For Testing/Private Use)
-
-Users can add your repository as a custom repository:
-1. Repository URL: `https://github.com/silviuk/htha`
-2. Category: Integration
-
-### HACS Validation Checklist
-
-Before submitting, verify:
-
-- [ ] Repository has a valid `README.md`
-- [ ] [`manifest.json`](custom_components/htha/manifest.json) is valid JSON and contains required fields
-- [ ] Integration has a config flow (`"config_flow": true` in manifest)
-- [ ] All required files are present (`__init__.py`, `manifest.json`, etc.)
-- [ ] Version is properly set in manifest
-- [ ] Documentation link in manifest points to valid URL
-- [ ] Issue tracker link in manifest points to valid URL
-
-### Useful Links
-
-- [HACS Documentation](https://hacs.xyz/)
-- [Publishing to HACS](https://hacs.xyz/docs/publish/start)
-- [HACS Default Repository Requirements](https://hacs.xyz/docs/publish/include)
-- [Integration Quality Scale](https://developers.home-assistant.io/docs/integration_quality_scale_index/)
-
-## License
-
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+The Node suite uses built-in test tools and offline fixtures; Python integration tests use mocked transport. See [schedule verification details](docs/schedule-scratchpad.md#offline-verification) for optional local visual checks.
 
 ## Credits
 
-- Based on the [htheatpump](https://github.com/silviuk/htheatpump) library by Daniel Strigl
-- Inspired by the original [htheatpump Home Assistant integration](https://github.com/dstrigl/htheatpump)
+Based on [htheatpump](https://github.com/silviuk/htheatpump) by Daniel Strigl and inspired by the [original Home Assistant integration](https://github.com/dstrigl/htheatpump).
+
+## License
+
+[MIT](LICENSE), copyright 2026 Silviu Vlasceanu.
 
 ## Disclaimer
 
-**WARNING**: This integration allows you to control your heat pump. Incorrect settings could damage your heat pump or cause it to operate inefficiently. Use at your own risk!
-
-The author does not provide any guarantee or warranty concerning correctness, functionality, or performance and does not accept any liability for damage caused by this integration.
-
-[buymecoffee-shield]: https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png
-[buymecoffee]: https://www.buymeacoffee.com/silviuk
-[commits-shield]: https://img.shields.io/github/commit-activity/y/silviuk/htha.svg?style=for-the-badge
-[commits]: https://github.com/silviuk/htha/commits/main
-[hacs-shield]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge
-[hacs]: https://hacs.xyz/
-[license-shield]: https://img.shields.io/github/license/silviuk/htha.svg?style=for-the-badge
-[maintenance-shield]: https://img.shields.io/badge/maintainer-%40silviuk-blue.svg?style=for-the-badge
-[releases-shield]: https://img.shields.io/github/release/silviuk/htha.svg?style=for-the-badge
-[releases]: https://github.com/silviuk/htha/releases
-[user_profile]: https://github.com/silviuk
-
-### Device details
-
-HTHA reads the manufacturer's serial number and firmware version once per integration
-load, during the first connected poll. These optional identity reads are cached;
-unsupported or failed identity commands do not prevent normal polling. Restarting or
-reloading the integration retries them. No heat-pump setting is changed by these reads.
-
-To show the product model in Home Assistant device details, open the integration's
-**Configure** options and enter **Heat pump model (optional)** from the nameplate.
-This is a display-only value, not automatic model detection. Leave it blank to keep
-**Heat Pump**. Saving options uses the integration's existing reload mechanism.
+Incorrect settings can damage equipment or reduce efficiency. Use at your own risk; the software is provided without warranty. Review changes against your controller's documentation before sending them.
