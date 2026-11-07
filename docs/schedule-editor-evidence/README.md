@@ -1,3 +1,6 @@
+> Historical acceptance record. Firmware 2.03N mapping and UI requirements are
+> superseded by [dashboard cleanup evidence](../dashboard-cleanup-evidence/README.md).
+
 # Schedule editor v2 — local acceptance record
 
 Run: 7 November 2026, branch `feat/schedule-editor-v2`, Node v24.20.0.

@@ -88,13 +88,15 @@ descriptions do not relax validation or change targets/hysteresis.
 
 Load metadata for the selected program first. **Use as starting point** copies
 the preset without any hardware calls. Normal resolves through the verified
-`normal` mapping; On through `charging`. No numeric order is assumed. If that
-mode is unverified, cells remain unknown and validation reports the critical
-`factory_mapping` finding. Confirm the mapping, then explicitly reload the
-preset; mapping changes never silently rewrite an existing numeric draft.
+`normal` mapping; On through `charging`. Firmware 2.03N has a built-in verified
+mapping: heating 0 = Setback, 1 = Normal, 2 = Boost; hot water 0 = Off, 1 = On.
+Both factory presets therefore resolve to code 1 without a checkbox or manual
+mapping step. An optional partial override can leave a mode unverified; in that
+case validation still blocks sending. Reload the preset after changing an
+override; mapping changes never silently rewrite an existing numeric draft.
 Changed metadata/controller/firmware or mapping requires another review/load.
 
-**Apply profile…** uses the same fresh validation/diff, Normal-code attestation,
+**Apply profile…** uses the same fresh validation/diff,
 warning acknowledgements, confirmation and guarded apply as user profiles.
 It stops for review and cannot send an unresolved preset. All existing server
 write gates remain required, including Allow writes.
@@ -112,18 +114,29 @@ Preset regression tests are in `tests/test_schedule_factory.py`,
 See the [preset acceptance record](schedule-editor-evidence/factory-preset/README.md)
 for executed checks and offline desktop/phone evidence.
 
-No authoritative numeric ordering was established for firmware 2.03N. The native
-v1.3.5 interface reports counts, not label enums. Unknown numeric codes display
+The owner verified the numeric ordering for HP07S08W-S-WEB firmware 2.03N:
+unused slots are padded with the program default state, the manual defines
+undefined heating time as Normal and undefined hot water as Off, and the pump
+pads heating with 1 and hot water with 0. Heating reports three states
+(Aufheizen/Normal/Absenken) and uses 0 for the daily 09:00–18:30 setback.
+This supplied verification requires no live access. The built-in mapping applies
+when firmware is exactly `2.03N` and the program reports three heating states or
+two hot-water states. Other firmware/counts still require an explicit override.
+The native v1.3.5 interface reports counts, not label enums. Unknown numeric codes display
 **Mode N (unverified)** / **Modus N (nicht bestätigt)** with neutral hatching.
 The mapping offers family-level manufacturer vocabulary:
 
 | Program | Semantic choices | Confirmed colors |
 | --- | --- | --- |
 | Heating 2 | Setback / Absenken; Normal / Normalbetrieb; Boost / Aufheizen | Blue; purple; red |
-| Hot water 0 | Minimum maintenance / Mindesttemperatur halten; Normal charging / Normal laden | Grey; green |
+| Hot water 0 | 0 Off / Aus; 1 On / Ein | Grey; green |
 
 Exactly the numeric choices in live `nos` are offered. Partial mappings can be
-saved, but all used modes must be confirmed before send. Mappings bind exact
+saved as optional overrides, but all used modes must be confirmed before send.
+The editor derives the Normal/On code from the active mapping; no separate
+Normal-code checkbox is needed. Stored overrides take precedence over the
+built-in default. Internal DHW semantics `minimum` and `charging` remain stable
+for existing profiles and represent Off and On respectively. Mappings bind exact
 program metadata and serial/firmware where known; incompatible changes require
 reconfirmation. Mapping revision enters check identity and profile compatibility.
 Mappings persist; approvals do not.
@@ -133,7 +146,8 @@ exists here. Heating Boost is not global Dauerbetrieb. Normal follows the
 existing curve, not continuous compressor operation. No temperatures, offsets,
 curves, hysteresis or global modes are written.
 
-Longer advice is behind **Advice / Why**: slow floor-heating comfort/recovery,
+Longer help and recommendations are hidden behind the small **?** control:
+slow floor-heating comfort/recovery,
 short Normal windows (<30 minutes), more than two daily Normal windows and
 non-atomic writes retain their advisory role. These are not compressor starts
 or manufacturer minimum on/off limits. Adjacent Normal intervals/midnight halves

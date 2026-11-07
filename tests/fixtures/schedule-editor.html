@@ -22,7 +22,8 @@ window.renderFixture=({language='en',theme='light',category='heating',factory=fa
   mode_catalog:semantics.map((semantic,state)=>({state,semantic,confirmed:true})),mapping_revision:1,mapping_valid:true,
   mode_mapping:{revision:1,mapping:Object.fromEntries(semantics.map((s,i)=>[String(i),s]))},draft:edited,
   writes_enabled:false,can_apply:false,status:'warnings',draft_hash:'offline-hash',warning_ids:['non_atomic:1'],warnings_acknowledged:false,missing_gates:['writes_off','warnings_required'],
-  findings:[{id:'non_atomic:1',severity:'warning',day:null,message:'Multiple slot writes can partially fail. No automatic retry or rollback.',source:'Native protocol'}],
+  findings:[{id:'non_atomic:1',severity:'warning',day:null,message:'Multiple slot writes can partially fail. No automatic retry or rollback.',source:'Native protocol'},
+   {id:'fixture-info',severity:'info',day:null,message:'OFFLINE INFO: synthetic recommendation behind the help control.',source:'Offline fixture'}],
   diff:{changed_minutes:hot?7140:3480,days:edited.entries.map((row,day)=>{
     const ranges=row.filter(e=>e.state!==1).map(e=>({...e,from_state:1,to_state:e.state}));
     const minutes=ranges.reduce((n,r)=>n+(Number(r.end.slice(0,2))*60+Number(r.end.slice(3)))-(Number(r.start.slice(0,2))*60+Number(r.start.slice(3))),0);

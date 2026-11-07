@@ -247,12 +247,23 @@ built-in Home Assistant cards. There are two ways to use it:
 
 <!-- Screenshot placeholder: add docs/dashboard.png here -->
 
-Sections: **overview** (state, mode, compressor, pumps, fault alert, 24 h
-activity), **heating** (flow/return/spread, room setpoint, 48 h graph, heating
-curve), **hot_water** (gauge, setpoints, 72 h graph), **source** (heat source
+Sections: **overview** (state, compressor, outdoor temperature, fault alert, 24 h
+activity), **heating** (pump, flow/return/spread, target, 48 h graph),
+**hot_water** (mode, gauge, circulation pump, 72 h graph), **source** (source pump, heat source
 and refrigerant temperatures/pressures), **statistics** (compressor starts and
-runtimes per day), **controls** (only shown while *Allow writes* is on),
+runtimes per day), **controls** (operating mode, room/hot-water setpoints,
+heating curve and other settings; input controls appear only while *Allow writes*
+is on, with read-only values in the same place while it is off),
 **schedule** (time programs) and **diagnostics** (everything else).
+
+Each current value has one location; historical graphs retain trends and daily
+changes. Cards use the full section width for readable phone layouts, and
+Home Assistant collapses the sections into a single column on narrow screens.
+The schedule editor's help and recommendations open from a compact **?** button.
+Its verified firmware 2.03N mapping is heating 0 Setback, 1 Normal, 2 Boost;
+hot water 0 Off, 1 On. Optional mapping overrides remain available; no separate
+Normal-code checkbox is required. Validation, warning acknowledgement, Allow
+writes, explicit send confirmation and read-back still apply.
 
 Whole dashboard: Settings -> Dashboards -> Add dashboard -> New dashboard from
 scratch, open it, then three dots -> Edit -> three dots -> Raw configuration

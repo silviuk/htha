@@ -9,6 +9,7 @@ from test_schedule_safety import Coordinator, JsonProgram, safety
 
 async def factory_editor(index, mapping=None, enabled=False):
     c = Coordinator()
+    c.sw_version = '2.03N'
     c.program.update(index=index, name='Heating' if index == 2 else 'Hot water', nos=3 if index == 2 else 2)
     lib = safety.ProfileLibrary(AsyncMock())
     m = safety.Scratchpad(c, lambda: enabled, JsonProgram, library=lib)
@@ -51,7 +52,6 @@ async def test_factory_all_week_resolves_semantic_not_assumed_code(index, mappin
 
 
 @pytest.mark.parametrize('index,mapping', [
-    (2, None), (0, None),
     (2, {'0':'boost', '1':None, '2':'setback'}),
     (0, {'0':'minimum', '1':None}),
 ])
@@ -75,7 +75,7 @@ async def test_factory_mapping_confirmation_requires_explicit_reload_no_translat
     m, c = await factory_editor(2)
     p = load_factory(m)
     await m.set_mapping({'0':'normal', '1':'setback', '2':'boost'}, 0, True)
-    assert m.draft == p['draft']  # no silent replacement of unknown cells
+    assert m.draft == p['draft']  # no silent replacement of existing numeric cells
     report = await m.check(m.draft, dict(kind='heating', normal_state=0, mapping_confirmed=True))
     assert any(f['id'] == 'factory_mapping' for f in report['findings'])
     reloaded = load_factory(m)
@@ -147,3 +147,51 @@ async def test_factory_still_requires_ack_confirmation_and_allow_writes():
     await m.apply(m.draft, report['draft_hash'], True)
     assert len(c.writes) == 1 and m.report['status'] == 'applied'
     assert all(day[0]['state'] == 2 and len(day) == 7 for day in c.writes[0]['entries'])
+
+
+@pytest.mark.parametrize('index', [2, 0])
+async def test_verified_203n_default_needs_no_mapping_or_normal_attestation(index):
+    m, c = await factory_editor(index, enabled=True)
+    assert m.mapping_valid and m.mapping['revision'] == 0
+    assert m.mapping['mapping'] == safety.VERIFIED_MODES[index]
+    assert all(mode['confirmed'] for mode in m.catalog)
+    p = load_factory(m)
+    assert all(day[0]['state'] == 1 for day in p['draft']['entries'])
+    report = await m.check(p['draft'], dict(kind=p['category']), fresh=True)
+    assert report['critical_count'] == 0
+    assert not any(f['id'].split(':')[0] in ('mode_mapping', 'factory_mapping', 'complete_mapping')
+                   for f in report['findings'])
+    assert not m.can_apply  # warnings still require acknowledgement
+    with pytest.raises(ValueError):
+        await m.apply(m.draft, report['draft_hash'], True)
+    await m.acknowledge(report['draft_hash'], report['warning_ids'])
+    assert m.can_apply
+    with pytest.raises(ValueError):
+        await m.apply(m.draft, report['draft_hash'], False)
+    m.allow_writes = lambda: False
+    assert not m.can_apply
+    assert not c.writes
+    m.allow_writes = lambda: True
+    await m.apply(m.draft, report['draft_hash'], True)
+    assert len(c.writes) == 1 and m.report['status'] == 'applied'
+
+
+@pytest.mark.parametrize('firmware,nos', [('unknown', 3), ('2.03N', 2)])
+async def test_verified_default_is_scoped_to_firmware_and_state_count(firmware, nos):
+    m, c = await factory_editor(2)
+    c.sw_version = firmware
+    m.metadata['nos'] = nos
+    assert not m.mapping_valid
+    assert all(not mode['confirmed'] for mode in m.catalog)
+    assert not c.writes
+
+
+async def test_default_mapping_binding_change_revokes_existing_check():
+    m, c = await factory_editor(2, enabled=True)
+    p = load_factory(m)
+    report = await m.check(p['draft'], dict(kind='heating'))
+    await m.acknowledge(report['draft_hash'], report['warning_ids'])
+    assert m.can_apply
+    m.metadata['ead'] = 6
+    assert not m.can_apply
+    assert not c.writes

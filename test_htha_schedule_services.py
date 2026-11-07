@@ -90,6 +90,27 @@ async def scratchpad(hass):
     return coordinator, entry
 
 
+@pytest.mark.parametrize('index,category,nos', [(2, 'heating', 3), (0, 'hot_water', 2)])
+async def test_verified_default_service_without_manual_mapping(hass, scratchpad, index, category, nos):
+    coordinator, entry = scratchpad
+    coordinator.sw_version = '2.03N'
+    manager = coordinator.schedule_scratchpad
+    program = deepcopy(coordinator.time_programs[0])
+    program.update(index=index, name='Heating' if index == 2 else 'Hot water', nos=nos)
+    coordinator.heatpump.get_time_prog_async.return_value = SimpleNamespace(as_json=lambda: deepcopy(program))
+    await manager.load(index)
+    preset = manager.factory_profile('factory_default_' + category)
+    report = await hass.services.async_call(
+        DOMAIN, 'validate_time_program',
+        {'config_entry_id': entry.entry_id, 'draft': preset['draft'],
+         'policy': {'kind': category, 'normal_state': 1, 'mapping_confirmed': True}},
+        blocking=True, return_response=True)
+    assert report['mapping_valid'] and report['critical_count'] == 0
+    assert not report['can_apply']  # writes OFF and warnings unacknowledged
+    assert all(c['confirmed'] for c in report['mode_catalog'])
+    coordinator.heatpump.set_time_prog_async.assert_not_awaited()
+
+
 @pytest.mark.asyncio
 async def test_admin_service_responses_and_allow_writes_gate(hass, hass_admin_user, scratchpad):
     coordinator, entry = scratchpad

@@ -7,7 +7,8 @@ const {spawn}=require('node:child_process');
 const assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..');
 const factory=process.argv.includes('--factory');
-const out=path.join(root,'docs','schedule-editor-evidence',...(factory?['factory-preset']:[]));fs.mkdirSync(out,{recursive:true});
+const dest=process.argv.find(a=>a.startsWith('--out='));
+const out=dest?path.resolve(root,dest.slice(6)):path.join(root,'docs','schedule-editor-evidence',...(factory?['factory-preset']:[]));fs.mkdirSync(out,{recursive:true});
 const profile=path.join(root,'.schedule-chrome');
 const chrome=process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const child=spawn(chrome,['--headless=new','--no-sandbox','--disable-gpu','--remote-debugging-pipe',`--user-data-dir=${profile}`,'--no-first-run','--no-default-browser-check','--disable-background-networking','--disable-component-update','--disable-sync','--disable-default-apps','--no-proxy-server','--host-resolver-rules=MAP * ~NOTFOUND','--metrics-recording-only','--disable-features=MediaRouter,OptimizationHints','about:blank'],{windowsHide:true,stdio:['ignore','ignore','pipe','pipe','pipe']});
@@ -29,13 +30,15 @@ function cdp(method,params={},sessionId){return new Promise((resolve,reject)=>{c
   const evaluate=async expression=>{const r=await cdp('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true},s);if(r.exceptionDetails)throw new Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
   const results=[];
   const variants=[];
-  for(const width of [1100,360])for(const language of ['en','de'])for(const theme of ['light','dark'])variants.push({width,language,theme,category:'heating'});
+  for(const width of [1100,360,412])for(const language of ['en','de'])for(const theme of ['light','dark'])variants.push({width,language,theme,category:'heating'});
   variants.push({width:1100,language:'en',theme:'light',category:'hot_water'},{width:360,language:'de',theme:'dark',category:'hot_water'});
   for(const {width,language,theme,category} of variants) {
-   await cdp('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width===360},s);
+   await cdp('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<=412},s);
    await evaluate(`renderFixture(${JSON.stringify({language,theme,category,factory})}) && true`);
    const layout=await evaluate(`(()=>{const c=document.querySelector('htha-schedule-scratchpad-card'),r=c.shadowRoot;return {width:innerWidth,documentWidth:document.documentElement.scrollWidth,grids:r.querySelectorAll('.week-grid').length,cells:r.querySelectorAll('[role=gridcell]').length,sendDisabled:r.getElementById('save').disabled,unknownCurrent:c._model.current_state,headline:r.querySelector('h2').textContent};})()`);
    assert.ok(layout.documentWidth<=width,'No page overflow');assert.equal(layout.grids,2);assert.equal(layout.sendDisabled,true);
+   const help=await evaluate(`(()=>{const r=document.querySelector('htha-schedule-scratchpad-card').shadowRoot,d=r.getElementById('advice'),b=d.querySelector('summary').getBoundingClientRect();return {closed:!d.open,width:b.width,height:b.height,noCheckbox:!r.getElementById('normal-confirm'),hasInfo:d.textContent.includes('OFFLINE INFO')};})()`);
+   assert.deepEqual(help,{closed:true,width:28,height:28,noCheckbox:true,hasInfo:true});
    if(factory)assert.equal(await evaluate(`(()=>{const r=document.querySelector('htha-schedule-scratchpad-card').shadowRoot;return ['rename','delete','update-profile'].every(id=>r.getElementById(id).disabled) && !r.getElementById('save-profile').disabled;})()`),true,'Factory mutations disabled; Save as enabled');
    const {cssContentSize}=await cdp('Page.getLayoutMetrics',{},s);
    const {data}=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:{x:0,y:0,width,height:Math.ceil(cssContentSize.height),scale:1}},s);
@@ -56,6 +59,6 @@ function cdp(method,params={},sessionId){return new Promise((resolve,reject)=>{c
   await cdp('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'left',clickCount:1},s);
   for(const [key,value]of Object.entries(dom))assert.equal(value,true,key);assert.deepEqual(errors,[]);
   fs.writeFileSync(path.join(out,'layout-checks.json'),JSON.stringify({fixturesOnly:true,results,domChecks:dom,runtimeErrors:errors},null,2)+'\n');
-  console.log(`Captured ${results.length} offline screenshots; no page overflow at 1100px/360px; focus/scroll/draft/cancel checks passed.`);
+  console.log(`Captured ${results.length} offline screenshots; no page overflow at 1100px/360px/412px; compact help and focus/scroll/draft/cancel checks passed.`);
  }finally{await cdp('Browser.close').catch(()=>child.kill());}
 })().catch(err=>{console.error(err);process.exitCode=1;});

@@ -52,7 +52,7 @@ validate_time_program:
         object: {}
     policy:
       name: "Validation policy"
-      description: "kind, normal_state, mapping_confirmed, floor_heating. Normal attestation remains required alongside complete semantic mapping."
+      description: "kind, normal_state, mapping_confirmed, floor_heating. The editor derives Normal/On from the active mapping. Firmware 2.03N uses the verified default; no separate Normal-code checkbox is needed."
       required: true
       selector:
         object: {}
@@ -460,7 +460,7 @@ set_time_program_mode_mapping:
           mode: box
     mapping:
       name: "Numeric-to-semantic mapping"
-      description: "Exactly keys 0..nos-1. Heating: setback, normal, boost. DHW: minimum, charging. Null remains unverified. No guessed ordering or numeric translation."
+      description: "Optional override; omit to use the verified firmware 2.03N default. Exactly keys 0..nos-1. Heating: 0 setback, 1 normal, 2 boost. DHW: 0 minimum (Off), 1 charging (On). Null remains unverified. Numeric payloads are never translated."
       required: true
       selector:
         object: {}

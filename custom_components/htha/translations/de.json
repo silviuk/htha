@@ -353,7 +353,7 @@
                 },
                 "policy": {
                     "name": "Prüfrichtlinie",
-                    "description": "kind, normal_state, mapping_confirmed, floor_heating. Normal-Code-Bestätigung bleibt zusätzlich zur vollständigen Moduszuordnung erforderlich."
+                    "description": "kind, normal_state, mapping_confirmed, floor_heating. Der Editor leitet Normal/Ein aus der aktiven Zuordnung ab. Firmware 2.03N verwendet den geprüften Standard; keine separate Normal-Code-Checkbox erforderlich."
                 },
                 "fresh_read": {
                     "name": "Vergleichsbasis neu lesen",
@@ -589,7 +589,7 @@
         },
         "load_time_program_profile": {
             "name": "Profil als Entwurf verwenden",
-            "description": "Benutzerprofil oder schreibgesch?tzte Werkseinstellung als unabh?ngigen Entwurf laden und Freigaben l?schen. Werkseinstellungen ben?tigen geladene Programmdaten und l?sen nur best?tigte Zuordnungen auf. Vor dem Senden frisch pr?fen, ?nderungen und Warnungen best?tigen und den normalen gesch?tzten Schreibvorgang verwenden.",
+            "description": "Benutzerprofil oder schreibgeschützte Werkseinstellung als unabhängigen Entwurf laden und Freigaben löschen. Werkseinstellungen verwenden die geprüfte Standardzuordnung für Firmware 2.03N oder eine bestätigte abweichende Zuordnung. Vor dem Senden frisch prüfen, Änderungen und Warnungen bestätigen und den normalen geschützten Schreibvorgang verwenden.",
             "fields": {
                 "config_entry_id": {
                     "name": "HTHA-Eintrags-ID",
@@ -627,7 +627,7 @@
                 },
                 "mapping": {
                     "name": "Zuordnung von Zahlencodes zu Bedeutungen",
-                    "description": "Exakt Schlüssel 0..nos-1. Heizung: setback, normal, boost. Warmwasser: minimum, charging. Null bleibt unbestätigt. Keine vermutete Reihenfolge oder Codeübersetzung."
+                    "description": "Optionale abweichende Zuordnung; ohne Angabe gilt der geprüfte Standard für Firmware 2.03N. Exakt Schlüssel 0..nos-1. Heizung: 0 setback (Absenken), 1 normal (Normalbetrieb), 2 boost (Aufheizen). Warmwasser: 0 minimum (Aus), 1 charging (Ein). Null bleibt unbestätigt. Zahlencodes werden niemals übersetzt."
                 },
                 "expected_mapping_revision": {
                     "name": "Erwartete Zuordnungsrevision",

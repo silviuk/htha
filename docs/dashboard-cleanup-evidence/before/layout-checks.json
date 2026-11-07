@@ -1,0 +1,122 @@
+{
+  "fixturesOnly": true,
+  "results": [
+    {
+      "file": "1100-en-light.png",
+      "category": "heating",
+      "width": 1100,
+      "documentWidth": 1085,
+      "grids": 2,
+      "cells": 768,
+      "sendDisabled": true,
+      "unknownCurrent": "read",
+      "headline": "Schedule editor"
+    },
+    {
+      "file": "1100-en-dark.png",
+      "category": "heating",
+      "width": 1100,
+      "documentWidth": 1085,
+      "grids": 2,
+      "cells": 768,
+      "sendDisabled": true,
+      "unknownCurrent": "read",
+      "headline": "Schedule editor"
+    },
+    {
+      "file": "1100-de-light.png",
+      "category": "heating",
+      "width": 1100,
+      "documentWidth": 1085,
+      "grids": 2,
+      "cells": 768,
+      "sendDisabled": true,
+      "unknownCurrent": "read",
+      "headline": "Zeitprogramm-Editor"
+    },
+    {
+      "file": "1100-de-dark.png",
+      "category": "heating",
+      "width": 1100,
+      "documentWidth": 1085,
+      "grids": 2,
+      "cells": 768,
+      "sendDisabled": true,
+      "unknownCurrent": "read",
+      "headline": "Zeitprogramm-Editor"
+    },
+    {
+      "file": "360-en-light.png",
+      "category": "heating",
+      "width": 360,
+      "documentWidth": 360,
+      "grids": 2,
+      "cells": 768,
+      "sendDisabled": true,
+      "unknownCurrent": "read",
+      "headline": "Schedule editor"
+    },
+    {
+      "file": "360-en-dark.png",
+      "category": "heating",
+      "width": 360,
+      "documentWidth": 360,
+      "grids": 2,
+      "cells": 768,
+      "sendDisabled": true,
+      "unknownCurrent": "read",
+      "headline": "Schedule editor"
+    },
+    {
+      "file": "360-de-light.png",
+      "category": "heating",
+      "width": 360,
+      "documentWidth": 360,
+      "grids": 2,
+      "cells": 768,
+      "sendDisabled": true,
+      "unknownCurrent": "read",
+      "headline": "Zeitprogramm-Editor"
+    },
+    {
+      "file": "360-de-dark.png",
+      "category": "heating",
+      "width": 360,
+      "documentWidth": 360,
+      "grids": 2,
+      "cells": 768,
+      "sendDisabled": true,
+      "unknownCurrent": "read",
+      "headline": "Zeitprogramm-Editor"
+    },
+    {
+      "file": "1100-en-light-hot-water.png",
+      "category": "hot_water",
+      "width": 1100,
+      "documentWidth": 1085,
+      "grids": 2,
+      "cells": 768,
+      "sendDisabled": true,
+      "unknownCurrent": "read",
+      "headline": "Schedule editor"
+    },
+    {
+      "file": "360-de-dark-hot-water.png",
+      "category": "hot_water",
+      "width": 360,
+      "documentWidth": 360,
+      "grids": 2,
+      "cells": 768,
+      "sendDisabled": true,
+      "unknownCurrent": "read",
+      "headline": "Zeitprogramm-Editor"
+    }
+  ],
+  "domChecks": {
+    "focusPreserved": true,
+    "scrollPreserved": true,
+    "draftPreserved": true,
+    "cancelSafe": true
+  },
+  "runtimeErrors": []
+}

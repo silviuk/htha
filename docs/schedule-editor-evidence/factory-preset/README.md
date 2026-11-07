@@ -1,3 +1,6 @@
+> Historical acceptance record. Firmware 2.03N mapping and UI requirements are
+> superseded by [dashboard cleanup evidence](../../dashboard-cleanup-evidence/README.md).
+
 # Factory preset addendum — local acceptance record
 
 7 November 2026. No commits, pushes, dependency downloads, network requests,
