@@ -12,6 +12,10 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError,
 
 from custom_components.htha.const import CONF_WRITE_ENABLED, DOMAIN
 from custom_components.htha.schedule_services import setup_scratchpad, register_services
+from custom_components.htha import _reload_config, async_update_options
+from custom_components.htha.schedule_services import snapshot
+from custom_components.htha.switch import HtHAWriteProtectionSwitch
+from homeassistant.components.switch import SwitchEntityDescription
 
 
 @pytest.mark.parametrize('index,category,key,mapping,state', [
@@ -88,6 +92,65 @@ async def scratchpad(hass):
     register_services(hass)
     await setup_scratchpad(hass, entry, coordinator)
     return coordinator, entry
+
+
+@pytest.mark.parametrize('revoke_at', ['before_apply', 'lock', 'read', 'recovery'])
+async def test_write_switch_updates_editor_and_revokes_schedule_apply(hass, scratchpad, revoke_at):
+    """Actual toggles notify the editor and block queued/in-flight native writes."""
+    coordinator, entry = scratchpad
+    manager = coordinator.schedule_scratchpad
+    hass.data[DOMAIN][entry.entry_id]['reload_config'] = _reload_config(entry)
+    entry.async_on_unload(entry.add_update_listener(async_update_options))
+    coordinator.host, coordinator.port = 'fake', 9999
+    coordinator.serial_number = coordinator.sw_version = None
+    switch = HtHAWriteProtectionSwitch(coordinator, entry, SwitchEntityDescription(key='write_protection'))
+    switch.hass = hass
+    switch.async_write_ha_state = MagicMock()
+    await manager.load(2)
+    await manager.set_mapping({'0':'setback', '1':'normal', '2':'boost'}, 0, True)
+    draft = deepcopy(manager.draft)
+    report = await manager.check(draft, dict(kind='heating', normal_state=1, mapping_confirmed=True))
+    await manager.acknowledge(report['draft_hash'], report['warning_ids'])
+    notices = []
+    coordinator.async_update_listeners.side_effect = lambda: notices.append(snapshot(manager))
+    with (
+        patch('homeassistant.core.ServiceRegistry.async_call', AsyncMock()),
+        patch.object(hass.config_entries, 'async_reload', AsyncMock()) as reload,
+    ):
+        await switch.async_turn_on()
+        assert not manager.allow_writes() and not notices
+        await switch.async_turn_on()
+        assert notices[-1]['writes_enabled'] and notices[-1]['can_apply']
+        assert manager.can_apply
+        if revoke_at == 'before_apply':
+            await switch.async_turn_off()
+        elif revoke_at == 'read':
+            original_read = coordinator.heatpump.get_time_prog_async
+            async def read_then_revoke(*args, **kwargs):
+                current = await original_read(*args, **kwargs)
+                await switch.async_turn_off()
+                return current
+            coordinator.heatpump.get_time_prog_async = AsyncMock(side_effect=read_then_revoke)
+        elif revoke_at == 'recovery':
+            async def revoke(_record):
+                await switch.async_turn_off()
+            manager.recovery = revoke
+        if revoke_at == 'lock':
+            await coordinator._connection_lock.acquire()
+            task = asyncio.create_task(manager.apply(draft, report['draft_hash'], True))
+            await asyncio.sleep(0)
+            assert not task.done()
+            await switch.async_turn_off()
+            coordinator._connection_lock.release()
+            with pytest.raises(ValueError):
+                await task
+        else:
+            with pytest.raises(ValueError):
+                await manager.apply(draft, report['draft_hash'], True)
+        assert not notices[-1]['writes_enabled'] and not notices[-1]['can_apply']
+        await hass.async_block_till_done()
+        reload.assert_not_called()
+    coordinator.heatpump.set_time_prog_async.assert_not_awaited()
 
 
 @pytest.mark.parametrize('index,category,nos', [(2, 'heating', 3), (0, 'hot_water', 2)])

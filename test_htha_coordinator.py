@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from custom_components.htha.coordinator import HtHACoordinator
-from custom_components.htha.const import DEFAULT_PARAMS
+from custom_components.htha.const import CONF_WRITE_ENABLED, DEFAULT_PARAMS
 
 
 @pytest.fixture
@@ -22,6 +22,7 @@ def mock_config_entry():
         "port": 9999,
         "timeout": 10,
         "scan_interval": 30,
+        CONF_WRITE_ENABLED: True,
     }
     entry.options = {
         "selected_params": DEFAULT_PARAMS,

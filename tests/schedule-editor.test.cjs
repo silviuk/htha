@@ -204,6 +204,24 @@ test('hass updates preserve dirty draft, selection, focus and active gesture',()
   card.hass={states:{'sensor.validation':{attributes:{revision:2,session_id:'s',draft:draft(0),can_apply:false}}}};
   assert.equal(card._local.week[0][0],2);assert.equal(card._selection.cells.size,1);assert.ok(card._gesture);
 });
+test('live write toggle updates send gate without resetting validation or local work',()=>{
+  const {card,nodes}=fixture();
+  card._catalogLoaded=true;card.render();sendReady(card);
+  card._selection.choose(0,2);
+  const local=card._local,revision=card._model.revision;
+  for(const enabled of [false,true,false]){
+    const attributes={...plain(card._model),writes_enabled:enabled,can_apply:enabled,
+      missing_gates:enabled?[]:['writes_off']};
+    card.hass={...card._hass,states:{'sensor.validation':{attributes}}};
+    card.updateGates();
+    assert.equal(card._model.writes_enabled,enabled);
+    assert.equal(nodes.get('save').disabled,!enabled);
+    assert.equal(card._validatedHash,'checked');
+    assert.equal(card._model.revision,revision);
+    assert.equal(card._local,local);
+    assert.equal(card._selection.cells.size,1);
+  }
+});
 test('idempotent config keeps local state and timer cleans up',()=>{
   const {card,timers}=fixture();card._selection.choose(1,5);const local=card._local;card.setConfig(card.config);assert.equal(card._local,local);assert.equal(card._selection.cells.size,1);
   card.connectedCallback();card.connectedCallback();assert.equal(timers.size,1);card.disconnectedCallback();assert.equal(timers.size,0);

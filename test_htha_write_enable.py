@@ -15,6 +15,9 @@ from custom_components.htha.const import CONF_WRITE_ENABLED, DOMAIN
 from custom_components.htha.switch import HtHAWriteProtectionSwitch
 from custom_components.htha.number import HtHANumber
 from custom_components.htha.select import HtHASelect
+from custom_components.htha import async_setup_entry, async_update_options
+from custom_components.htha.coordinator import HtHACoordinator
+from homeassistant.helpers.update_coordinator import UpdateFailed
 
 
 @pytest.fixture
@@ -59,6 +62,14 @@ async def test_write_protection_switch_flow(hass: HomeAssistant, mock_config_ent
     )
     switch.hass = hass
     switch.async_write_ha_state = MagicMock()
+    mock_coordinator.async_config_entry_first_refresh = AsyncMock()
+    with (
+        patch("custom_components.htha.HtHACoordinator", return_value=mock_coordinator),
+        patch("custom_components.htha.schedule_services.setup_scratchpad", AsyncMock()),
+        patch.object(hass.config_entries, "async_forward_entry_setups", AsyncMock()),
+    ):
+        await async_setup_entry(hass, mock_config_entry)
+    reload = AsyncMock(return_value=True)
 
     assert not switch.is_on
     assert not switch._confirm_pending
@@ -91,6 +102,10 @@ async def test_write_protection_switch_flow(hass: HomeAssistant, mock_config_ent
             assert switch.is_on
             assert not switch._confirm_pending
             assert mock_config_entry.data[CONF_WRITE_ENABLED] is True
+            mock_coordinator.async_update_listeners.assert_called_once()
+            with patch.object(hass.config_entries, "async_reload", reload):
+                await async_update_options(hass, mock_config_entry)
+            reload.assert_not_called()
             mock_call.assert_called_once_with(
                 "persistent_notification",
                 "dismiss",
@@ -98,10 +113,16 @@ async def test_write_protection_switch_flow(hass: HomeAssistant, mock_config_ent
             )
 
     # Turn the switch off
+    mock_coordinator.async_update_listeners.reset_mock()
     with patch.object(hass.config_entries, "async_update_entry", side_effect):
         await switch.async_turn_off()
         assert not switch.is_on
         assert mock_config_entry.data[CONF_WRITE_ENABLED] is False
+        mock_coordinator.async_update_listeners.assert_called_once()
+        with patch.object(hass.config_entries, "async_reload", reload):
+            await async_update_options(hass, mock_config_entry)
+        reload.assert_not_called()
+        assert "write_enabled" not in hass.data[DOMAIN][mock_config_entry.entry_id]
 
 
 @pytest.mark.asyncio
@@ -159,6 +180,98 @@ async def test_select_write_validation(mock_config_entry, mock_coordinator):
     await select.async_select_option("heating")
     # Heating maps to 1 in OPERATING_MODES
     mock_coordinator.async_set_param.assert_called_once_with("Betriebsart", 1)
+
+
+@pytest.mark.parametrize(("section", "key", "value"), [
+    ("data", "host", "localhost"),
+    ("data", "port", 10000),
+    ("data", "timeout", 20),
+    ("data", "scan_interval", 60),
+    ("data", "selected_params", ["Betriebsart"]),
+    ("options", "scan_interval", 60),
+    ("options", "selected_params", ["Betriebsart"]),
+    ("options", "model", "Other model"),
+    ("options", CONF_WRITE_ENABLED, True),
+])
+async def test_configuration_changes_still_reload(
+    hass, mock_config_entry, mock_coordinator, section, key, value
+):
+    """Setup snapshots all data except write permission, and every option."""
+    mock_coordinator.async_config_entry_first_refresh = AsyncMock()
+    with (
+        patch("custom_components.htha.HtHACoordinator", return_value=mock_coordinator),
+        patch("custom_components.htha.schedule_services.setup_scratchpad", AsyncMock()),
+        patch.object(hass.config_entries, "async_forward_entry_setups", AsyncMock()),
+    ):
+        await async_setup_entry(hass, mock_config_entry)
+    with patch.object(hass.config_entries, "async_reload", AsyncMock(return_value=True)) as reload:
+        await async_update_options(hass, mock_config_entry)
+        reload.assert_not_called()
+        getattr(mock_config_entry, section)[key] = value
+        # A simultaneous write toggle must not hide configuration changes.
+        mock_config_entry.data[CONF_WRITE_ENABLED] = True
+        await async_update_options(hass, mock_config_entry)
+        reload.assert_awaited_once_with(mock_config_entry.entry_id)
+        await async_update_options(hass, mock_config_entry)
+        reload.assert_awaited_once()
+
+
+async def test_reload_snapshot_copies_nested_options(hass, mock_config_entry, mock_coordinator):
+    """Nested option mutations do not mutate the setup snapshot."""
+    mock_config_entry.options = {"selected_params": ["Betriebsart"]}
+    mock_coordinator.async_config_entry_first_refresh = AsyncMock()
+    with (
+        patch("custom_components.htha.HtHACoordinator", return_value=mock_coordinator),
+        patch("custom_components.htha.schedule_services.setup_scratchpad", AsyncMock()),
+        patch.object(hass.config_entries, "async_forward_entry_setups", AsyncMock()),
+    ):
+        await async_setup_entry(hass, mock_config_entry)
+    mock_config_entry.options["selected_params"].append("Temp. Aussen")
+    with patch.object(hass.config_entries, "async_reload", AsyncMock(return_value=True)) as reload:
+        await async_update_options(hass, mock_config_entry)
+        reload.assert_awaited_once_with(mock_config_entry.entry_id)
+
+
+@pytest.mark.parametrize("entity_kind", ["number", "select"])
+@pytest.mark.parametrize("revoke_at", ["before_call", "lock", "connect"])
+async def test_revoked_writes_never_reach_pump(hass, mock_config_entry, entity_kind, revoke_at):
+    """Live permission gates both queued and connecting entity writes."""
+    mock_config_entry.data[CONF_WRITE_ENABLED] = True
+    coordinator = HtHACoordinator(
+        hass, mock_config_entry, host="fake", port=9999, timeout=10,
+        scan_interval=30, selected_params=[],
+    )
+    coordinator._heatpump = MagicMock(set_param_async=AsyncMock())
+    coordinator._connect = AsyncMock()
+    coordinator._disconnect = AsyncMock()
+    if entity_kind == "number":
+        entity = HtHANumber(coordinator, mock_config_entry, NumberEntityDescription(key="test"),
+                            "HKR Soll_Raum", 15, 25, 0.5)
+        write = lambda: entity.async_set_native_value(21.5)
+    else:
+        entity = HtHASelect(coordinator, mock_config_entry, SelectEntityDescription(key="test"),
+                            "Betriebsart")
+        write = lambda: entity.async_select_option("heating")
+    if revoke_at == "lock":
+        await coordinator._connection_lock.acquire()
+        task = asyncio.create_task(write())
+        await asyncio.sleep(0)
+        assert not task.done()
+        mock_config_entry.data[CONF_WRITE_ENABLED] = False
+        coordinator._connection_lock.release()
+        with pytest.raises(ValueError, match="Writes are not enabled"):
+            await task
+    elif revoke_at == "connect":
+        async def revoke():
+            mock_config_entry.data[CONF_WRITE_ENABLED] = False
+        coordinator._connect.side_effect = revoke
+        with pytest.raises(UpdateFailed, match="Writes are not enabled"):
+            await write()
+    else:
+        mock_config_entry.data[CONF_WRITE_ENABLED] = False
+        with pytest.raises(ValueError, match="Writes are not enabled"):
+            await write()
+    coordinator.heatpump.set_param_async.assert_not_called()
 
 
 @pytest.mark.asyncio
