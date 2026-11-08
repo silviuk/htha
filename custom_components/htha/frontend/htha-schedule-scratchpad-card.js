@@ -1,4 +1,4 @@
-/* Offline-first weekly editor. Only explicit service actions use HA; edits never do. */
+/* Local weekly editor; automatic catalog refreshes only access HA profile storage. */
 const clone = value => JSON.parse(JSON.stringify(value));
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const time = i => `${String(Math.floor(i / 4)).padStart(2,'0')}:${String(i % 4 * 15).padStart(2,'0')}`;
@@ -162,18 +162,26 @@ class HthaScheduleScratchpadCard extends HTMLElement {
       this._policy={kind:'heating',normal_state:1,mapping_confirmed:true,floor_heating:true};
       this._profiles=[];this._warningChecks=new Set();this._mode=0;this._add=false;
       this._draft=null;this._local=null;this._model=null;this._validatedHash=undefined;
+      this._profileId='';this._catalogLoaded=false;this._catalogLast=0;
     }
   }
   connectedCallback() {
     if(!this._timer && typeof setInterval==='function')this._timer=setInterval(()=>this.updateNow(),60000);
+    if(typeof document!=='undefined' && !this._visibilityListener) {
+      this._visibilityListener=()=>{if(document.visibilityState==='visible')void this.listProfiles(true);};
+      document.addEventListener('visibilitychange',this._visibilityListener);
+    }
+    if(this._hass && this.config)void this.listProfiles(true);
   }
   disconnectedCallback() {
     if(this._timer)clearInterval(this._timer);this._timer=null;this._gesture=null;
-    // No subscriptions or document/window event listeners are installed.
+    if(this._visibilityListener)document.removeEventListener('visibilitychange',this._visibilityListener);
+    this._visibilityListener=null;
   }
   set hass(hass) {
     this._hass=hass;
     if(!this.config)return;
+    if(!this._catalogLoaded){this._catalogLoaded=true;void this.listProfiles();}
     const attr=hass.states[this.config.entity]?.attributes;
     if(attr) {
       const previous=this._model;
@@ -257,17 +265,45 @@ class HthaScheduleScratchpadCard extends HTMLElement {
         this._model={...this._model,current_program:null,current_state:'unavailable',can_apply:false};
       }
       return null;
-    }finally{this._busy=false;this.render();}
+    }finally{this._busy=false;this.render();
+      if(['save_time_program_profile','rename_time_program_profile','delete_time_program_profile','apply_time_program','restore_previous_time_program'].includes(service))await this.listProfiles();
+    }
   }
   discardOK(){return !this._draft || !this._dirty || window.confirm(this.t('Load discards local edits. Continue?'));}
   async loadPump(){if(!this.discardOK())return;const response=await this.call('load_time_program_draft',{program_index:this.index,...this.revisionData()});if(response)await this.listProfiles();}
-  async listProfiles(){return this.call('list_time_program_profiles',{category:this._category});}
+  async listProfiles(debounced=false) {
+    if(!this._hass?.callWS || !this.config)return null;
+    if(debounced && (this._catalogRequest || Date.now()-(this._catalogLast||0)<2000))return this._catalogRequest||null;
+    // Explicit refreshes queue behind the current request, including a refresh
+    // requested after a mutation or category switch. Catalog requests never overlap.
+    const previous=this._catalogRequest;
+    const category=this._category,entry=this.config.config_entry_id;
+    const request=(async()=>{
+      if(previous)await previous;
+      this._catalogLast=Date.now();
+      try {
+        const result=await this._hass.callWS({type:'call_service',domain:'htha',service:'list_time_program_profiles',service_data:{config_entry_id:entry,category},return_response:true});
+        const model=result.response;if(!model)throw new Error(this.t('No service response'));
+        if(category!==this._category || entry!==this.config.config_entry_id)return null;
+        this._profiles=clone([...(model.builtin_profiles||[]),...(model.profiles||[])]);
+        if(!this._profiles.some(p=>p.id===this._profileId))this._profileId='';
+        this._model={...this._model,library_error:model.library_error};
+        // Keep the native picker open; apply its updated options on blur.
+        if(this.shadowRoot.activeElement || this._gesture)this._deferredRender=true;
+        else this.render();
+        return model;
+      }catch(e){if(category===this._category && entry===this.config.config_entry_id){this._error=e.message||String(e);if(this.shadowRoot.activeElement || this._gesture)this._deferredRender=true;else this.render();}return null;}
+    })();
+    this._catalogRequest=request;
+    try{return await request;}finally{if(this._catalogRequest===request)this._catalogRequest=null;}
+  }
   async changeCategory(category) {
     if(category===this._category || !this.discardOK())return;
     this._category=category;this._draft=null;this._local=null;this._profile=null;this._profileId='';this._mappingEdits=null;
     this._selection.clear();this._policy={kind:category,normal_state:1,mapping_confirmed:true,floor_heating:true};this.invalidate(false);
     await this.call('get_time_program_editor',{program_index:this.index});
-    // A category switch only opens its catalog. Reading/loading is explicit.
+    await this.listProfiles();
+    // Reading/loading pump data remains explicit.
     this.render();
   }
   async loadProfile(shortcut=false) {
@@ -305,7 +341,7 @@ class HthaScheduleScratchpadCard extends HTMLElement {
     return this.call('rename_time_program_profile',{profile_id:profile.id,name,expected_profile_revision:profile.revision});
   }
   async deleteProfile() {
-    const profile=this._profiles.find(p=>p.id===this._profileId);if(!profile || profile.read_only || !window.confirm(this.t('Delete this saved profile? The pump schedule is unchanged.')))return;
+    const profile=this._profiles.find(p=>p.id===this._profileId);if(!profile || profile.read_only || !window.confirm(`${this.t('Delete this saved profile? The pump schedule is unchanged.')}\n\n${profile.name}`))return;
     return this.call('delete_time_program_profile',{profile_id:profile.id,expected_profile_revision:profile.revision,confirm:true});
   }
   async validate() {
@@ -452,7 +488,7 @@ class HthaScheduleScratchpadCard extends HTMLElement {
       .changed-key{background:color-mix(in srgb,var(--primary-text-color,#202937) 25%,var(--card-background-color,#fff))}
       @media(prefers-contrast:more){.replaced{background:color-mix(in srgb,var(--old-color) 60%,var(--card-background-color,#fff))}.replaced svg,.changed-key svg{stroke-width:1.4}.bar{border:1px solid currentColor}.cell.selected{outline-width:3px}}
     </style><ha-card><h2>${t('Schedule editor')}</h2><div class="tabs" role="tablist"><div>${['heating','hot_water'].map(c=>`<button role="tab" data-category="${c}" aria-selected="${c===this._category}" ${busy}>${t(c==='heating'?'Heating':'Hot water')}</button>`).join('')}</div><span class="status">${t('Allow writes')}: <b>${t(m.writes_enabled?'ON':'OFF')}</b></span></div>
-      <div class="controls"><button id="load" ${busy}>${t('Load from pump')}</button><button id="refresh" ${busy} ${!metadata?'disabled':''}>${t('Refresh baseline')}</button><button id="catalog" ${busy}>${t('Profiles')}</button></div>
+      <div class="controls"><button id="load" ${busy}>${t('Load from pump')}</button><button id="refresh" ${busy} ${!metadata?'disabled':''}>${t('Refresh baseline')}</button></div>
       <div class="controls"><select id="profiles" aria-label="${t('Profiles')}" ${busy}><option value="">${t('Profiles')}</option>${this._profiles.map(p=>`<option value="${esc(p.id)}" ${p.id===this._profileId?'selected':''}>${p.read_only?t(p.name):esc(p.name)} · ${p.read_only?t('Built-in, read-only'):`${t('Saved')} · ${t('version')} ${esc(p.revision)}`}</option>`).join('')}</select><button id="profile-load" ${busy} ${!chosen?'disabled':''}>${t('Use as starting point')}</button><button id="profile-apply" ${busy} ${!chosen?'disabled':''}>${t('Apply profile…')}</button><button id="rename" ${busy} ${!chosen || chosen.read_only?'disabled':''}>${t('Rename')}</button><button id="delete" ${busy} ${!chosen || chosen.read_only?'disabled':''}>${t('Delete')}</button></div>
       ${chosen?.read_only || this._profile?.read_only?`<small>${t(this.index===2?'Factory default: Monday–Sunday 00:00–24:00 Normal. Unspecified heating periods remain Normal.':'Factory default: Monday–Sunday 00:00–24:00 On. Unspecified hot-water periods are Off (minimum maintenance at WW_min, +5 K).')} ${t('web control 321 manual, pp.10–11. Save as creates an editable copy.')}</small>`:''}
       ${m.library_error?`<p class="error">${t('This library is damaged or has an unsupported version. Repair the HA Store from a backup; no approval was restored.')}</p>`:''}
@@ -474,7 +510,8 @@ class HthaScheduleScratchpadCard extends HTMLElement {
     </ha-card>`;
     const by=id=>root.getElementById(id),bind=(id,event,fn)=>{const e=by(id);if(e)e[event]=fn;};
     root.querySelectorAll('[data-category]').forEach(e=>e.onclick=()=>this.changeCategory(e.dataset.category));
-    bind('load','onclick',()=>this.loadPump());bind('refresh','onclick',()=>this.call('refresh_time_program_baseline',this.revisionData()));bind('catalog','onclick',()=>this.listProfiles());
+    bind('load','onclick',()=>this.loadPump());bind('refresh','onclick',()=>this.call('refresh_time_program_baseline',this.revisionData()));
+    for(const event of ['onfocus','onpointerdown','onkeydown'])bind('profiles',event,()=>{void this.listProfiles(true);});
     bind('profiles','onchange',e=>{this._profileId=e.target.value;this.render();});bind('profile-load','onclick',()=>this.loadProfile());bind('profile-apply','onclick',()=>this.loadProfile(true));bind('rename','onclick',()=>this.renameProfile());bind('delete','onclick',()=>this.deleteProfile());
     bind('save-profile','onclick',()=>this.saveProfile());bind('update-profile','onclick',()=>this.saveProfile(true));bind('check','onclick',()=>this.validate());bind('ack','onclick',()=>this.acknowledge());
     bind('save','onclick',()=>this.requestSend());bind('restore','onclick',()=>this.requestSend());bind('send-cancel','onclick',()=>this.confirmSend(false));bind('send-confirm','onclick',()=>this.confirmSend(true));

@@ -6,7 +6,8 @@ const plain=x=>JSON.parse(JSON.stringify(x));
 const draft=(state=1)=>({entries:Array.from({length:7},()=>[{start:'00:00',end:'24:00',state}])});
 const meta={index:2,name:'Heating',ead:7,nos:3,ste:15,nod:7};
 function fixture({confirm=true,prompt='My profile',language='en'}={}) {
-  const nodes=new Map(),calls=[],timers=new Set();let Card;
+  const nodes=new Map(),calls=[],timers=new Set(),listeners=new Map();let Card,now=10000;
+  const document={visibilityState:'visible',addEventListener:(name,fn)=>listeners.set(name,fn),removeEventListener:(name,fn)=>{if(listeners.get(name)===fn)listeners.delete(name);}};
   class Element {
     attachShadow(){this.shadowRoot={innerHTML:'',querySelectorAll:()=>[],querySelector:()=>null,getElementById:id=>{
       if(!nodes.has(id))nodes.set(id,{id,value:'',checked:false,dataset:{},style:{},focus(){this.focused=true;}});
@@ -15,14 +16,14 @@ function fixture({confirm=true,prompt='My profile',language='en'}={}) {
   }
   const window={confirm:()=>confirm,prompt:()=>prompt};
   vm.runInNewContext(fs.readFileSync('custom_components/htha/frontend/htha-schedule-scratchpad-card.js','utf8'),{
-    HTMLElement:Element,customElements:{get:()=>undefined,define:(_,c)=>{Card=c;}},window,
+    HTMLElement:Element,customElements:{get:()=>undefined,define:(_,c)=>{Card=c;}},window,document,Date:class extends Date {static now(){return now;}},
     setInterval:fn=>{timers.add(fn);return fn;},clearInterval:fn=>timers.delete(fn),
   });
   const card=new Card();card.setConfig({entity:'sensor.validation',config_entry_id:'entry'});
-  card._hass={language,locale:{language},config:{time_zone:'Europe/Berlin'},states:{},callWS:async request=>{calls.push(plain(request));return {response:plain(card._model)};}};
+  card._hass={language,locale:{language},config:{time_zone:'Europe/Berlin'},states:{},callWS:async request=>{calls.push(plain(request));return {response:request.service==='list_time_program_profiles'?{profiles:plain(card._profiles),library_revision:1,library_error:null}:plain(card._model)};}};
   card._model={metadata:meta,revision:1,session_id:'s',mode_catalog:[],mapping_revision:0,current_program:{...meta,...draft()},current_state:'read',baseline_read_at:'2026-11-07T10:00:00Z',writes_enabled:false};
   card.adoptDraft(draft());
-  return {card,api:window.HthaScheduleEditor,nodes,calls,timers,window};
+  return {card,api:window.HthaScheduleEditor,nodes,calls,timers,window,document,listeners,advance:ms=>{now+=ms;}};
 }
 
 function factory(category='heating') {
@@ -78,7 +79,7 @@ for(const category of ['heating','hot_water'])for(const language of ['en','de'])
 test('factory Save as creates a user copy without sending or updating builtin',async()=>{
   const {card,calls}=fixture(),p=factory();card._profile=p;card._profileDraft=draft();card.render=()=>{};
   card._hass.callWS=async request=>{calls.push(plain(request));return {response:{...card._model,saved_profile:{id:'copy',name:'My profile',revision:1,draft:draft()},profiles:[{id:'copy',name:'My profile',revision:1}],builtin_profiles:[p]}};};
-  await card.saveProfile();assert.equal(calls.length,1);assert.equal(calls[0].service,'save_time_program_profile');
+  await card.saveProfile();assert.equal(calls.length,2);assert.equal(calls[1].service,'list_time_program_profiles');assert.equal(calls[0].service,'save_time_program_profile');
   assert.equal(calls[0].service_data.profile_id,undefined);assert.equal(calls[0].service_data.expected_profile_revision,undefined);
   assert.equal(card._profile.id,'copy');assert.equal(card._profile.read_only,undefined);assert.equal(card._profiles[0].id,p.id);
 });
@@ -160,12 +161,12 @@ test('dirty replacement cancel prevents category/profile/pump calls',async()=>{
 });
 test('profile Save/create and explicit overwrite use immutable local copy and revision',async()=>{
   const {card,calls}=fixture();card.render=()=>{};await card.saveProfile();assert.equal(calls[0].service,'save_time_program_profile');assert.equal(calls[0].service_data.profile_id,undefined);
-  card._profile={id:'p',name:'N',revision:4};await card.saveProfile(true);assert.equal(calls[1].service_data.expected_profile_revision,4);
+  card._profile={id:'p',name:'N',revision:4};await card.saveProfile(true);assert.equal(calls[2].service_data.expected_profile_revision,4);
   card._local.week[0][0]=2;assert.equal(calls[0].service_data.draft.entries[0][0].state,1);
 });
 test('profile rename/delete use selected UUID and exact profile revision',async()=>{
   const {card,calls}=fixture();card.render=()=>{};card._profiles=[{id:'p',name:'P',revision:3}];card._profileId='p';await card.renameProfile();await card.deleteProfile();
-  assert.deepEqual(calls.map(c=>c.service),['rename_time_program_profile','delete_time_program_profile']);assert.equal(calls[1].service_data.confirm,true);assert.equal(calls[0].service_data.expected_profile_revision,3);
+  assert.deepEqual(calls.map(c=>c.service),['rename_time_program_profile','list_time_program_profiles','delete_time_program_profile','list_time_program_profiles']);assert.equal(calls[2].service_data.confirm,true);assert.equal(calls[0].service_data.expected_profile_revision,3);
 });
 test('Apply profile shortcut stops at fresh validation and never trusts saved approvals',async()=>{
   const {card,calls}=fixture();card.render=()=>{};card._dirty=false;card._profileId='p';
@@ -183,7 +184,7 @@ test('validate shows findings AND server diff and uses baseline/mapping/session 
 function sendReady(card){card._dirty=false;card._validatedHash='checked';Object.assign(card._model,{draft_hash:'checked',can_apply:true,current_state:'read',mapping_valid:true,writes_enabled:true,warning_ids:['warning'],warnings_acknowledged:true,missing_gates:[]});}
 test('send review cancel and duplicate-send prevention yield zero/one apply calls',async()=>{
   const {card,calls}=fixture();card.render=()=>{};sendReady(card);card.requestSend();await card.confirmSend(false);assert.equal(calls.length,0);
-  card.requestSend();await Promise.all([card.confirmSend(true),card.confirmSend(true)]);assert.equal(calls.length,1);assert.equal(calls[0].service,'apply_time_program');assert.equal(calls[0].service_data.confirm,true);
+  card.requestSend();await Promise.all([card.confirmSend(true),card.confirmSend(true)]);assert.equal(calls.length,2);assert.equal(calls[1].service,'list_time_program_profiles');assert.equal(calls[0].service,'apply_time_program');assert.equal(calls[0].service_data.confirm,true);
 });
 test('per-warning explicit acknowledgement required, never auto-acknowledged',async()=>{
   const {card,calls}=fixture();card.render=()=>{};card._dirty=false;card._validatedHash='h';card._model.warning_ids=['a','b'];card._warningChecks.add('a');await card.acknowledge();assert.equal(calls.length,0);
@@ -291,4 +292,70 @@ for(const language of ['en','de'])test('changed legend and accessible labels are
  card._local.week[0][0]=2;card.render();const html=card.shadowRoot.innerHTML;
  assert.match(html,language==='de'?/Geändert \(alter Wert heller mit ×\)/:/Changed \(old value shown lighter with ×\)/);
  assert.match(html,language==='de'?/war Normalbetrieb \[1\], jetzt Aufheizen \[2\]/:/was Normal \[1\], now Boost \[2\]/);
+});
+
+test('initial hass, picker and visibility refresh only the catalog, debounce and clean up',async()=>{
+  const {card,calls,nodes,document,listeners,advance}=fixture();
+  card.render=()=>{};const hass=card._hass;
+  card.hass=hass;await card._catalogRequest;
+  assert.equal(calls.length,1);
+  card.hass=hass;assert.equal(calls.length,1);
+  card.render=Object.getPrototypeOf(card).render;card.render();
+  assert.doesNotMatch(card.shadowRoot.innerHTML,/id="catalog"/);
+  card.connectedCallback();await card._catalogRequest;
+  assert.equal(calls.length,1);
+  nodes.get('profiles').onfocus();nodes.get('profiles').onpointerdown();await card._catalogRequest;
+  assert.equal(calls.length,1);
+  advance(2000);nodes.get('profiles').onkeydown();await card._catalogRequest;
+  assert.equal(calls.length,2);
+  document.visibilityState='hidden';advance(2000);listeners.get('visibilitychange')();assert.equal(calls.length,2);
+  document.visibilityState='visible';listeners.get('visibilitychange')();await card._catalogRequest;
+  assert.equal(calls.length,3);listeners.get('visibilitychange')();assert.equal(calls.length,3);
+  card.disconnectedCallback();assert.equal(listeners.size,0);
+  assert.ok(calls.every(c=>c.service==='list_time_program_profiles'));
+});
+
+test('refresh keeps draft, history, selection, selected id and approvals; missing id clears without choosing another',async()=>{
+  const {card}=fixture();card.render=()=>{};
+  card._profiles=[{id:'a',name:'A'},{id:'b',name:'B'}];card._profileId='b';sendReady(card);
+  card._selection.choose(0,3);const draftRef=card._draft,local=card._local;
+  await card.listProfiles();assert.equal(card._profileId,'b');assert.equal(card._draft,draftRef);assert.equal(card._local,local);
+  assert.equal(card._selection.cells.size,1);assert.equal(card._validatedHash,'checked');assert.equal(card._dirty,false);
+  card._profiles=[{id:'a',name:'A'}];await card.listProfiles();assert.equal(card._profileId,'');
+  assert.equal(card._draft,draftRef);assert.equal(card._dirty,false);
+});
+
+test('catalog failure preserves approval and local edits',async()=>{
+  const {card}=fixture();card.render=()=>{};sendReady(card);const local=card._local;
+  card._hass.callWS=async()=>{throw new Error('catalog unavailable');};
+  await card.listProfiles();assert.equal(card._local,local);assert.equal(card._validatedHash,'checked');assert.equal(card._dirty,false);
+  assert.match(card._error,/catalog unavailable/);
+});
+
+test('catalog requests never overlap and ignore a late response for the previous category',async()=>{
+  const {card,calls}=fixture();card.render=()=>{};let release;
+  card._hass.callWS=async req=>{calls.push(req);return await new Promise(resolve=>{release=resolve;});};
+  const first=card.listProfiles();const debounced=card.listProfiles(true);
+  card._category='hot_water';const next=card.listProfiles();assert.equal(calls.length,1);
+  release({response:{profiles:[{id:'heating',name:'Heating'}]}});await first;await debounced;
+  assert.equal(card._profiles.length,0);assert.equal(calls.length,2);
+  assert.equal(calls[1].service_data.category,'hot_water');
+  release({response:{profiles:[{id:'water',name:'Water'}]}});await next;
+  assert.equal(card._profiles[0].id,'water');assert.equal(card._catalogRequest,null);
+});
+
+test('category and Load from pump finish with a storage-only list refresh',async()=>{
+  const {card,calls}=fixture();card.render=()=>{};card._dirty=false;
+  await card.changeCategory('hot_water');
+  assert.deepEqual(calls.map(c=>c.service),['get_time_program_editor','list_time_program_profiles']);
+  assert.equal(calls[1].service_data.category,'hot_water');
+  card._hass.callWS=async req=>{calls.push(req);return {response:req.service==='load_time_program_draft'?{...card._model,draft:draft()}: {profiles:[]}};};
+  await card.loadPump();assert.deepEqual(calls.slice(-2).map(c=>c.service),['load_time_program_draft','list_time_program_profiles']);
+});
+
+for(const language of ['en','de'])test('delete confirms the name and retains that exact id even if selection changes '+language,async()=>{
+  const {card,calls,window}=fixture({language});card.render=()=>{};
+  card._profiles=[{id:'a',name:'Family default (hot water)',revision:4},{id:'b',name:'Other',revision:7}];card._profileId='a';
+  window.confirm=message=>{assert.ok(message.includes('Family default (hot water)'));card._profileId='b';return true;};
+  await card.deleteProfile();assert.equal(calls[0].service_data.profile_id,'a');assert.equal(calls[0].service_data.expected_profile_revision,4);
 });

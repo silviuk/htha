@@ -299,3 +299,26 @@ async def test_save_changed_contents_revokes_approval_unchanged_save_keeps_it(ha
     assert response['status']=='unvalidated' and not response['warnings_acknowledged']
     assert manager.draft == changed
     coordinator.heatpump.set_time_prog_async.assert_not_awaited()
+
+async def test_overlapping_setup_retains_one_manager_and_library(hass, scratchpad):
+    coordinator, entry = scratchpad
+    hass.data[DOMAIN]['scratchpads'].pop(entry.entry_id)
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    async def slow_load(store):
+        entered.set()
+        await release.wait()
+        return None
+
+    other = SimpleNamespace(**vars(coordinator))
+    with patch('custom_components.htha.schedule_services.Store.async_load', slow_load):
+        first = asyncio.create_task(setup_scratchpad(hass, entry, coordinator))
+        await asyncio.wait_for(entered.wait(), 1)
+        second = asyncio.create_task(setup_scratchpad(hass, entry, other))
+        await asyncio.sleep(0)
+        release.set()
+        await asyncio.gather(first, second)
+    assert coordinator.schedule_scratchpad is other.schedule_scratchpad
+    assert hass.data[DOMAIN]['scratchpads'][entry.entry_id] is other.schedule_scratchpad
+    coordinator.heatpump.get_time_prog_async.assert_not_awaited()
+    coordinator.heatpump.set_time_prog_async.assert_not_awaited()

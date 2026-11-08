@@ -123,9 +123,9 @@ config_entry_id: YOUR_HTHA_CONFIG_ENTRY_ID
 No manual resource is normally needed. Both scripts are served under `/htha_frontend/`, loaded through the frontend and registered as versioned JavaScript modules in storage-mode resources. Existing matching resources are updated; only resources created by htha are removed when its last entry is deleted. YAML resource lists are not edited; if explicit resources are needed, add these with `type: module`:
 
 ```yaml
-- url: /htha_frontend/htha-heatpump-strategy.js?v=1.3.2
+- url: /htha_frontend/htha-heatpump-strategy.js?v=1.3.3
   type: module
-- url: /htha_frontend/htha-schedule-scratchpad-card.js?v=1.3.2
+- url: /htha_frontend/htha-schedule-scratchpad-card.js?v=1.3.3
   type: module
 ```
 
@@ -134,6 +134,8 @@ No manual resource is normally needed. Both scripts are served under `/htha_fron
 ![Weekly schedule editor](docs/schedule-editor-evidence/1100-en-light.png)
 
 Edit recurring quarter-hour cells in a weekly grid, select multiple cells, assign modes and copy days. Validate to see findings and a diff before sending. Save personal profiles or start from the read-only **Factory default (Heliotherm)** profiles for heating and hot water.
+The profile list refreshes automatically on card load, category changes, profile actions,
+opening the dropdown and returning to the tab. Refreshes preserve edits and only read the HA profile library.
 
 Changed draft slots keep the new mode color in the top 40%; the lower part shows the replaced pump mode tinted against the card background with an ×. Both the week overview and expanded day update as you edit, using the current pump schedule already available in the card. Unknown baseline slots have no replacement mark.
 
