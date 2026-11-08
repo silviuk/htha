@@ -494,3 +494,85 @@ set_time_program_mode_mapping:
       required: false
       selector:
         text: {}
+
+get_current_time_program:
+  name: "Read current schedule"
+  description: "Read-only; reuse a baseline or coordinator cache up to 180 seconds old. Never changes draft, revision or approval."
+  fields:
+    config_entry_id:
+      name: "HTHA entry ID"
+      required: true
+      selector:
+        config_entry:
+          integration: "htha"
+    program_index:
+      name: "Program index (0 hot water, 2 heating)"
+      required: true
+      selector:
+        select:
+          options: ["0","2"]
+    force:
+      name: "Reload from pump"
+      required: false
+      default: false
+      selector:
+        boolean: {}
+
+start_time_program_draft:
+  name: "Start schedule draft"
+  description: "Explicitly copy current schedule or selected profile with the current pump baseline. Clears approval; never writes hardware."
+  fields:
+    config_entry_id:
+      name: "HTHA entry ID"
+      required: true
+      selector:
+        config_entry:
+          integration: "htha"
+    program_index:
+      name: "Program index (0 hot water, 2 heating)"
+      required: true
+      selector:
+        select:
+          options: ["0","2"]
+    expected_draft_revision:
+      name: "Expected editor revision"
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 2147483647
+          mode: "box"
+    session_id:
+      name: "Editor session ID"
+      required: true
+      selector:
+        text: {}
+    profile_id:
+      name: "Starting profile ID (omit for current schedule)"
+      required: false
+      selector:
+        text: {}
+
+discard_time_program_draft:
+  name: "Discard schedule draft"
+  description: "Close the shared server draft with revision/session conflict protection. Never writes hardware."
+  fields:
+    config_entry_id:
+      name: "HTHA entry ID"
+      required: true
+      selector:
+        config_entry:
+          integration: "htha"
+    expected_draft_revision:
+      name: "Expected editor revision"
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 2147483647
+          mode: "box"
+    session_id:
+      name: "Editor session ID"
+      required: true
+      selector:
+        text: {}

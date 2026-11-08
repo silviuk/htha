@@ -646,6 +646,18 @@
                     "description": "Exakte session_id des letzten Editor-Snapshots."
                 }
             }
+        },
+        "get_current_time_program": {
+            "name": "Aktuelles Zeitprogramm lesen",
+            "description": "Schreibgeschützt; nutzt einen bis zu drei Minuten alten Cache und erhält Server-Entwürfe und Freigaben."
+        },
+        "start_time_program_draft": {
+            "name": "Zeitprogramm-Entwurf beginnen",
+            "description": "Aktuelles Zeitprogramm oder Profil ausdrücklich mit Pumpen-Vergleichsbasis kopieren. Schreibt nie auf die Wärmepumpe."
+        },
+        "discard_time_program_draft": {
+            "name": "Zeitprogramm-Entwurf verwerfen",
+            "description": "Gemeinsamen Entwurf mit Revisions- und Sitzungsprüfung schließen. Schreibt nie auf die Wärmepumpe."
         }
     },
     "exceptions": {

@@ -4,7 +4,7 @@ The card keeps `custom:htha-schedule-scratchpad-card`, `entity` and
 `config_entry_id`. The integration auto-loads the card and manages its storage-mode
 resource. The strategy shows it in the schedule section; `schedule_editor: false`
 selects the read-only view. For an explicit YAML resource, use
-`/htha_frontend/htha-schedule-scratchpad-card.js?v=1.3.4` (JavaScript Module).
+`/htha_frontend/htha-schedule-scratchpad-card.js?v=1.3.5` (JavaScript Module).
 See [dashboard example](../dashboards/schedule-editor-v2.yaml).
 Existing binary schedule helpers remain separate.
 
@@ -16,29 +16,62 @@ enable-writes button.
 
 ## Use
 
-1. Choose Heating (2) or Hot water (0). **Load from pump** replaces the draft
-   after a dirty-work prompt. **Refresh baseline** preserves edits. Opening the
-   profile catalog/rendering the card does not read the pump.
-   The profile list refreshes automatically on first load, category changes,
-   save/rename/delete/apply and **Load from pump**. Focusing/opening the profile
-   dropdown and returning to a visible tab refresh at most once per two seconds,
-   with no overlapping catalog requests. These refreshes call only
-   `list_time_program_profiles`, preserve the draft and keep the selected UUID
-   if it still exists. There is no separate **Profiles** button.
-2. Compare the distinct current and draft grids. Both have Monday–Sunday rows,
-   a 00–24 ruler, hour lines and quarter-hour geometry. Current shows last read
-   time/metadata and exact numeric-content matching profile names, or Custom.
-   Failed verification is unknown; diagnostic recovery reads are separate.
+1. Choose Heating (2) or Hot water (0). Opening the card and the first visit to
+   each category automatically show **Current schedule (on pump)** and **read at**.
+   The dedicated admin response service `get_current_time_program` returns a
+   separate `current_view` (program, metadata, mode catalog and timestamp). It
+   never changes the server draft, baseline, session, revision or approval.
+   A baseline read or coordinator `time_programs` cache no older than 180 seconds
+   costs zero pump reads. A miss performs one read of that category through the
+   existing serialized transport path. Concurrent requests share the fresh cache.
+   Each card instance loads each category at most once automatically; rendering,
+   HA updates, visibility and reconnects never re-read. **Reload from pump** and
+   the error **Retry** button explicitly request another read. In an open editor,
+   Reload/Refresh baseline preserve edits and revoke validation as before.
+2. No draft grid or editing controls appear until an explicit choice:
+   **Edit a copy of current schedule**, **Start from profile…** followed by
+   **Use as starting point** / **Apply profile…**, or **New schedule**.
+   `start_time_program_draft` atomically captures the current baseline and copies
+   the selected source under the manager lock with required revision/session checks.
+   New resolves the category factory preset: heating Normal all day, hot water On
+   all day. Unspecified hot-water periods mean Off/minimum maintenance, as in the
+   factory preset documentation below. Unknown mappings remain unknown and block send.
+   Existing server drafts (including another category) are offered for **Resume draft**
+   or **Discard draft**. Starting a replacement asks for confirmation. Opening the
+   dashboard never adopts or overwrites them silently.
+   **Discard draft / Close editor** uses `discard_time_program_draft` with required
+   revision/session checks and the existing unsaved-work confirmation, returning
+   to the read-only grid. Draft and current grids have Monday–Sunday rows, an
+   hour ruler and quarter-hour geometry; draft changes retain the old-color/X diff.
+
+   The profile list refreshes automatically on first load, category changes and
+   profile actions. Opening its dropdown and returning to a visible tab refresh
+   at most once per two seconds without overlapping catalog requests. These
+   refreshes only call `list_time_program_profiles` and preserve local work.
 3. Click selects; Ctrl/Cmd-click toggles; Shift-click extends an inclusive range
    within one day; Ctrl/Cmd+Shift adds it. Shift to another day starts a new
    row-local selection. Drag selects only, with pointer capture and safe cancel.
    Arrows navigate, Shift+arrows extend, Space toggles, Escape clears. Selection
    does not invalidate a check. Choose a mode and explicitly **Set mode for
    selection** to change the local draft; dropdown selection alone changes nothing.
-4. On phones use Day, Start, End, Add selection and **Select range**. End can be
-   24:00. Tap a day for a scrollable precise day editor with large cells and a
-   textual interval fallback. The overview labels 0/6/12/18/24 and does not
-   require hitting 96 tiny targets. Vertical scrolling remains available.
+4. Mouse, pen and touch use Pointer Events with pointer capture. On phones,
+   tap a draft slot to select it; tap the sole selected slot again to clear it.
+   Enable **Multi-select** (**Mehrfachauswahl**) to add/remove individual slots.
+   **Select day** (**Tag auswählen**) selects the last touched/focused day or
+   the Day picker value; Multi-select keeps other selected days. **Clear
+   selection** (**Auswahl aufheben**) clears all slots.
+   Enable **Select** (**Auswählen**) before touch-dragging an inclusive range
+   within one day. Only editable cells then use `touch-action:none`; scrolling
+   outside the grid remains available. Turn Select off (the default) to scroll
+   normally, horizontally or vertically; taps still select. This explicit mode
+   avoids confusing a scroll gesture with a range selection. Cancellation or
+   lost pointer capture restores the selection from before the gesture.
+   At 412px the draft week scrolls horizontally with slot targets at least
+   44 × 44 CSS pixels. The read-only current overview stays compact. The
+   focused-day detail also has large slots and textual intervals. Day, Start,
+   End, Add selection and **Select range** remain available for long ranges;
+   End can be 24:00. Selection never changes the draft, validation or services;
+   setting a mode remains a separate explicit action.
 5. **Copy this day to…** supports All days, Weekdays, Weekend and selected days.
    Confirmation previews the targets. The whole day is deep-copied as one undo
    operation. Undo/redo are local (100-operation limit). Over-capacity edits are
@@ -271,13 +304,20 @@ From the root, with the repository HA test dependencies already installed:
 python -m pytest
 node --test tests/schedule-card.test.cjs
 node --test tests/
-node tests/capture-schedule-editor.cjs
+node tests/check-schedule-layout.cjs
 ```
 
 Python requires Home Assistant, pytest-homeassistant-custom-component, pytest,
 pytest-asyncio and pinned integration dependencies. This run downloads nothing.
 `pytest.ini` sets automatic asyncio mode. Existing recovery tests cover all 49
-slot failures, cancellation, read failure, padding and guarded restore. New
+slot failures, cancellation, read failure, padding and guarded restore. Autoload tests cover cache hit/miss/expiry, shared requests, draft preservation,
+explicit source/close/resume transitions and no-write behavior. The layout check
+uses blocked-network Chrome fixtures at 412px in EN/DE, light/dark, both categories
+and both editor states; it creates no screenshots. It also checks 44px touch
+targets, grid-only touch-action changes and native Chrome touch input for tap,
+additive tap, captured drag and cancellation. Node touch-pointer tests verify
+Select day, Clear selection, scrolling gestures and zero selection service calls
+or draft/validation changes. New
 tests cover cells/diffs, profiles/revisions/restarts/corruption, mapping/firmware,
 stale tabs and permission revocation during durable marker await. HA service
 tests use fake native transport and temporary HA Store.

@@ -20,7 +20,7 @@ function fixture({confirm=true,prompt='My profile',language='en'}={}) {
     setInterval:fn=>{timers.add(fn);return fn;},clearInterval:fn=>timers.delete(fn),
   });
   const card=new Card();card.setConfig({entity:'sensor.validation',config_entry_id:'entry'});
-  card._hass={language,locale:{language},config:{time_zone:'Europe/Berlin'},states:{},callWS:async request=>{calls.push(plain(request));return {response:request.service==='list_time_program_profiles'?{profiles:plain(card._profiles),library_revision:1,library_error:null}:plain(card._model)};}};
+  card._hass={language,locale:{language},config:{time_zone:'Europe/Berlin'},states:{},callWS:async request=>{calls.push(plain(request));return {response:request.service==='list_time_program_profiles'?{profiles:plain(card._profiles),library_revision:1,library_error:null}:request.service==='get_current_time_program'?{...plain(card._model),current_view:{current_program:plain(card._model.current_program),metadata:plain(card._model.metadata),read_at:card._model.baseline_read_at,mode_catalog:[]}}:plain(card._model)};}};
   card._model={metadata:meta,revision:1,session_id:'s',mode_catalog:[],mapping_revision:0,current_program:{...meta,...draft()},current_state:'read',baseline_read_at:'2026-11-07T10:00:00Z',writes_enabled:false};
   card.adoptDraft(draft());
   return {card,api:window.HthaScheduleEditor,nodes,calls,timers,window,document,listeners,advance:ms=>{now+=ms;}};
@@ -89,7 +89,7 @@ test('factory shortcut fresh-validates then stops for critical mapping without a
   card._hass.callWS=async request=>{calls.push(plain(request));return {response:{...card._model,draft:draft(null),profile_context:p,
     critical_count:1,findings:[{id:'factory_mapping',severity:'critical',message:'Factory mapping unverified'}],missing_gates:['factory_mapping'],can_apply:false}};};
   await card.loadProfile(true);
-  assert.deepEqual(calls.map(c=>c.service),['load_time_program_profile','validate_time_program']);
+  assert.deepEqual(calls.map(c=>c.service),['start_time_program_draft','validate_time_program']);
   assert.equal(calls[1].service_data.fresh_read,true);assert.ok(card._local.week.every(day=>day.every(x=>x===null)));
   assert.ok(card.missing().some(s=>s.includes('Factory preset mapping')));assert.equal(card._warningChecks.size,0);
   await card.saveProfile();assert.equal(calls.length,2); // unknown cells cannot become a numeric saved copy
@@ -134,9 +134,100 @@ test('pointer drag selects only, captures pointer and cancellation is safe',()=>
 });
 test('touch range/add controls preserve scroll and last endpoint is 24:00',()=>{
   const {card}=fixture();card.render=()=>{};
-  card.pointerDown(0,3,{button:0,pointerType:'touch'});assert.equal(card._gesture,undefined);
   card.selectRange(0,94,96);card.selectRange(0,2,4,true);assert.equal(card._selection.cells.size,4);
   assert.match(card.selectionText(),/23:30–24:00/);card.selectRange(0,95,97);assert.equal(card._selection.cells.size,4);
+});
+
+function touchPointer(card,day=0,i=3) {
+  let captured=false;
+  const event={button:0,pointerType:'touch',pointerId:23,clientX:10,clientY:20,
+    currentTarget:{setPointerCapture(id){assert.equal(id,23);captured=true;},
+      hasPointerCapture(){return captured;},releasePointerCapture(){captured=false;}}};
+  card.pointerDown(day,i,event);
+  assert.equal(captured,true);
+  return {event,captured:()=>captured};
+}
+
+test('touch tap selects/toggles one slot and suppresses compatibility click in either mode',()=>{
+  for(const selectMode of [false,true]) {
+    const {card,calls}=fixture();card._selectMode=selectMode;
+    const before=plain(card._draft);card._dirty=false;card._validatedHash='valid';
+    let p=touchPointer(card);card.pointerEnd(false,p.event);
+    assert.equal(p.captured(),false);assert.deepEqual([...card._selection.cells],['0:3']);
+    card.clickCell(0,3,{detail:1});assert.equal(card._selection.cells.size,1);
+    p=touchPointer(card);card.pointerEnd(false,p.event);assert.equal(card._selection.cells.size,0);
+    assert.deepEqual(plain(card._draft),before);assert.equal(card._local.undo.length,0);
+    assert.equal(card._dirty,false);assert.equal(card._validatedHash,'valid');assert.equal(calls.length,0);
+  }
+});
+
+test('visible Multi-select makes touch taps additive and toggles existing slots',()=>{
+  const {card,nodes,calls}=fixture();card.render();nodes.get('multi-select').onclick();
+  assert.equal(card._multiSelect,true);
+  for(const i of [3,7,3]) {const p=touchPointer(card,0,i);card.pointerEnd(false,p.event);}
+  assert.deepEqual([...card._selection.cells],['0:7']);assert.equal(calls.length,0);
+  assert.match(card.shadowRoot.innerHTML,/id="multi-select" aria-pressed="true"/);
+});
+
+test('touch drag hits shadow cells, stays row-local and selects an inclusive range without editing',()=>{
+  const {card,calls,nodes,document}=fixture();card.render();nodes.get('select-mode').onclick();
+  assert.equal(card._selectMode,true);
+  assert.match(card.shadowRoot.innerHTML,/editable-grid select-mode/);
+  card._dirty=false;card._validatedHash='valid';const before=plain(card._draft);
+  const p=touchPointer(card,1,4);let hit='1:9',prevented=0;
+  card.shadowRoot.elementFromPoint=(x,y)=>{assert.equal(x,90);assert.equal(y,20);return {closest:()=>({dataset:{cell:hit}})};};
+  document.elementFromPoint=()=>{throw Error('Shadow hit must take precedence');};
+  const move={...p.event,clientX:90,preventDefault:()=>prevented++};
+  card.pointerMove(move);assert.equal(card._gesture.end,9);assert.equal(prevented,1);
+  hit='2:20';card.pointerMove(move);assert.equal(card._gesture.end,9);
+  card.pointerEnd(false,p.event);assert.equal(p.captured(),false);
+  assert.deepEqual([...card._selection.cells],['1:4','1:5','1:6','1:7','1:8','1:9']);
+  assert.deepEqual(plain(card._draft),before);assert.equal(card._local.undo.length,0);
+  assert.equal(card._dirty,false);assert.equal(card._validatedHash,'valid');assert.equal(calls.length,0);
+});
+
+test('touch drag falls back to document hit testing and cancellation restores selection/releases capture',()=>{
+  const {card,document,calls}=fixture();card._selectMode=true;card._selection.choose(4,95);
+  const p=touchPointer(card);card.shadowRoot.elementFromPoint=()=>null;
+  document.elementFromPoint=()=>({closest:()=>({dataset:{cell:'0:8'}})});
+  card.pointerMove({...p.event,clientX:80});assert.equal(card._selection.cells.size,6);
+  card.pointerEnd(true,{pointerId:99});assert.ok(card._gesture);
+  card.pointerEnd(true,p.event);assert.equal(card._gesture,null);assert.equal(p.captured(),false);
+  assert.deepEqual([...card._selection.cells],['4:95']);
+  card.pointerMove({...p.event,clientX:90});card.pointerEnd(false,p.event);
+  assert.deepEqual([...card._selection.cells],['4:95']);assert.equal(calls.length,0);
+});
+
+test('scroll mode does not select on movement or browser cancellation, and ignores secondary pointers',()=>{
+  const {card}=fixture();card._selection.choose(5,6);const p=touchPointer(card);
+  card.pointerDown(1,2,{...p.event,pointerId:24,isPrimary:false});assert.equal(card._gesture.pointerId,23);
+  card.pointerMove({...p.event,clientY:100,preventDefault(){throw Error('Must allow scrolling');}});
+  card.pointerEnd(false,p.event);assert.deepEqual([...card._selection.cells],['5:6']);
+  const next=touchPointer(card);card.pointerEnd(true,next.event);assert.deepEqual([...card._selection.cells],['5:6']);
+});
+
+test('Select day and Clear selection controls are local and follow focused day / Multi-select',()=>{
+  const {card,nodes,calls}=fixture();card.render();card._dirty=false;card._validatedHash='valid';
+  const p=touchPointer(card,3,1);card.pointerEnd(false,p.event);
+  nodes.get('select-day').onclick();assert.equal(card._selection.cells.size,96);
+  assert.ok(card._selection.cells.has('3:95'));
+  nodes.get('multi-select').onclick();card._day=4;nodes.get('select-day').onclick();
+  assert.equal(card._selection.cells.size,192);
+  nodes.get('clear').onclick();assert.equal(card._selection.cells.size,0);
+  assert.equal(card._dirty,false);assert.equal(card._validatedHash,'valid');assert.equal(calls.length,0);
+  assert.deepEqual(plain(card._draft),draft());assert.equal(card._local.undo.length,0);
+});
+
+for(const pointerType of ['mouse','pen'])test(pointerType+' retains modifier selection and drags with Select mode off',()=>{
+  const {card}=fixture();let hit='0:8';
+  card.shadowRoot.elementFromPoint=()=>({closest:()=>({dataset:{cell:hit}})});
+  const down=(i,modifiers={})=>card.pointerDown(0,i,{button:0,pointerType,pointerId:1,currentTarget:{},...modifiers});
+  down(2);card.pointerEnd();down(4,{ctrlKey:true});card.pointerEnd();
+  assert.deepEqual([...card._selection.cells],['0:2','0:4']);
+  down(6,{shiftKey:true});card.pointerEnd();assert.deepEqual([...card._selection.cells],['0:4','0:5','0:6']);
+  down(8,{metaKey:true,shiftKey:true});card.pointerEnd();assert.equal(card._selection.cells.size,5);
+  down(1);card.pointerMove({pointerId:1,clientX:80,clientY:10});card.pointerEnd();
+  assert.equal(card._selection.cells.size,8);assert.ok(card._selection.cells.has('0:1'));
 });
 test('keyboard arrows, Shift, Space and Escape have independent selection semantics',()=>{
   const {card}=fixture();card.render=()=>{};let prevented=0;
@@ -156,8 +247,8 @@ test('8-run editing is retained, compression is numeric and does not smooth',()=
   const {api}=fixture(),week=api.toCells(draft());for(let i=0;i<7;i++)week[0][i]=i%2;
   const encoded=api.toDraft(week);assert.equal(encoded.entries[0].length,8);assert.deepEqual(plain(api.toCells(encoded)),plain(week));
 });
-test('dirty replacement cancel prevents category/profile/pump calls',async()=>{
-  const {card,calls}=fixture({confirm:false});card._profileId='p';await card.changeCategory('hot_water');await card.loadProfile();await card.loadPump();assert.equal(card._category,'heating');assert.equal(calls.length,0);
+test('dirty replacement cancel prevents category/profile calls',async()=>{
+  const {card,calls}=fixture({confirm:false});card._profileId='p';await card.changeCategory('hot_water');await card.loadProfile();assert.equal(card._category,'heating');assert.equal(calls.length,0);
 });
 test('profile Save/create and explicit overwrite use immutable local copy and revision',async()=>{
   const {card,calls}=fixture();card.render=()=>{};await card.saveProfile();assert.equal(calls[0].service,'save_time_program_profile');assert.equal(calls[0].service_data.profile_id,undefined);
@@ -171,7 +262,7 @@ test('profile rename/delete use selected UUID and exact profile revision',async(
 test('Apply profile shortcut stops at fresh validation and never trusts saved approvals',async()=>{
   const {card,calls}=fixture();card.render=()=>{};card._dirty=false;card._profileId='p';
   card._hass.callWS=async request=>{calls.push(request);return {response:{...card._model,draft:draft(2),draft_hash:'new',warning_ids:['non_atomic'],can_apply:false}};};
-  await card.loadProfile(true);assert.deepEqual(calls.map(c=>c.service),['load_time_program_profile','validate_time_program']);assert.equal(calls[1].service_data.fresh_read,true);assert.equal(card._warningChecks.size,0);
+  await card.loadProfile(true);assert.deepEqual(calls.map(c=>c.service),['start_time_program_draft','validate_time_program']);assert.equal(calls[1].service_data.fresh_read,true);assert.equal(card._warningChecks.size,0);
 });
 test('profile conflict preserves draft and invalidates local approval',async()=>{
   const {card}=fixture();card.render=()=>{};card._hass.callWS=async()=>{throw new Error('Profile revision conflict');};await card.saveProfile();assert.match(card._error,/conflict/);assert.deepEqual(plain(card._draft),draft());assert.equal(card._dirty,true);
@@ -312,25 +403,26 @@ for(const language of ['en','de'])test('changed legend and accessible labels are
  assert.match(html,language==='de'?/war Normalbetrieb \[1\], jetzt Aufheizen \[2\]/:/was Normal \[1\], now Boost \[2\]/);
 });
 
-test('initial hass, picker and visibility refresh only the catalog, debounce and clean up',async()=>{
+test('initial hass, picker and visibility refresh catalog without repeating the initial current read, debounce and clean up',async()=>{
   const {card,calls,nodes,document,listeners,advance}=fixture();
   card.render=()=>{};const hass=card._hass;
   card.hass=hass;await card._catalogRequest;
-  assert.equal(calls.length,1);
-  card.hass=hass;assert.equal(calls.length,1);
+  assert.equal(calls.filter(c=>c.service==='list_time_program_profiles').length,1);
+  card.hass=hass;assert.equal(calls.filter(c=>c.service==='list_time_program_profiles').length,1);
   card.render=Object.getPrototypeOf(card).render;card.render();
   assert.doesNotMatch(card.shadowRoot.innerHTML,/id="catalog"/);
   card.connectedCallback();await card._catalogRequest;
-  assert.equal(calls.length,1);
+  assert.equal(calls.filter(c=>c.service==='list_time_program_profiles').length,1);
   nodes.get('profiles').onfocus();nodes.get('profiles').onpointerdown();await card._catalogRequest;
-  assert.equal(calls.length,1);
+  assert.equal(calls.filter(c=>c.service==='list_time_program_profiles').length,1);
   advance(2000);nodes.get('profiles').onkeydown();await card._catalogRequest;
-  assert.equal(calls.length,2);
-  document.visibilityState='hidden';advance(2000);listeners.get('visibilitychange')();assert.equal(calls.length,2);
+  assert.equal(calls.filter(c=>c.service==='list_time_program_profiles').length,2);
+  document.visibilityState='hidden';advance(2000);listeners.get('visibilitychange')();assert.equal(calls.filter(c=>c.service==='list_time_program_profiles').length,2);
   document.visibilityState='visible';listeners.get('visibilitychange')();await card._catalogRequest;
-  assert.equal(calls.length,3);listeners.get('visibilitychange')();assert.equal(calls.length,3);
+  assert.equal(calls.filter(c=>c.service==='list_time_program_profiles').length,3);listeners.get('visibilitychange')();assert.equal(calls.filter(c=>c.service==='list_time_program_profiles').length,3);
   card.disconnectedCallback();assert.equal(listeners.size,0);
-  assert.ok(calls.every(c=>c.service==='list_time_program_profiles'));
+  assert.equal(calls.filter(c=>c.service==='get_current_time_program').length,1);
+  assert.ok(calls.every(c=>['list_time_program_profiles','get_current_time_program'].includes(c.service)));
 });
 
 test('refresh keeps draft, history, selection, selected id and approvals; missing id clears without choosing another',async()=>{
@@ -362,13 +454,12 @@ test('catalog requests never overlap and ignore a late response for the previous
   assert.equal(card._profiles[0].id,'water');assert.equal(card._catalogRequest,null);
 });
 
-test('category and Load from pump finish with a storage-only list refresh',async()=>{
-  const {card,calls}=fixture();card.render=()=>{};card._dirty=false;
+test('category auto-load and manual reload never create a draft',async()=>{
+  const {card,calls}=fixture();card._draft=null;card._local=null;
   await card.changeCategory('hot_water');
-  assert.deepEqual(calls.map(c=>c.service),['get_time_program_editor','list_time_program_profiles']);
-  assert.equal(calls[1].service_data.category,'hot_water');
-  card._hass.callWS=async req=>{calls.push(req);return {response:req.service==='load_time_program_draft'?{...card._model,draft:draft()}: {profiles:[]}};};
-  await card.loadPump();assert.deepEqual(calls.slice(-2).map(c=>c.service),['load_time_program_draft','list_time_program_profiles']);
+  assert.deepEqual(calls.map(c=>c.service),['get_current_time_program','list_time_program_profiles']);
+  await card.loadPump();assert.equal(calls.at(-1).service,'get_current_time_program');assert.equal(calls.at(-1).service_data.force,true);
+  assert.equal(card._draft,null);
 });
 
 for(const language of ['en','de'])test('delete confirms the name and retains that exact id even if selection changes '+language,async()=>{
@@ -376,4 +467,63 @@ for(const language of ['en','de'])test('delete confirms the name and retains tha
   card._profiles=[{id:'a',name:'Family default (hot water)',revision:4},{id:'b',name:'Other',revision:7}];card._profileId='a';
   window.confirm=message=>{assert.ok(message.includes('Family default (hot water)'));card._profileId='b';return true;};
   await card.deleteProfile();assert.equal(calls[0].service_data.profile_id,'a');assert.equal(calls[0].service_data.expected_profile_revision,4);
+});
+
+test('auto-load is once per open/category, coalesces requests and never adopts a server draft',async()=>{
+  const {card,calls}=fixture();card._draft=null;card._local=null;
+  const hass=card._hass;card.hass=hass;card.hass=hass;card.render();
+  await card._currentRequests.heating;
+  assert.equal(card._draft,null);assert.equal(calls.filter(c=>c.service==='get_current_time_program').length,1);
+  let html=card.shadowRoot.innerHTML;assert.match(html,/Current schedule \(on pump\)/);assert.match(html,/read at/);
+  for(const id of ['mode','paint','copy','check','save-profile','save','ack'])assert.doesNotMatch(html,new RegExp('id="'+id+'"'));
+  assert.equal((html.match(/class="week-grid"/g)||[]).length,1);
+  card.connectedCallback();card.disconnectedCallback();card.connectedCallback();card.hass=hass;card.render();
+  await card.changeCategory('hot_water');await card.changeCategory('heating');card.disconnectedCallback();
+  assert.deepEqual(calls.filter(c=>c.service==='get_current_time_program').map(c=>c.service_data.program_index),[2,0]);
+  assert.ok(calls.every(c=>['get_current_time_program','list_time_program_profiles'].includes(c.service)));
+});
+
+for(const source of ['current','profile','new'])test('explicit entry opens draft and close returns to read-only: '+source,async()=>{
+  const {card,calls,nodes}=fixture();card._draft=null;card._local=null;
+  card._profiles=[{id:'saved',name:'Winter',revision:1}];card._profileId='saved';
+  card._currentViews.heating={metadata:meta,current_program:{...meta,...draft()},read_at:'2026-11-07T10:00:00Z',mode_catalog:[]};
+  card._hass.callWS=async request=>{calls.push(plain(request));return {response:{...card._model,draft:request.service==='discard_time_program_draft'?null:draft(source==='profile'?0:1)}};};
+  card.render();
+  if(source==='profile')await nodes.get('profile-load').onclick();
+  else await nodes.get(source==='new'?'new-schedule':'edit-current').onclick();
+  assert.equal(calls[0].service,'start_time_program_draft');assert.equal(calls[0].service_data.program_index,2);
+  assert.equal(calls[0].service_data.profile_id,source==='new'?'factory_default_heating':source==='profile'?'saved':undefined);
+  assert.ok(card._draft);assert.match(card.shadowRoot.innerHTML,/id="mode"/);assert.match(card.shadowRoot.innerHTML,/id="save"[^>]*disabled/);
+  await nodes.get('close-draft').onclick();assert.equal(calls.at(-1).service,'discard_time_program_draft');
+  assert.equal(card._draft,null);assert.equal(card._local,null);assert.doesNotMatch(card.shadowRoot.innerHTML,/id="mode"|id="save"/);
+  assert.ok(calls.every(c=>!['apply_time_program','restore_previous_time_program'].includes(c.service)));
+});
+
+test('server draft is offered for resume, including another category, and is never silently adopted',async()=>{
+  const {card,nodes}=fixture();const hass=card._hass;card._draft=null;card._local=null;
+  card._model={...card._model,draft:draft(0)};card.hass=hass;await card._currentRequests.heating;
+  assert.equal(card._draft,null);assert.match(card.shadowRoot.innerHTML,/id="resume-draft"/);
+  card._model.metadata={...meta,index:0,nos:2};card.render();await nodes.get('resume-draft').onclick();
+  assert.equal(card._category,'hot_water');assert.equal(card._draft.entries[0][0].state,0);
+});
+
+test('failed auto-load is not retried by hass or rendering; Retry performs one read',async()=>{
+  const {card,calls,nodes}=fixture();card._draft=null;card._local=null;
+  card._hass.callWS=async request=>{calls.push(plain(request));if(request.service==='get_current_time_program')throw new Error('Offline failure');return {response:{profiles:[]}};};
+  const hass=card._hass;card.hass=hass;await card._currentRequests.heating;
+  card.render();card.hass=hass;card.hass=hass;assert.equal(calls.filter(c=>c.service==='get_current_time_program').length,1);
+  assert.match(card.shadowRoot.innerHTML,/Offline failure/);await nodes.get('retry').onclick();
+  assert.equal(calls.filter(c=>c.service==='get_current_time_program').length,2);assert.equal(card._draft,null);
+});
+
+test('closing dirty draft cancellation preserves editor without any call',async()=>{
+  const {card,calls}=fixture({confirm:false});await card.closeDraft();assert.ok(card._draft);assert.equal(calls.length,0);
+});
+
+test('read-only labels and colors use displayed category while another category has a server draft',()=>{
+  const {card}=fixture();card._draft=null;card._local=null;
+  card._model.mode_catalog=[{state:1,semantic:'normal',confirmed:true}];
+  card._currentViews.hot_water={metadata:{...meta,index:0,nos:2},current_program:{...draft()},read_at:'2026-11-07T10:00:00Z',mode_catalog:[{state:1,semantic:'charging',confirmed:true}]};
+  card._category='hot_water';card.render();assert.equal(card.styleMode(1),'charging');assert.equal(card.label(1),'On [1]');
+  assert.match(card.shadowRoot.innerHTML,/class="bar charging"/);
 });

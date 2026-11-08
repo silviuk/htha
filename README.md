@@ -123,9 +123,9 @@ config_entry_id: YOUR_HTHA_CONFIG_ENTRY_ID
 No manual resource is normally needed. Both scripts are served under `/htha_frontend/`, loaded through the frontend and registered as versioned JavaScript modules in storage-mode resources. Existing matching resources are updated; only resources created by htha are removed when its last entry is deleted. YAML resource lists are not edited; if explicit resources are needed, add these with `type: module`:
 
 ```yaml
-- url: /htha_frontend/htha-heatpump-strategy.js?v=1.3.4
+- url: /htha_frontend/htha-heatpump-strategy.js?v=1.3.5
   type: module
-- url: /htha_frontend/htha-schedule-scratchpad-card.js?v=1.3.4
+- url: /htha_frontend/htha-schedule-scratchpad-card.js?v=1.3.5
   type: module
 ```
 
@@ -133,7 +133,27 @@ No manual resource is normally needed. Both scripts are served under `/htha_fron
 
 ![Weekly schedule editor](docs/schedule-editor-evidence/1100-en-light.png)
 
+Opening the card automatically shows **Current schedule (on pump)** with its read time.
+Each category loads once per card instance: a baseline or coordinator cache no older than
+three minutes costs **zero pump reads**; a cache miss costs **one read** through the existing
+read path. Rendering, HA updates, tab visibility and reconnects never repeat that read.
+Use **Reload from pump** or **Retry** for an explicit new read.
+
+The editor is closed by default. Choose **Edit a copy of current schedule**,
+**Start from profile… → Use as starting point / Apply profile…**, or **New schedule**.
+New uses the category's factory preset: all-day Normal for heating, all-day On for
+hot water (unspecified hot-water periods use Off/minimum maintenance semantics).
+**Discard draft / Close editor** returns to the current schedule after the existing
+unsaved-changes confirmation. A server draft from another tab is offered as
+**Resume draft** and **Discard draft**; opening the card never replaces it.
+
 Edit recurring quarter-hour cells in a weekly grid, select multiple cells, assign modes and copy days. Validate to see findings and a diff before sending. Save personal profiles or start from the read-only **Factory default (Heliotherm)** profiles for heating and hot water.
+On phones, tap slots or enable **Select** (**Auswählen**) to drag a range;
+turn it off to scroll normally. **Multi-select** (**Mehrfachauswahl**),
+**Select day** (**Tag auswählen**) and **Clear selection** (**Auswahl aufheben**)
+work without modifier keys. Draft slots have large, horizontally scrollable
+touch targets. Selection alone makes no changes or service calls.
+
 The profile list refreshes automatically on card load, category changes, profile actions,
 opening the dropdown and returning to the tab. Refreshes preserve edits and only read the HA profile library.
 

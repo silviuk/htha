@@ -16,7 +16,7 @@ from htheatpump.httimeprog import TimeProgram
 from .const import DOMAIN, CONF_WRITE_ENABLED
 from .schedule_safety import Scratchpad, ProfileLibrary, normalized, bounded_draft, FACTORY_PRESETS
 
-SERVICES = ("load_time_program_draft", "validate_time_program", "acknowledge_time_program_warnings", "apply_time_program", "refresh_time_program_baseline", "restore_previous_time_program",
+SERVICES = ("get_current_time_program", "start_time_program_draft", "discard_time_program_draft", "load_time_program_draft", "validate_time_program", "acknowledge_time_program_warnings", "apply_time_program", "refresh_time_program_baseline", "restore_previous_time_program",
             "get_time_program_editor", "list_time_program_profiles", "save_time_program_profile", "rename_time_program_profile", "delete_time_program_profile", "load_time_program_profile", "set_time_program_mode_mapping")
 
 
@@ -131,6 +131,9 @@ def register_services(hass):
     expected = {vol.Required("expected_profile_revision"): integer}
     profile_name = vol.All(cv.string, vol.Length(min=1, max=80))
     schemas = {
+        "get_current_time_program": vol.Schema({**base, vol.Required("program_index"): legacy_index, vol.Optional("force", default=False): bool}),
+        "start_time_program_draft": vol.Schema({**base, vol.Required("expected_draft_revision"): integer, vol.Required("session_id"): cv.string, vol.Required("program_index"): legacy_index, vol.Optional("profile_id"): cv.string}),
+        "discard_time_program_draft": vol.Schema({**base, vol.Required("expected_draft_revision"): integer, vol.Required("session_id"): cv.string}),
         "load_time_program_draft": vol.Schema({**base, **revision, vol.Required("program_index"): legacy_index}),
         "validate_time_program": vol.Schema({**base, **revision, vol.Optional("fresh_read", default=False): bool,
             vol.Optional("expected_mapping_revision"): integer, vol.Required("draft"): dict, vol.Required("policy"): vol.Schema({
@@ -166,7 +169,14 @@ def register_services(hass):
             if len(json.dumps(dict(data))) > 70000:
                 raise ValueError("payload_too_large")
             rev, session = data.get("expected_draft_revision"), data.get("session_id")
-            if call.service == "load_time_program_draft":
+            if call.service == "get_current_time_program":
+                current = await target.get_current(data["program_index"], data["force"])
+                return {**snapshot(target), "current_view": current}
+            elif call.service == "start_time_program_draft":
+                await target.start_draft(data["program_index"], data.get("profile_id"), rev, session)
+            elif call.service == "discard_time_program_draft":
+                await target.discard_draft(rev, session)
+            elif call.service == "load_time_program_draft":
                 await target.load(data["program_index"], rev, session)
             elif call.service == "validate_time_program":
                 await target.check(data["draft"], data["policy"], data["fresh_read"], rev, session, data.get("expected_mapping_revision"))

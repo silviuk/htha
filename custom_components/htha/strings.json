@@ -650,6 +650,18 @@
                     "description": "Exact session_id from the latest editor snapshot."
                 }
             }
+        },
+        "get_current_time_program": {
+            "name": "Read current schedule",
+            "description": "Read-only current schedule; uses a cache up to three minutes old and preserves all server drafts and approvals."
+        },
+        "start_time_program_draft": {
+            "name": "Start schedule draft",
+            "description": "Explicitly copy the current schedule or a profile against the pump baseline. Never writes to the pump."
+        },
+        "discard_time_program_draft": {
+            "name": "Discard schedule draft",
+            "description": "Close the shared draft with revision and session checks. Never writes to the pump."
         }
     },
     "exceptions": {
