@@ -59,7 +59,8 @@ def _used_keys() -> dict[str, set[str]]:
         elif param in HtParams:
             used["sensor"].add(key)
     used["sensor"] |= {"time_programs", "operating_state",
-                       "heating_circuit_spread", "heat_source_spread"}
+                       "heating_circuit_spread", "heat_source_spread", "heating_curve_check"}
+    used["binary_sensor"].add("heating_curve_problem")
     for platform in ("switch", "datetime", "button"):
         src = (COMPONENT / f"{platform}.py").read_text(encoding="utf-8")
         used[platform] |= set(re.findall(r'translation_key="([a-z0-9_]+)"', src))

@@ -23,7 +23,8 @@ from .const import (
     PARAM_TRANSLATION_KEYS,
 )
 from .coordinator import HtHACoordinator
-from .entity import HtHABinarySensorEntity
+from .entity import HtHAEntity, HtHABinarySensorEntity
+from .heating_curve import evaluate_curve
 from . import HtHAConfigEntry
 
 if TYPE_CHECKING:
@@ -110,7 +111,12 @@ async def async_setup_entry(
     # Get selected parameters from options
     selected_params = config_entry.options.get("selected_params", [])
 
-    entities: list[HtHABinarySensor] = []
+    entities: list[BinarySensorEntity] = [HtHAHeatingCurveProblem(
+        coordinator, config_entry, BinarySensorEntityDescription(
+            key="heating_curve_problem", translation_key="heating_curve_problem",
+            device_class=BinarySensorDeviceClass.PROBLEM,
+        )
+    )]
 
     for param_name in selected_params:
         # Skip if not in HtParams
@@ -153,6 +159,23 @@ async def async_setup_entry(
 
     _LOGGER.debug("Adding %d binary sensor entities", len(entities))
     async_add_entities(entities)
+
+
+class HtHAHeatingCurveProblem(HtHAEntity, BinarySensorEntity):
+    """Suspicious floor-heating curve; unavailable until all points are known."""
+
+    @property
+    def available(self) -> bool:
+        return super().available and self._result is not None
+
+    @property
+    def _result(self):
+        return evaluate_curve(self.coordinator.data, self._config_entry.options)
+
+    @property
+    def is_on(self) -> bool | None:
+        result = self._result
+        return result[0] == "check_recommended" if result else None
 
 
 class HtHABinarySensor(HtHABinarySensorEntity, BinarySensorEntity):

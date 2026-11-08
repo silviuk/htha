@@ -12,6 +12,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import config_validation as cv
 
 from htheatpump import AioHtHeatpump
+from .heating_curve import POINTS
 
 from .const import (
     CONF_HOST,
@@ -200,6 +201,9 @@ class HtHAOptionsFlow(config_entries.OptionsFlow):
                     "model": user_input.get("model", "").strip(),
                     CONF_SCAN_INTERVAL: user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
                     CONF_SELECTED_PARAMS: user_input.get(CONF_SELECTED_PARAMS, DEFAULT_PARAMS),
+                    **{f"curve_reference_{key}": user_input.get(
+                        f"curve_reference_{key}", self._config_entry.options.get(f"curve_reference_{key}", default)
+                    ) for key, _, _, default in POINTS},
                 },
             )
 
@@ -217,6 +221,12 @@ class HtHAOptionsFlow(config_entries.OptionsFlow):
             data_schema=vol.Schema(
                 {
                     vol.Optional("model", default=self._config_entry.options.get("model", "")): str,
+                    **{vol.Optional(
+                        f"curve_reference_{key}",
+                        default=self._config_entry.options.get(f"curve_reference_{key}", default),
+                    ): vol.All(vol.Coerce(float), vol.Range(min=minimum, max=maximum))
+                       for (key, _, _, default), minimum, maximum in zip(
+                           POINTS, (15, 20, 25), (40, 50, 60))},
                     vol.Required(CONF_SCAN_INTERVAL, default=current_scan_interval): cv.positive_int,
                     vol.Optional(
                         CONF_SELECTED_PARAMS,

@@ -158,6 +158,9 @@
             },
             "heat_source_spread": {
                 "default": "mdi:delta"
+            },
+            "heating_curve_check": {
+                "default": "mdi:chart-bell-curve-cumulative"
             }
         },
         "binary_sensor": {
@@ -207,6 +210,12 @@
                 "default": "mdi:water-remove",
                 "state": {
                     "on": "mdi:water-check"
+                }
+            },
+            "heating_curve_problem": {
+                "default": "mdi:chart-bell-curve-cumulative",
+                "state": {
+                    "on": "mdi:alert-circle-outline"
                 }
             }
         },

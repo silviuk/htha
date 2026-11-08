@@ -110,7 +110,26 @@ test('frontend version matches the manifest',()=>{
   const manifest=JSON.parse(fs.readFileSync('custom_components/htha/manifest.json','utf8'));
   const strategy=fs.readFileSync('custom_components/htha/frontend/htha-heatpump-strategy.js','utf8');
   assert.match(strategy,new RegExp('HTHA_VERSION = "'+manifest.version.replaceAll('.','\\.')+'"'));
-  assert.equal(manifest.version,'1.3.5');
+  assert.equal(manifest.version,'1.3.6');
+});
+
+for(const language of ['en','de'])test(`curve status is compact, localized and isolated per pump: ${language}`,()=>{
+  const {api,hass}=fixture(language,2);
+  const section=api.buildSection(hass,{section:'controls',device_id:'pump1'});
+  const card=section.cards.find(c=>c.type==='custom:htha-heating-curve-card');
+  assert.equal(section.cards.filter(c=>c.type==='custom:htha-heating-curve-card').length,1);
+  assert.equal(card.entity,'sensor.pump_1_heating_curve_check');
+  assert.equal(card.grid_options.columns,12);
+  const de=language==='de';
+  assert.equal(api.curveStatus({state:'factory'},de),de?'Werkskurve':'Factory curve');
+  assert.equal(api.curveStatus({state:'check_recommended'},de),de?'Prüfung empfohlen':'Check recommended');
+  assert.equal(api.curveStatus({state:'unavailable'},de),de?'Nicht verfügbar':'Unavailable');
+  assert.equal(api.curveStatus(undefined,de),de?'Nicht verfügbar':'Unavailable');
+  assert.match(api.curveStatus({state:'differs_from_factory',attributes:{upper_point:{outdoor_c:18,delta_k:2}}},de), /\+18 °C .*\+2 K/);
+  assert.match(api.curveStatus({state:'factory',attributes:{reference_is_factory:false}},de),de?/Referenzkurve/:/Reference curve/);
+  const serialized=JSON.stringify(section);
+  assert.doesNotMatch(serialized,/At upper heating limit|At lower heating limit|An oberer Heizgrenze|An unterer Heizgrenze/);
+  assert.match(serialized,/\+18 °C/);assert.match(serialized,/-15 °C/);
 });
 
 test('schedule discovers entry from validation state when registry omits it',()=>{
