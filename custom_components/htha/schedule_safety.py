@@ -5,9 +5,12 @@ import asyncio
 from copy import deepcopy
 import hashlib
 import json
+import logging
 import re
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
+
+_LOGGER = logging.getLogger(__name__)
 
 DAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 MANUAL = "web control 321 customer manual pp.10-13 (7 slots/day, 15-minute steps)"
@@ -291,8 +294,9 @@ class ProfileLibrary:
     STORE_LIMIT = 8_000_000  # accommodates 100 maximum-size bounded profiles
     BUILTIN_NAMES = ("Factory default (Heliotherm)", "Werkseinstellung (Heliotherm)")
 
-    def __init__(self, save):
+    def __init__(self, save, load=None):
         self.save = save
+        self.read_store = load
         self.data = dict(schema_version=1, revision=0, profiles=[], mappings={})
         self.error = None
 
@@ -353,6 +357,17 @@ class ProfileLibrary:
     async def commit(self, data):
         if self.error:
             raise ValueError(self.error)
+        if data["revision"] != self.data["revision"]:
+            raise ValueError("profile_conflict")
+        if self.read_store:
+            stored = await self.read_store()
+            empty = dict(schema_version=1, revision=0, profiles=[], mappings={})
+            # Compare the whole snapshot, including same-revision replacements.
+            # Never merge a stale deletion/update or reset a missing Store.
+            if stored != self.data and not (stored is None and self.data == empty):
+                _LOGGER.warning("Refusing stale profile library commit at revision %s", self.data["revision"])
+                raise ValueError("profile_conflict")
+        data = deepcopy(data)
         data["revision"] += 1
         if len(json.dumps(data)) > self.STORE_LIMIT:
             raise ValueError("payload_too_large")
@@ -418,6 +433,8 @@ class ProfileLibrary:
         data = deepcopy(self.data)
         data["profiles"] = [p for p in data["profiles"] if p["id"] != profile_id] + [profile]
         await self.commit(data)
+        _LOGGER.info("Profile %s id=%s name=%r category=%s library_revision=%s",
+                     "updated" if old else "saved", profile["id"], name, category, self.data["revision"])
         return deepcopy(profile)
 
     async def rename(self, profile_id, name, expected):
@@ -435,6 +452,8 @@ class ProfileLibrary:
         data = deepcopy(self.data)
         data["profiles"] = [p for p in data["profiles"] if p["id"] != profile_id]
         await self.commit(data)
+        _LOGGER.info("Profile deleted id=%s name=%r category=%s library_revision=%s",
+                     p["id"], p["name"], p["category"], self.data["revision"])
         return self.listing(p["category"])
 
 

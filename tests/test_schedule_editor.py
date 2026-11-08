@@ -326,3 +326,74 @@ async def test_stored_time_and_diff_are_frozen_from_validation(editor):
         p = await save(m)
     assert report['diff']['baseline_read_at'] == '2026-11-07T12:00:00+00:00'
     assert p['created_at'] == p['updated_at'] == '2026-11-07T12:00:00+00:00'
+
+@pytest.mark.parametrize('operation', ['save', 'rename', 'delete', 'mapping'])
+async def test_stale_library_cannot_overwrite_newer_store(operation):
+    stored = None
+    writes = []
+
+    async def persist(record):
+        nonlocal stored
+        stored = deepcopy(record)
+        writes.append(deepcopy(record))
+
+    async def read():
+        return deepcopy(stored)
+
+    current = safety.ProfileLibrary(persist, read)
+    first = await current.save_profile('heating', 'First', DRAFT, META, {}, {})
+    stale = safety.ProfileLibrary(persist, read)
+    stale.load(await read())
+    await current.save_profile('heating', 'Newer saved profile', DRAFT, META, {}, {})
+    before = deepcopy(stored)
+    memory = deepcopy(stale.data)
+    with pytest.raises(ValueError, match='profile_conflict'):
+        if operation == 'save':
+            await stale.save_profile('heating', 'Stale save', DRAFT, META, {}, {})
+        elif operation == 'rename':
+            await stale.rename(first['id'], 'Stale rename', 1)
+        elif operation == 'delete':
+            await stale.delete(first['id'], 1, True)
+        else:
+            data = deepcopy(stale.data)
+            data['mappings']['2'] = {'revision': 1}
+            await stale.commit(data)
+    assert stored == before and stale.data == memory and len(writes) == 2
+
+
+@pytest.mark.parametrize('replacement', ['missing', 'same_revision', 'corrupt'])
+async def test_store_replacement_is_never_silently_overwritten(replacement):
+    stored = None
+
+    async def persist(record):
+        nonlocal stored
+        stored = deepcopy(record)
+
+    async def read():
+        return deepcopy(stored)
+
+    lib = safety.ProfileLibrary(persist, read)
+    await lib.save_profile('heating', 'Keep', DRAFT, META, {}, {})
+    if replacement == 'missing':
+        stored = None
+    elif replacement == 'same_revision':
+        stored['profiles'] = []
+    else:
+        stored = {'schema_version': 99}
+    before = deepcopy(stored)
+    with pytest.raises(ValueError, match='profile_conflict'):
+        await lib.save_profile('heating', 'Another', DRAFT, META, {}, {})
+    assert stored == before
+    assert lib.listing('heating')['profiles'][0]['name'] == 'Keep'
+
+
+async def test_commit_rejects_old_candidate_and_records_successful_operations(caplog):
+    lib = safety.ProfileLibrary(AsyncMock())
+    candidate = deepcopy(lib.data)
+    with caplog.at_level('INFO', logger=safety.__name__):
+        profile = await lib.save_profile('heating', 'Trace me', DRAFT, META, {}, {})
+        await lib.rename(profile['id'], 'Renamed', 1)
+        await lib.delete(profile['id'], 2, True)
+    assert all(name in caplog.text for name in ('Trace me', 'Renamed', profile['id'], 'deleted'))
+    with pytest.raises(ValueError, match='profile_conflict'):
+        await lib.commit(candidate)

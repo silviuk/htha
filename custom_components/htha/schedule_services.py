@@ -1,5 +1,6 @@
 """Admin-only scratchpad services. Registration never enables pump writes."""
 from copy import deepcopy
+import asyncio
 import json
 
 import voluptuous as vol
@@ -55,6 +56,13 @@ def snapshot(manager):
 
 
 async def setup_scratchpad(hass, entry, coordinator):
+    """Serialize setup, including awaited Store loads, to guarantee one manager."""
+    lock = hass.data.setdefault(DOMAIN, {}).setdefault("scratchpad_setup_lock", asyncio.Lock())
+    async with lock:
+        await _setup_scratchpad(hass, entry, coordinator)
+
+
+async def _setup_scratchpad(hass, entry, coordinator):
     """Keep drafts on reload; profiles/mappings and recovery use separate Stores."""
     managers = hass.data.setdefault(DOMAIN, {}).setdefault("scratchpads", {})
     store = Store(hass, 1, f"{DOMAIN}_schedule_recovery_{entry.entry_id}")
@@ -72,7 +80,10 @@ async def setup_scratchpad(hass, entry, coordinator):
     manager = managers.get(entry.entry_id)
     if manager is None:
         profile_store = Store(hass, 1, f"{DOMAIN}_schedule_profiles_{entry.entry_id}")
-        library = ProfileLibrary(profile_store.async_save)
+        async def read_profiles():
+            return await Store(hass, 1, f"{DOMAIN}_schedule_profiles_{entry.entry_id}").async_load()
+
+        library = ProfileLibrary(profile_store.async_save, read_profiles)
         try:
             library.load(await profile_store.async_load())
         except Exception:  # corrupt JSON / unsupported HA Store version

@@ -4,7 +4,7 @@ The card keeps `custom:htha-schedule-scratchpad-card`, `entity` and
 `config_entry_id`. The integration auto-loads the card and manages its storage-mode
 resource. The strategy shows it in the schedule section; `schedule_editor: false`
 selects the read-only view. For an explicit YAML resource, use
-`/htha_frontend/htha-schedule-scratchpad-card.js?v=1.3.2` (JavaScript Module).
+`/htha_frontend/htha-schedule-scratchpad-card.js?v=1.3.3` (JavaScript Module).
 See [dashboard example](../dashboards/schedule-editor-v2.yaml).
 Existing binary schedule helpers remain separate.
 
@@ -19,6 +19,12 @@ enable-writes button.
 1. Choose Heating (2) or Hot water (0). **Load from pump** replaces the draft
    after a dirty-work prompt. **Refresh baseline** preserves edits. Opening the
    profile catalog/rendering the card does not read the pump.
+   The profile list refreshes automatically on first load, category changes,
+   save/rename/delete/apply and **Load from pump**. Focusing/opening the profile
+   dropdown and returning to a visible tab refresh at most once per two seconds,
+   with no overlapping catalog requests. These refreshes call only
+   `list_time_program_profiles`, preserve the draft and keep the selected UUID
+   if it still exists. There is no separate **Profiles** button.
 2. Compare the distinct current and draft grids. Both have Monday–Sunday rows,
    a 00–24 ruler, hour lines and quarter-hour geometry. Current shows last read
    time/metadata and exact numeric-content matching profile names, or Custom.
@@ -185,6 +191,16 @@ returned only after durable Store save; failed saves leave memory unchanged.
 The manager lock serializes mutations/revisions. Corrupt/future Store versions
 create a repair issue, block mutations/send approval and require inspection and
 repair from a verified backup; no implicit migration or reset occurs.
+
+Setup is serialized across awaited Store loads so concurrent setup cannot publish
+two independent managers. Before every library commit, a new Store instance reads
+the saved snapshot; a changed revision/content or unexpectedly removed Store
+rejects the mutation with `profile_conflict`. This prevents stale snapshots from
+overwriting newer data; it is not a cross-process filesystem transaction. Successful
+profile saves/updates/renames/deletions log ID, name, category and library revision
+at INFO. The Delete confirmation includes the name and sends that exact UUID.
+
+See the [1.3.3 investigation and checks](profiles-1.3.3-investigation.md).
 
 Restart retains profiles/mappings, without draft/approval. Reload and Allow-writes
 toggle retain the manager/draft. Permanent entry removal deletes its profile
