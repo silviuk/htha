@@ -141,6 +141,7 @@ class HtHAWriteProtectionSwitch(SwitchEntity):
         # Persist write enabled flag in config entry
         new_data = {**self._config_entry.data, CONF_WRITE_ENABLED: True}
         self.hass.config_entries.async_update_entry(self._config_entry, data=new_data)
+        self.coordinator.async_update_listeners()
         self.async_write_ha_state()
 
     async def _reset_confirm_after_delay(self) -> None:
@@ -162,4 +163,5 @@ class HtHAWriteProtectionSwitch(SwitchEntity):
         # Persist write enabled flag in config entry
         new_data = {**self._config_entry.data, CONF_WRITE_ENABLED: False}
         self.hass.config_entries.async_update_entry(self._config_entry, data=new_data)
+        self.coordinator.async_update_listeners()
         self.async_write_ha_state()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -125,7 +126,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HtHAConfigEntry) -> bool
     port = entry.data[CONF_PORT]
     timeout = entry.data[CONF_TIMEOUT]
     scan_interval = entry.options.get(CONF_SCAN_INTERVAL, entry.data[CONF_SCAN_INTERVAL])
-    write_enabled = entry.data.get(CONF_WRITE_ENABLED, False)
     selected_params = entry.options.get(CONF_SELECTED_PARAMS, DEFAULT_PARAMS)
 
     # Create coordinator
@@ -142,10 +142,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: HtHAConfigEntry) -> bool
     # Store coordinator in entry runtime data
     entry.runtime_data = coordinator
 
-    # Store write_enabled flag for platforms to access
+    # Writes are read live from entry.data; only other config requires reload.
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
-        "write_enabled": write_enabled,
+        "reload_config": _reload_config(entry),
     }
 
     from .schedule_services import setup_scratchpad
@@ -215,6 +215,14 @@ async def async_remove_entry(hass: HomeAssistant, entry: HtHAConfigEntry) -> Non
             _LOGGER.exception("Could not remove the Ht HA frontend resource %s", script)
 
 
+def _reload_config(entry: HtHAConfigEntry) -> tuple[dict, dict]:
+    """Snapshot all config except the live write permission (including nested values)."""
+    return deepcopy((
+        {key: value for key, value in entry.data.items() if key != CONF_WRITE_ENABLED},
+        dict(entry.options),
+    ))
+
+
 async def async_update_options(hass: HomeAssistant, entry: HtHAConfigEntry) -> None:
     """Update options for a config entry.
 
@@ -222,8 +230,15 @@ async def async_update_options(hass: HomeAssistant, entry: HtHAConfigEntry) -> N
         hass: Home Assistant instance
         entry: Config entry
     """
-    _LOGGER.info("Updating options for %s config entry: %s", DOMAIN, entry.entry_id)
-    await hass.config_entries.async_reload(entry.entry_id)
+    state = hass.data[DOMAIN][entry.entry_id]
+    config = _reload_config(entry)
+    if state["reload_config"] != config:
+        _LOGGER.info("Reloading changed configuration for %s", entry.entry_id)
+        if await hass.config_entries.async_reload(entry.entry_id):
+            state["reload_config"] = config
+        return
+    # Publish live permission changes to the scratchpad sensor/editor immediately.
+    entry.runtime_data.async_update_listeners()
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: HtHAConfigEntry) -> bool:

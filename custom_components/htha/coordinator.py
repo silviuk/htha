@@ -17,7 +17,7 @@ from homeassistant.util import dt as dt_util
 from htheatpump import AioHtHeatpump, HtParams
 from htheatpump.htparams import HtParamValueType
 
-from .const import DOMAIN
+from .const import CONF_WRITE_ENABLED, DOMAIN
 
 if TYPE_CHECKING:
     from . import HtHAConfigEntry
@@ -61,6 +61,7 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
         )
 
         self.host = host
+        self._write_config_entry = config_entry
         self.port = port
         self.timeout = timeout
         self.scan_interval = scan_interval
@@ -364,6 +365,8 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
             UpdateFailed: If communication fails
         """
         async with self._connection_lock:
+            if not self._write_config_entry.data.get(CONF_WRITE_ENABLED, False):
+                raise ValueError("Writes are not enabled")
             try:
                 # Ensure we're connected
                 await self._connect()
@@ -371,6 +374,9 @@ class HtHACoordinator(DataUpdateCoordinator[dict[str, HtParamValueType]]):
                 if self._heatpump is None:
                     raise UpdateFailed("Heat pump instance not initialized")
 
+                # Connecting can yield; permission may have been revoked meanwhile.
+                if not self._write_config_entry.data.get(CONF_WRITE_ENABLED, False):
+                    raise ValueError("Writes are not enabled")
                 result = await self._heatpump.set_param_async(name, value)
                 _LOGGER.info("Set parameter %s to %s (result: %s)", name, value, result)
 

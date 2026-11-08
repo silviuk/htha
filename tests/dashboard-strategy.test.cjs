@@ -110,7 +110,7 @@ test('frontend version matches the manifest',()=>{
   const manifest=JSON.parse(fs.readFileSync('custom_components/htha/manifest.json','utf8'));
   const strategy=fs.readFileSync('custom_components/htha/frontend/htha-heatpump-strategy.js','utf8');
   assert.match(strategy,new RegExp('HTHA_VERSION = "'+manifest.version.replaceAll('.','\\.')+'"'));
-  assert.equal(manifest.version,'1.3.3');
+  assert.equal(manifest.version,'1.3.4');
 });
 
 test('schedule discovers entry from validation state when registry omits it',()=>{
