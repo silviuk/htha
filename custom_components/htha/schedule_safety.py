@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import asyncio
-from copy import deepcopy
+from copy import copy, deepcopy
 import hashlib
 import json
 import logging
 import re
 from uuid import UUID, uuid4
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -487,6 +487,7 @@ class Scratchpad:
         self.current_state = "unknown"
         self.library = library
         self.profile_context = None
+        self._current_cache = {}
 
     @property
     def controller_identity(self):
@@ -568,11 +569,13 @@ class Scratchpad:
         self.current_program = deepcopy(current)
         self.baseline_read_at = utcnow()
         self.current_state = "read"
+        self._current_cache[current["index"]] = (deepcopy(current), self.baseline_read_at)
         self.baseline_hash = digest(normalized(current["entries"]))
 
     async def _fresh(self, index):
         # Approval is revoked before awaiting transport, also on cancellation/failure.
         self.invalidate()
+        self._current_cache.pop(index, None)
         try:
             current = await self._read(index)
             if not supported_metadata({k: current.get(k) for k in META_KEYS}) or type(current.get("index")) is not int or current["index"] != index:
@@ -662,6 +665,87 @@ class Scratchpad:
                 return (await c.heatpump.get_time_prog_async(index, with_entries=True)).as_json()
             finally:
                 await c._disconnect()
+
+    async def _current(self, index, force=False):
+        """Caller holds lock. Cache reads never mutate the draft or its approval."""
+        if type(index) is not int or index not in (0, 2):
+            raise ValueError("profile_category")
+        now = datetime.now(timezone.utc)
+        candidates = []
+        if not force:
+            if index in self._current_cache:
+                candidates.append(self._current_cache[index])
+            if self.current_state == "read" and self.current_program and self.current_program.get("index") == index:
+                candidates.append((self.current_program, self.baseline_read_at))
+            c = self.coordinator
+            last_update = getattr(c, "_last_time_programs_update", 0)
+            age = asyncio.get_running_loop().time() - last_update
+            if last_update > 0 and 0 <= age <= 180:
+                for program in getattr(c, "time_programs", None) or []:
+                    if program.get("index") == index:
+                        candidates.append((program, (now - timedelta(seconds=age)).isoformat()))
+        for program, read_at in candidates:
+            try:
+                age = (now - datetime.fromisoformat(read_at)).total_seconds()
+                if not 0 <= age <= 180:
+                    continue
+                self._validate_current(program, index)
+            except (ValueError, TypeError, KeyError):
+                continue
+            return deepcopy(program), read_at
+        # Evict before transport: a failed reload must not resurrect cached truth.
+        self._current_cache.pop(index, None)
+        program = await self._read(index)
+        self._validate_current(program, index)
+        read_at = utcnow()
+        self._current_cache[index] = (deepcopy(program), read_at)
+        return program, read_at
+
+    @staticmethod
+    def _validate_current(program, index):
+        if not supported_metadata({k: program.get(k) for k in META_KEYS}) or program.get("index") != index:
+            raise ValueError("Unsupported or mismatched controller program metadata")
+        if not isinstance(program.get("entries"), list) or len(program["entries"]) != 7:
+            raise ValueError("Invalid controller program entries")
+
+    async def get_current(self, index, force=False):
+        async with self.lock:
+            program, read_at = await self._current(index, force)
+            view = copy(self)
+            view.metadata = {k: program[k] for k in META_KEYS}
+            return dict(current_program=program, read_at=read_at, metadata=view.metadata,
+                        mode_catalog=view.catalog,
+                        current_profile_names=[p["name"] for p in self.library.data["profiles"]
+                            if p["program_index"] == index and p["draft"]["entries"] == normalized(program["entries"])] if self.library else [])
+
+    async def start_draft(self, index, profile_id=None, revision=None, session=None):
+        async with self.lock:
+            self.expect(revision, session)
+            program, read_at = await self._current(index)
+            # Resolve the profile before changing any live session state.
+            view = copy(self)
+            view.metadata = {k: program[k] for k in META_KEYS}
+            profile = (view.factory_profile(profile_id) if profile_id in FACTORY_PRESETS
+                       else self.library.get(profile_id)) if profile_id else None
+            if profile and profile["program_index"] != index:
+                raise ValueError("profile_category")
+            self._accept_current(program)
+            self.baseline_read_at = read_at
+            self._current_cache[index] = (deepcopy(program), read_at)
+            self.draft = deepcopy(profile["draft"]) if profile else {"entries": normalized(program["entries"])}
+            self.profile_context = deepcopy(profile)
+            self.policy = {}
+            self.invalidate()
+            self.changed()
+
+    async def discard_draft(self, revision=None, session=None):
+        async with self.lock:
+            self.expect(revision, session)
+            self.draft = None
+            self.profile_context = None
+            self.policy = {}
+            self.invalidate()
+            self.changed()
 
     async def load(self, index, revision=None, session=None):
         async with self.lock:

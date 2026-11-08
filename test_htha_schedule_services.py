@@ -385,3 +385,32 @@ async def test_overlapping_setup_retains_one_manager_and_library(hass, scratchpa
     assert hass.data[DOMAIN]['scratchpads'][entry.entry_id] is other.schedule_scratchpad
     coordinator.heatpump.get_time_prog_async.assert_not_awaited()
     coordinator.heatpump.set_time_prog_async.assert_not_awaited()
+
+async def test_autoload_service_cache_and_draft_lifecycle(hass, hass_read_only_user, scratchpad):
+    coordinator, entry = scratchpad
+    manager = coordinator.schedule_scratchpad
+    coordinator.sw_version = '2.03N'
+    coordinator._last_time_programs_update = asyncio.get_running_loop().time()
+
+    async def call(service, **data):
+        return await hass.services.async_call(DOMAIN, service, {'config_entry_id': entry.entry_id, **data}, blocking=True, return_response=True)
+
+    result = await call('get_current_time_program', program_index=2)
+    assert result['draft'] is None and result['current_view']['read_at']
+    coordinator.heatpump.get_time_prog_async.assert_not_awaited()
+    started = await call('start_time_program_draft', program_index=2,
+                         expected_draft_revision=result['revision'], session_id=result['session_id'])
+    assert started['draft'] and not started['can_apply']
+    before = snapshot(manager)
+    other_tab = await call('get_current_time_program', program_index=2, force=True)
+    assert snapshot(manager) == before and other_tab['draft'] == started['draft']
+    coordinator.heatpump.get_time_prog_async.assert_awaited_once()
+    with pytest.raises(ServiceValidationError):
+        await call('discard_time_program_draft', expected_draft_revision=result['revision'], session_id=result['session_id'])
+    discarded = await call('discard_time_program_draft', expected_draft_revision=started['revision'], session_id=started['session_id'])
+    assert discarded['draft'] is None and not discarded['can_apply']
+    coordinator.heatpump.set_time_prog_async.assert_not_awaited()
+    with pytest.raises(Unauthorized):
+        await hass.services.async_call(DOMAIN, 'get_current_time_program',
+            {'config_entry_id':entry.entry_id, 'program_index':2}, blocking=True,
+            context=Context(user_id=hass_read_only_user.id))
