@@ -37,6 +37,7 @@ from .const import (
 )
 from .coordinator import HtHACoordinator
 from .entity import HtHAEntity, HtHASensorEntity
+from .heating_curve import STATES, evaluate_curve
 from . import HtHAConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -125,6 +126,12 @@ async def async_setup_entry(
     selected_params = config_entry.options.get("selected_params", [])
 
     entities: list[SensorEntity] = []
+    entities.append(HtHAHeatingCurveSensor(
+        coordinator, config_entry, SensorEntityDescription(
+            key="heating_curve_check", translation_key="heating_curve_check",
+            device_class=SensorDeviceClass.ENUM, options=STATES,
+        )
+    ))
 
     for param_name in selected_params:
         # Skip if not in HtParams
@@ -209,6 +216,28 @@ async def async_setup_entry(
     _LOGGER.debug("Adding %d sensor entities", len(entities))
 
     async_add_entities(entities)
+
+
+class HtHAHeatingCurveSensor(HtHAEntity, SensorEntity):
+    """Analyze only current coordinator data, never restored state."""
+
+    @property
+    def available(self) -> bool:
+        return super().available and self._result is not None
+
+    @property
+    def _result(self):
+        return evaluate_curve(self.coordinator.data, self._config_entry.options)
+
+    @property
+    def native_value(self):
+        result = self._result
+        return result[0] if result else None
+
+    @property
+    def extra_state_attributes(self):
+        result = self._result
+        return result[1] if result else {}
 
 
 class HtHASensor(HtHASensorEntity, SensorEntity):

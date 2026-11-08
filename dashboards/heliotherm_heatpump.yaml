@@ -404,7 +404,7 @@ views:
           entity: number.heliotherm_heat_pump_heating_curve_return_setpoint_at_upper_heating_limit
           grid_options:
             columns: 12
-          name: At upper heating limit
+          name: Return at +18 °C outdoor
       - type: conditional
         conditions:
         - condition: state
@@ -418,7 +418,7 @@ views:
           features:
           - type: numeric-input
             style: buttons
-          name: At upper heating limit
+          name: Return at +18 °C outdoor
     - type: vertical-stack
       grid_options:
         columns: 12
@@ -433,7 +433,7 @@ views:
           entity: number.heliotherm_heat_pump_heating_curve_return_setpoint_at_0_c_outdoor
           grid_options:
             columns: 12
-          name: At 0 °C outdoor
+          name: Return at 0 °C outdoor
       - type: conditional
         conditions:
         - condition: state
@@ -447,7 +447,7 @@ views:
           features:
           - type: numeric-input
             style: buttons
-          name: At 0 °C outdoor
+          name: Return at 0 °C outdoor
     - type: vertical-stack
       grid_options:
         columns: 12
@@ -462,7 +462,7 @@ views:
           entity: number.heliotherm_heat_pump_heating_curve_return_setpoint_at_lower_heating_limit
           grid_options:
             columns: 12
-          name: At lower heating limit
+          name: Return at -15 °C outdoor
       - type: conditional
         conditions:
         - condition: state
@@ -476,7 +476,7 @@ views:
           features:
           - type: numeric-input
             style: buttons
-          name: At lower heating limit
+          name: Return at -15 °C outdoor
     - type: tile
       entity: button.heliotherm_heat_pump_sync_heat_pump_clock
       grid_options:

@@ -44,12 +44,18 @@
                 "data": {
                     "selected_params": "Parameters to expose",
                     "model": "Heat pump model (optional)",
-                    "scan_interval": "Polling interval (seconds)"
+                    "scan_interval": "Polling interval (seconds)",
+                    "curve_reference_upper": "Reference: Return setpoint at +18 °C outdoor",
+                    "curve_reference_zero": "Reference: Return setpoint at 0 °C outdoor",
+                    "curve_reference_lower": "Reference: Return setpoint at -15 °C outdoor"
                 },
                 "data_description": {
                     "selected_params": "Select the parameters you want to expose as entities",
                     "model": "Enter the model from the nameplate. Leave blank to display Heat Pump. This only changes device details.",
-                    "scan_interval": "How often to read heat pump data, in seconds."
+                    "scan_interval": "How often to read heat pump data, in seconds.",
+                    "curve_reference_upper": "Comparison only, e.g. for radiators. Factory: 22/27/30 °C. Fixed htha floor-heating heuristics still apply.",
+                    "curve_reference_zero": "Comparison only, e.g. for radiators. Factory: 22/27/30 °C. Fixed htha floor-heating heuristics still apply.",
+                    "curve_reference_lower": "Comparison only, e.g. for radiators. Factory: 22/27/30 °C. Fixed htha floor-heating heuristics still apply."
                 }
             }
         }
@@ -171,13 +177,13 @@
                 "name": "Hot water setpoint (minimum) (read-only)"
             },
             "hkr_rlt_soll_ohg": {
-                "name": "Heating curve return setpoint at upper heating limit (read-only)"
+                "name": "Return setpoint at +18 °C outdoor"
             },
             "hkr_rlt_soll_0": {
-                "name": "Heating curve return setpoint at 0 °C outdoor (read-only)"
+                "name": "Return setpoint at 0 °C outdoor"
             },
             "hkr_rlt_soll_uhg": {
-                "name": "Heating curve return setpoint at lower heating limit (read-only)"
+                "name": "Return setpoint at -15 °C outdoor"
             },
             "hkr_aufheiztemp": {
                 "name": "Heat-up offset (read-only)"
@@ -226,6 +232,14 @@
                     "failed": "Failed — inspect controller",
                     "stale": "Changed — check again"
                 }
+            },
+            "heating_curve_check": {
+                "name": "Heating curve check",
+                "state": {
+                    "factory": "Factory curve",
+                    "differs_from_factory": "Differs from factory",
+                    "check_recommended": "Check recommended"
+                }
             }
         },
         "binary_sensor": {
@@ -252,6 +266,9 @@
             },
             "fws_stroemungsschalter": {
                 "name": "Fresh water station flow switch"
+            },
+            "heating_curve_problem": {
+                "name": "Heating curve problem"
             }
         },
         "number": {
@@ -265,13 +282,13 @@
                 "name": "Hot water setpoint (minimum)"
             },
             "hkr_rlt_soll_ohg": {
-                "name": "Heating curve return setpoint at upper heating limit"
+                "name": "Return setpoint at +18 °C outdoor"
             },
             "hkr_rlt_soll_0": {
-                "name": "Heating curve return setpoint at 0 °C outdoor"
+                "name": "Return setpoint at 0 °C outdoor"
             },
             "hkr_rlt_soll_uhg": {
-                "name": "Heating curve return setpoint at lower heating limit"
+                "name": "Return setpoint at -15 °C outdoor"
             },
             "hkr_aufheiztemp": {
                 "name": "Heat-up offset"

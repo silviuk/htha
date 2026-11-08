@@ -42,10 +42,16 @@
                 "title": "Ht HA Optionen",
                 "description": "Konfigurieren Sie, welche Parameter angezeigt werden sollen.",
                 "data": {
-                    "selected_params": "Ausgewählte Parameter"
+                    "selected_params": "Ausgewählte Parameter",
+                    "curve_reference_upper": "Referenz: Rücklauf-Soll bei +18 °C außen",
+                    "curve_reference_zero": "Referenz: Rücklauf-Soll bei 0 °C außen",
+                    "curve_reference_lower": "Referenz: Rücklauf-Soll bei -15 °C außen"
                 },
                 "data_description": {
-                    "selected_params": "Wählen Sie die Parameter aus, die als Entitäten angezeigt werden sollen"
+                    "selected_params": "Wählen Sie die Parameter aus, die als Entitäten angezeigt werden sollen",
+                    "curve_reference_upper": "Nur Vergleichswert, z. B. für Heizkörper. Werk: 22/27/30 °C. Die htha-Heuristiken für Fußbodenheizung bleiben unverändert.",
+                    "curve_reference_zero": "Nur Vergleichswert, z. B. für Heizkörper. Werk: 22/27/30 °C. Die htha-Heuristiken für Fußbodenheizung bleiben unverändert.",
+                    "curve_reference_lower": "Nur Vergleichswert, z. B. für Heizkörper. Werk: 22/27/30 °C. Die htha-Heuristiken für Fußbodenheizung bleiben unverändert."
                 }
             }
         }
@@ -167,13 +173,13 @@
                 "name": "Warmwasser Sollwert (minimal) (nur Anzeige)"
             },
             "hkr_rlt_soll_ohg": {
-                "name": "Heizkurve Rücklaufsollwert an oberer Heizgrenze (nur Anzeige)"
+                "name": "Rücklauf-Soll bei +18 °C außen"
             },
             "hkr_rlt_soll_0": {
-                "name": "Heizkurve Rücklaufsollwert bei 0 °C außen (nur Anzeige)"
+                "name": "Rücklauf-Soll bei 0 °C außen"
             },
             "hkr_rlt_soll_uhg": {
-                "name": "Heizkurve Rücklaufsollwert an unterer Heizgrenze (nur Anzeige)"
+                "name": "Rücklauf-Soll bei -15 °C außen"
             },
             "hkr_aufheiztemp": {
                 "name": "Aufheiztemperatur (nur Anzeige)"
@@ -222,6 +228,14 @@
                     "failed": "Fehler — Regler prüfen",
                     "stale": "Geändert — erneut prüfen"
                 }
+            },
+            "heating_curve_check": {
+                "name": "Heizkurvenprüfung",
+                "state": {
+                    "factory": "Werkskurve",
+                    "differs_from_factory": "Abweichung von Werkskurve",
+                    "check_recommended": "Prüfung empfohlen"
+                }
             }
         },
         "binary_sensor": {
@@ -248,6 +262,9 @@
             },
             "fws_stroemungsschalter": {
                 "name": "Frischwasserstation Strömungsschalter"
+            },
+            "heating_curve_problem": {
+                "name": "Heizkurvenproblem"
             }
         },
         "number": {
@@ -261,13 +278,13 @@
                 "name": "Warmwasser Sollwert (minimal)"
             },
             "hkr_rlt_soll_ohg": {
-                "name": "Heizkurve Rücklaufsollwert an oberer Heizgrenze"
+                "name": "Rücklauf-Soll bei +18 °C außen"
             },
             "hkr_rlt_soll_0": {
-                "name": "Heizkurve Rücklaufsollwert bei 0 °C außen"
+                "name": "Rücklauf-Soll bei 0 °C außen"
             },
             "hkr_rlt_soll_uhg": {
-                "name": "Heizkurve Rücklaufsollwert an unterer Heizgrenze"
+                "name": "Rücklauf-Soll bei -15 °C außen"
             },
             "hkr_aufheiztemp": {
                 "name": "Aufheiztemperatur"

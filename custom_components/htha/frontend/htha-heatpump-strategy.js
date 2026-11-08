@@ -10,7 +10,7 @@
  * matched by domain + translation_key), so it works with any entity_ids and
  * with several heat pumps. Built-in cards and the bundled schedule editor are used.
  */
-const HTHA_VERSION = "1.3.5";
+const HTHA_VERSION = "1.3.6";
 
 const ROLES = {
   operating_state: "sensor.operating_state",
@@ -51,6 +51,8 @@ const ROLES = {
   room_setpoint: "number.hkr_soll_raum",
   hw_normal: "number.ww_normaltemp",
   hw_minimum: "number.ww_minimaltemp",
+  curve_check: "sensor.heating_curve_check",
+  curve_problem: "binary_sensor.heating_curve_problem",
   curve_upper: "number.hkr_rlt_soll_ohg",
   curve_zero: "number.hkr_rlt_soll_0",
   curve_lower: "number.hkr_rlt_soll_uhg",
@@ -82,8 +84,8 @@ const TEXT = {
     state: "State", mode: "Operating mode", compressor: "Compressor", hot_water_mode: "Hot water mode",
     heating_pump: "Heating pump", source_pump: "Source pump/fan", fault: "Fault", outdoor: "Outdoor",
     flow: "Flow", return: "Return", spread: "Spread", room_setpoint: "Room setpoint",
-    target: "Target", curve_upper: "At upper heating limit", curve_zero: "At 0 °C outdoor",
-    curve_lower: "At lower heating limit", hw_temp: "Hot water", hw_normal: "Setpoint (normal)",
+    target: "Target", curve_upper: "Return at +18 °C outdoor", curve_zero: "Return at 0 °C outdoor",
+    curve_lower: "Return at -15 °C outdoor", hw_temp: "Hot water", hw_normal: "Setpoint (normal)",
     hw_minimum: "Setpoint (minimum)", circulation: "Circulation pump", inlet: "Inlet", outlet: "Outlet",
     suction_gas: "Suction gas", evaporation: "Evaporation", condensation: "Condensation", hot_gas: "Hot gas",
     low_pressure: "Low pressure", high_pressure: "High pressure", activity: "Activity (24 h)",
@@ -108,8 +110,8 @@ const TEXT = {
     state: "Zustand", mode: "Betriebsart", compressor: "Verdichter", hot_water_mode: "Warmwasserbetrieb",
     heating_pump: "Heizkreispumpe", source_pump: "Quellenpumpe/Ventilator", fault: "Störung", outdoor: "Außen",
     flow: "Vorlauf", return: "Rücklauf", spread: "Spreizung", room_setpoint: "Raum-Sollwert",
-    target: "Sollwert", curve_upper: "An oberer Heizgrenze", curve_zero: "Bei 0 °C außen",
-    curve_lower: "An unterer Heizgrenze", hw_temp: "Warmwasser", hw_normal: "Sollwert (normal)",
+    target: "Sollwert", curve_upper: "Rücklauf bei +18 °C außen", curve_zero: "Rücklauf bei 0 °C außen",
+    curve_lower: "Rücklauf bei -15 °C außen", hw_temp: "Warmwasser", hw_normal: "Sollwert (normal)",
     hw_minimum: "Sollwert (minimal)", circulation: "Zirkulationspumpe", inlet: "Eintritt", outlet: "Austritt",
     suction_gas: "Sauggas", evaporation: "Verdampfung", condensation: "Kondensation", hot_gas: "Heißgas",
     low_pressure: "Niederdruck", high_pressure: "Hochdruck", activity: "Aktivität (24 h)",
@@ -344,6 +346,7 @@ const BUILDERS = {
       ctl(e.hw_normal, t.hw_normal, numIn),
       ctl(e.hw_minimum, t.hw_minimum, numIn),
       e.curve_upper ? heading(t.curve_settings, "mdi:chart-bell-curve-cumulative", [], "subtitle") : null,
+      e.curve_check ? { type: "custom:htha-heating-curve-card", entity: e.curve_check, problem_entity: e.curve_problem, ...FULL } : null,
       ctl(e.curve_upper, t.curve_upper, numIn, FULL),
       ctl(e.curve_zero, t.curve_zero, numIn, FULL),
       ctl(e.curve_lower, t.curve_lower, numIn, FULL),
@@ -558,7 +561,67 @@ class HthaDashboardStrategy extends HTMLElement {
 // for strategy element ...". So register synchronously into whatever registry
 // is current now, and keep checking until Home Assistant's own registry is in
 // place and holds our elements.
+function curveStatus(state, de = false) {
+  const a = state?.attributes || {};
+  if (!state || !["factory", "differs_from_factory", "check_recommended"].includes(state.state))
+    return de ? "Nicht verfügbar" : "Unavailable";
+  if (state.state === "check_recommended") return de ? "Prüfung empfohlen" : "Check recommended";
+  const factory = a.reference_is_factory !== false;
+  if (state.state === "factory") return factory
+    ? (de ? "Werkskurve" : "Factory curve") : (de ? "Referenzkurve" : "Reference curve");
+  const changes = ["upper", "zero", "lower"].flatMap(key => {
+    const point = a[`${key}_point`], delta = point?.reference_delta_k ?? point?.delta_k;
+    return Number.isFinite(delta) && delta !== 0
+      ? [`${point.outdoor_c > 0 ? "+" : ""}${point.outdoor_c} °C ${de ? "Punkt" : "point"} ${delta > 0 ? "+" : ""}${delta} K`] : [];
+  });
+  return (factory ? (de ? "Abweichung von Werkskurve" : "Differs from factory")
+    : (de ? "Abweichung von Referenz" : "Differs from reference")) + (changes.length ? ": " + changes.join(", ") : "");
+}
+
+class HthaHeatingCurveCard extends HTMLElement {
+  setConfig(config) { this._config = config; this._open = false; this.render(); }
+  set hass(hass) { this._hass = hass; this.render(); }
+  getCardSize() { return 1; }
+  render() {
+    if (!this._config || !this._hass) return;
+    if (!this.shadowRoot) this.attachShadow({mode: "open"});
+    const de = texts(this._hass) === TEXT.de;
+    const state = this._hass.states[this._config.entity];
+    this.shadowRoot.innerHTML = `<style>
+      :host{display:block;min-width:0}ha-card{padding:12px 16px}
+      .row{display:flex;align-items:center;gap:8px}.status{flex:1;min-width:0;overflow-wrap:anywhere;font-size:14px}
+      button{flex:none;min-width:44px;min-height:44px;border:0;border-radius:50%;background:none;color:var(--primary-text-color);cursor:pointer}
+      p{font-size:13px;line-height:1.5;overflow-wrap:anywhere;margin:8px 0} [hidden]{display:none}
+      </style><ha-card><div class="row"><span class="status" role="button" tabindex="0"></span><button type="button" aria-controls="curve-help">ⓘ</button></div><div id="curve-help" class="help"><p></p><p></p><p></p></div></ha-card>`;
+    this.shadowRoot.querySelector('.status').textContent = curveStatus(state, de);
+    const button = this.shadowRoot.querySelector('button'), help = this.shadowRoot.querySelector('.help');
+    button.setAttribute('aria-label', de ? 'Heizkurve erklären' : 'Explain heating curve');
+    button.setAttribute('aria-expanded', String(!!this._open));
+    help.hidden = !this._open;
+    const paragraphs = de ? [
+      'Web Control 321, Abschnitt 6.2: Rücklauf-Soll bei +18 / 0 / -15 °C außen. Werk für Fußbodenheizung: 22 / 27 / 30 °C; Einstellbereiche: 15–40 / 20–50 / 25–60 °C. Eine Abweichung allein ist informativ. Referenzwerte sind in den Integrationsoptionen anpassbar.',
+      'htha-Heuristiken, keine Herstellergrenzen: Prüfung bei nicht monotoner Kurve, einem Punkt mehr als 5 K über Werk oder dem -15-°C-Punkt über 35 °C. Höhere Rücklauftemperaturen können Effizienz und Komfort verringern. 5 K entsprechen mehreren empfohlenen Einstellschritten. Diese festen Hinweise gelten für Fußbodenheizung; Heizkörper benötigen eine eigene Beurteilung.',
+      'Handbuch: nur um 1–2 K alle 1–2 Tage ändern und Raumtemperatur beobachten. Die interpolierten Rücklaufwerte in den Sensordetails sind linear und an den Enden begrenzt; der tatsächliche Reglersollwert kann abweichen.'
+    ] : [
+      'Web Control 321, section 6.2: return setpoints at +18 / 0 / -15 °C outdoor. Factory floor heating: 22 / 27 / 30 °C; setting ranges: 15–40 / 20–50 / 25–60 °C. A difference alone is informational. Reference values can be changed in integration options.',
+      'htha heuristics, not manufacturer limits: check a non-monotonic curve, any point more than 5 K above factory, or the -15 °C point above 35 °C. Higher return temperatures can reduce efficiency and comfort. 5 K represents several recommended adjustment steps. These fixed warnings target floor heating; radiators need individual assessment.',
+      'Manual advice: adjust by only 1–2 K every 1–2 days and observe room temperature. Interpolated return values in sensor details are linear and clamped at the ends; the actual controller target may differ.'
+    ];
+    this.shadowRoot.querySelectorAll('p').forEach((p,i) => p.textContent = paragraphs[i]);
+    button.onclick = () => { this._open = !this._open; this.render(); };
+    this.shadowRoot.querySelector('.status').onclick = () => this.dispatchEvent(new CustomEvent('hass-more-info', {
+      detail: {entityId: this._config.entity}, bubbles: true, composed: true,
+    }));
+    this.shadowRoot.querySelector('.status').onkeydown = (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault(); this.shadowRoot.querySelector('.status').click();
+      }
+    };
+  }
+}
+
 const ELEMENTS = [
+  ["htha-heating-curve-card", HthaHeatingCurveCard],
   ["ll-strategy-section-htha-heatpump", HthaSectionStrategy],
   ["ll-strategy-view-htha-heatpump", HthaViewStrategy],
   ["ll-strategy-dashboard-htha-heatpump", HthaDashboardStrategy],
@@ -587,5 +650,5 @@ if (!registerAll()) {
 }
 
 // Exposed for tests / tooling.
-window.hthaHeatpumpStrategy = { version: HTHA_VERSION, buildSection, buildView, findHeatPumps, SECTIONS, ROLES };
+window.hthaHeatpumpStrategy = { version: HTHA_VERSION, buildSection, buildView, findHeatPumps, SECTIONS, ROLES, curveStatus };
 console.info(`%c HTHA-HEATPUMP-STRATEGY %c ${HTHA_VERSION} `, "background:#e65100;color:#fff", "");
