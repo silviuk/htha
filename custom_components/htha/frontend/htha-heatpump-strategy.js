@@ -10,7 +10,7 @@
  * matched by domain + translation_key), so it works with any entity_ids and
  * with several heat pumps. Built-in cards and the bundled schedule editor are used.
  */
-const HTHA_VERSION = "1.3.6";
+const HTHA_VERSION = "1.3.7";
 
 const ROLES = {
   operating_state: "sensor.operating_state",

@@ -110,7 +110,7 @@ test('frontend version matches the manifest',()=>{
   const manifest=JSON.parse(fs.readFileSync('custom_components/htha/manifest.json','utf8'));
   const strategy=fs.readFileSync('custom_components/htha/frontend/htha-heatpump-strategy.js','utf8');
   assert.match(strategy,new RegExp('HTHA_VERSION = "'+manifest.version.replaceAll('.','\\.')+'"'));
-  assert.equal(manifest.version,'1.3.6');
+  assert.equal(manifest.version,'1.3.7');
 });
 
 for(const language of ['en','de'])test(`curve status is compact, localized and isolated per pump: ${language}`,()=>{
