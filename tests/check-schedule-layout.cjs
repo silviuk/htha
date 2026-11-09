@@ -26,14 +26,18 @@ function cdp(method,params={},sessionId){return new Promise((resolve,reject)=>{c
   const {frameTree}=await cdp('Page.getFrameTree',{},s);await cdp('Page.setDocumentContent',{frameId:frameTree.frame.id,html},s);
   const evaluate=async expression=>{const r=await cdp('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true},s);if(r.exceptionDetails)throw new Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
 
-  for(const category of ['heating','hot_water'])for(const language of ['en','de'])for(const theme of ['light','dark'])for(const editor of [false,true]){
-    await cdp('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:1,mobile:true},s);
+  for(const width of [412,1100])for(const category of ['heating','hot_water'])for(const language of ['en','de'])for(const theme of ['light','dark'])for(const editor of [false,true]){
+    await cdp('Emulation.setDeviceMetricsOverride',{width,height:915,deviceScaleFactor:1,mobile:width<=412},s);
     await evaluate('renderFixture('+JSON.stringify({category,language,theme})+') && true');
     if(!editor)await evaluate("(()=>{const c=document.querySelector('htha-schedule-scratchpad-card'),m=c._model;c._currentViews[c._category]={metadata:m.metadata,current_program:m.current_program,read_at:m.baseline_read_at,mode_catalog:m.mode_catalog};c._draft=null;c._local=null;c.render();return true;})()");
     const layout=await evaluate("(()=>{const c=document.querySelector('htha-schedule-scratchpad-card'),r=c.shadowRoot;return {width:document.documentElement.scrollWidth,grids:r.querySelectorAll('.week-grid').length,editor:!!r.getElementById('mode'),send:r.getElementById('save')?.disabled??null};})()");
-    assert.ok(layout.width<=412,JSON.stringify({category,language,theme,editor,layout}));
+    assert.ok(layout.width<=width,JSON.stringify({width,category,language,theme,editor,layout}));
     assert.equal(layout.grids,editor?2:1);assert.equal(layout.editor,editor);assert.equal(layout.send,editor?true:null);
-    if(editor) {
+    const legends=await evaluate("[...document.querySelector('htha-schedule-scratchpad-card').shadowRoot.querySelectorAll('.legend')].map(e=>({text:e.textContent,changed:!!e.querySelector('.changed-key')}))");
+    assert.equal(legends.length,editor?2:1);assert.equal(legends[0].changed,false);
+    assert.ok(legends[0].text.includes(language==='de'?'Unbekannt':'Unknown'));
+    if(editor)assert.equal(legends[1].changed,true);
+    if(editor && width<=412) {
       const targets=await evaluate(`(()=>{const r=document.querySelector('htha-schedule-scratchpad-card').shadowRoot;
         const cell=r.querySelector('.week-grid [data-cell]'),rect=cell.getBoundingClientRect();
         const before=getComputedStyle(cell).touchAction;r.getElementById('select-mode').click();
@@ -44,6 +48,7 @@ function cdp(method,params={},sessionId){return new Promise((resolve,reject)=>{c
       assert.equal(targets.before,'auto');assert.equal(targets.after,'none');assert.equal(targets.outside,'auto');
     }
   }
+  await cdp('Emulation.setDeviceMetricsOverride',{width:412,height:915,deviceScaleFactor:1,mobile:true},s);
   await cdp('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:1},s);
   await evaluate(`(()=>{const c=renderFixture({language:'en'});c._selection.clear();
     window.selectionBefore=JSON.stringify(c._draft);window.selectionCalls=0;
@@ -73,6 +78,6 @@ function cdp(method,params={},sessionId){return new Promise((resolve,reject)=>{c
   assert.equal(unchanged.draft,true);assert.equal(unchanged.calls,0);assert.equal(unchanged.gesture,null);
   assert.equal(unchanged.dirty,false);assert.equal(unchanged.hash,'offline-hash');
   assert.ok(unchanged.touch.length>=4 && unchanged.touch.every(t=>t==='touch'));
-  assert.deepEqual(errors,[]);console.log('16 offline 412px layout checks, 44px targets, touch-action isolation and native touch tap/multi-select/drag/cancel checks passed; no screenshots or network access.');
+  assert.deepEqual(errors,[]);console.log('32 offline 412px/1100px layout and legend checks, 44px targets, touch-action isolation and native touch tap/multi-select/drag/cancel checks passed; no screenshots or network access.');
  }finally{await cdp('Browser.close').catch(()=>child.kill());}
 })().catch(err=>{console.error(err);process.exitCode=1;});

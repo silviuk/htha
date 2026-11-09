@@ -475,6 +475,8 @@ test('auto-load is once per open/category, coalesces requests and never adopts a
   await card._currentRequests.heating;
   assert.equal(card._draft,null);assert.equal(calls.filter(c=>c.service==='get_current_time_program').length,1);
   let html=card.shadowRoot.innerHTML;assert.match(html,/Current schedule \(on pump\)/);assert.match(html,/read at/);
+  assert.match(html,/class="legend"/);assert.match(html,/Unknown/);
+  assert.doesNotMatch(html,/Changed \(old value shown lighter with ×\)/);
   for(const id of ['mode','paint','copy','check','save-profile','save','ack'])assert.doesNotMatch(html,new RegExp('id="'+id+'"'));
   assert.equal((html.match(/class="week-grid"/g)||[]).length,1);
   card.connectedCallback();card.disconnectedCallback();card.connectedCallback();card.hass=hass;card.render();
@@ -526,4 +528,33 @@ test('read-only labels and colors use displayed category while another category 
   card._currentViews.hot_water={metadata:{...meta,index:0,nos:2},current_program:{...draft()},read_at:'2026-11-07T10:00:00Z',mode_catalog:[{state:1,semantic:'charging',confirmed:true}]};
   card._category='hot_water';card.render();assert.equal(card.styleMode(1),'charging');assert.equal(card.label(1),'On [1]');
   assert.match(card.shadowRoot.innerHTML,/class="bar charging"/);
+});
+
+for(const category of ['heating','hot_water'])test('current and draft share mode legends: '+category,async()=>{
+  const {card}=fixture();card._category=category;card._draft=null;card._local=null;
+  const semantics=category==='heating'?['setback','normal','boost']:['minimum','charging'];
+  const metadata={...meta,index:card.index,nos:semantics.length};
+  const mode_catalog=semantics.map((semantic,state)=>({state,semantic,confirmed:true}));
+  card._model={...card._model,metadata,mode_catalog,current_program:{...metadata,...draft()}};
+  // The initial read is mocked locally, including its confirmed mode catalog.
+  const callWS=card._hass.callWS;
+  card._hass.callWS=async request=>{
+    const result=await callWS(request);result.response.current_view.mode_catalog=mode_catalog;return result;
+  };
+  await card.loadCurrent();
+  const legends=()=>card.shadowRoot.innerHTML.match(/<div class="legend">.*?<\/div>/g)||[];
+  const expected=category==='heating'?['Setback [0]','Normal [1]','Boost [2]']:['Off [0]','On [1]'];
+  const current=legends();assert.equal(current.length,1);
+  for(const label of [...expected,'Unknown'])assert.ok(current[0].includes(label));
+  assert.doesNotMatch(current[0],/Changed|changed-key/);assert.equal(card._draft,null);
+  card.adoptDraft(draft());card.render();
+  const both=legends();assert.equal(both.length,2);assert.equal(both[0],current[0]);
+  for(const label of [...expected,'Unknown','Changed (old value shown lighter with ×)'])assert.ok(both[1].includes(label));
+});
+
+for(const metadata of [undefined,{...meta,nos:0}])test('missing or zero mode metadata renders Unknown-only legend: '+metadata?.nos,()=>{
+  const {card}=fixture();card._draft=null;card._local=null;
+  card._currentViews.heating={metadata,current_program:draft(),mode_catalog:[]};card.render();
+  const legend=card.shadowRoot.innerHTML.match(/<div class="legend">.*?<\/div>/)[0];
+  assert.equal(legend,'<div class="legend"><span><i class="swatch unknown"></i>Unknown</span></div>');
 });
